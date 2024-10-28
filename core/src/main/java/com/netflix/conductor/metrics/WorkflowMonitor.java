@@ -77,7 +77,7 @@ public class WorkflowMonitor {
             initialDelayString = "${conductor.workflow-monitor.stats.initial-delay:30000}",
             fixedDelayString = "${conductor.workflow-monitor.stats.delay:10000}")
     public void reportMetrics() {
-        LOGGER.info("reportMetrics starting");
+        LOGGER.info("WorkflowMonitor Scheduled Monitoring");
         if (refreshCounter <= 0) {
                 // workflowDefs = metadataService.getWorkflowDefs();
                 taskDefs = new ArrayList<>(metadataService.getTaskDefs());
@@ -99,13 +99,11 @@ public class WorkflowMonitor {
         // }
 
         try {
-                LOGGER.info("reportMetrics starting metrics collection");
                 taskDefs.forEach(
                         taskDef -> {
                         long size = queueDAO.getSize(taskDef.getName());
                         // long inProgressCount =
                         //         executionDAOFacade.getInProgressTaskCount(taskDef.getName());
-                        LOGGER.info("reportMetrics starting each task {}", taskDef.getName());
                         Monitors.recordQueueDepth(taskDef.getName(), size, taskDef.getOwnerApp());
                         // if (taskDef.concurrencyLimit() > 0) {
                         //         Monitors.recordTaskInProgress(
@@ -123,7 +121,6 @@ public class WorkflowMonitor {
                         // long inProgressCount =
                         //         executionDAOFacade.getInProgressTaskCount(
                         //                 workflowSystemTask.getTaskType());
-                        LOGGER.info("reportMetrics starting each system task {}", workflowSystemTask.getTaskType());
                         Monitors.recordQueueDepth(workflowSystemTask.getTaskType(), size, "system");
                         // Monitors.recordTaskInProgress(
                         //         workflowSystemTask.getTaskType(), inProgressCount, "system");
