@@ -254,12 +254,12 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                         if (task.getScheduledTime() == 0) {
                             task.setScheduledTime(System.currentTimeMillis());
                         }
-                        session.execute(
-                                updateTaskLookupStatement.bind(
-                                        workflowUUID, correlationId, toUUID(task.getTaskId(), "Invalid task id")));
-                        session.execute(
-                                updateWorkflowLookupStatement.bind(
-                                        correlationId, workflowUUID));
+                        BatchStatement batchStatement = new BatchStatement();
+                        batchStatement.add(updateTaskLookupStatement.bind(
+                                workflowUUID, correlationId, toUUID(task.getTaskId(), "Invalid task id")));
+                        batchStatement.add(updateWorkflowLookupStatement.bind(
+                                correlationId, workflowUUID));
+                        session.execute(batchStatement);
                         // Added the task to task_in_progress table
                         addTaskInProgress(task);
                     });
@@ -353,12 +353,15 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             recordCassandraDaoPayloadSize(
                     "updateTask", taskPayload.length(), task.getTaskType(), task.getWorkflowType());
             if (redisLock.acquireLock(task.getTaskId(), 2, TimeUnit.SECONDS)) {
-                TaskModel prevTask = getTask(task.getTaskId());
+                /**
+                 * commenting this block of code as its no longer required as we already have a redis based distributed locking,
+                 * which can now handle dirty read write.
+                 * TaskModel prevTask = getTask(task.getTaskId());
                 LOGGER.debug("Received updateTask for task {} with taskStatus {} in workflow {} with taskRefName {} and prevTaskStatus {} ",
                         task.getTaskId(), task.getStatus(), task.getWorkflowInstanceId(), task.getReferenceTaskName(),
                         prevTask.getStatus());
 
-                if (!prevTask.getStatus().equals(TaskModel.Status.COMPLETED)) {
+                if (!prevTask.getStatus().equals(TaskModel.Status.COMPLETED)) {**/
                     session.execute(
                             insertTaskStatement.bind(
                                     UUID.fromString(task.getWorkflowInstanceId()),
@@ -367,7 +370,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                                     taskPayload));
                     LOGGER.debug("Updated updateTask for task {} with taskStatus {}  with taskRefName {} for workflowId {} ",
                             task.getTaskId(), task.getStatus(), task.getReferenceTaskName(), task.getWorkflowInstanceId());
-                }
+                //}
                 verifyTaskStatus(task);
             }
             redisLock.releaseLock(task.getTaskId());
