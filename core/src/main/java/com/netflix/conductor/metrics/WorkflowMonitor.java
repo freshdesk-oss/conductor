@@ -77,7 +77,6 @@ public class WorkflowMonitor {
             initialDelayString = "${conductor.workflow-monitor.stats.initial-delay:-1}",
             fixedDelayString = "${conductor.workflow-monitor.stats.delay:-1}")
     public void reportMetrics() {
-        LOGGER.info("WorkflowMonitor Scheduled Monitoring");
         if (refreshCounter <= 0) {
                 // workflowDefs = metadataService.getWorkflowDefs();
                 taskDefs = new ArrayList<>(metadataService.getTaskDefs());
