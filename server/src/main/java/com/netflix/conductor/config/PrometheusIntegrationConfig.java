@@ -22,7 +22,7 @@ public class PrometheusIntegrationConfig
         implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(PrometheusIntegrationConfig.class);
-    private static PrometheusMeterRegistry prometheusRegistry;
+    private PrometheusMeterRegistry prometheusRegistry;
 
     public PrometheusIntegrationConfig(PrometheusMeterRegistry prometheusRegistry) {
         this.prometheusRegistry = prometheusRegistry;
@@ -30,17 +30,9 @@ public class PrometheusIntegrationConfig
 
     @Override
     public void run(String... args) throws Exception {
-        setupPrometheusRegistry();
-    }
-
-    /**
-     * To Register PrometheusRegistry
-    */
-    private static void setupPrometheusRegistry() {
         log.info("Registered PrometheusRegistry");
         final MicrometerRegistry metricsRegistry = new MicrometerRegistry(prometheusRegistry);
         prometheusRegistry.config().meterFilter(new PrometheusRenameFilter());
         Spectator.globalRegistry().add(metricsRegistry);
     }
-
 }
