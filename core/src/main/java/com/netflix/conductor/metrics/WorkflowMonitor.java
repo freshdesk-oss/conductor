@@ -78,6 +78,7 @@ public class WorkflowMonitor {
             fixedDelayString = "${conductor.workflow-monitor.stats.delay}")
     public void reportMetrics() {
         if (refreshCounter <= 0) {
+                LOGGER.info("inside reportMetrics");
                 // workflowDefs = metadataService.getWorkflowDefs();
                 taskDefs = new ArrayList<>(metadataService.getTaskDefs());
                 refreshCounter = metadataRefreshInterval;
