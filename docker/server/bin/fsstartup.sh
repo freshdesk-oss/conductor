@@ -44,8 +44,9 @@ if [[ "$HOSTNAME" == *"conductor-monitor"* ]]; then
     export WORKFLOW_MONITOR_STATS_FIXED_DELAY="10000"
 else
     print_log "Generating Envs for common layers"
-    export WORKFLOW_MONITOR_STATS_INITIAL_DELAY="-1"
-    export WORKFLOW_MONITOR_STATS_FIXED_DELAY="10"
+    # Disabling scheduled monitor for common layers by keeping large delay
+    export WORKFLOW_MONITOR_STATS_INITIAL_DELAY="30d"
+    export WORKFLOW_MONITOR_STATS_FIXED_DELAY="30d"
 fi
 
 echo "WORKFLOW_MONITOR_STATS_INITIAL_DELAY: $WORKFLOW_MONITOR_STATS_INITIAL_DELAY"
