@@ -420,25 +420,25 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         try {
             recordCassandraDaoRequests(
                     "selectTaskDefLimit", task.getTaskType(), task.getWorkflowType());
-            ResultSet resultSet =
-                    session.execute(
-                            selectTasksFromTaskDefLimitStatement.bind(task.getTaskDefName()));
-            List<String> taskIds =
-                    resultSet.all().stream()
-                            .map(row -> row.getUUID(TASK_ID_KEY).toString())
-                            .collect(Collectors.toList());
-            long current = taskIds.size();
-
-            if (!taskIds.contains(task.getTaskId()) && current >= limit) {
-                LOGGER.info(
-                        "Task execution count limited. task - {}:{}, limit: {}, current: {}",
-                        task.getTaskId(),
-                        task.getTaskDefName(),
-                        limit,
-                        current);
+//            ResultSet resultSet =
+//                    session.execute(
+//                            selectTasksFromTaskDefLimitStatement.bind(task.getTaskDefName()));
+//            List<String> taskIds =
+//                    resultSet.all().stream()
+//                            .map(row -> row.getUUID(TASK_ID_KEY).toString())
+//                            .collect(Collectors.toList());
+//            long current = taskIds.size();
+//
+//            if (!taskIds.contains(task.getTaskId()) && current >= limit) {
+//                LOGGER.info(
+//                        "Task execution count limited. task - {}:{}, limit: {}, current: {}",
+//                        task.getTaskId(),
+//                        task.getTaskDefName(),
+//                        limit,
+//                        current);
                 Monitors.recordTaskConcurrentExecutionLimited(task.getTaskDefName(), limit);
                 return true;
-            }
+//            }
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "exceedsLimit");
             String errorMsg =
@@ -448,7 +448,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
         }
-        return false;
     }
 
     @Override

@@ -92,17 +92,17 @@ public class WorkflowMonitor {
                                 Monitors.recordRunningWorkflows(count, workflowName, ownerApp);
                             });
 
-            taskDefs.forEach(
-                    taskDef -> {
-                        long size = queueDAO.getSize(taskDef.getName());
-                        long inProgressCount =
-                                executionDAOFacade.getInProgressTaskCount(taskDef.getName());
-                        Monitors.recordQueueDepth(taskDef.getName(), size, taskDef.getOwnerApp());
-                        if (taskDef.concurrencyLimit() > 0) {
-                            Monitors.recordTaskInProgress(
-                                    taskDef.getName(), inProgressCount, taskDef.getOwnerApp());
-                        }
-                    });
+//            taskDefs.forEach(
+//                    taskDef -> {
+//                        long size = queueDAO.getSize(taskDef.getName());
+//                        long inProgressCount =
+//                                executionDAOFacade.getInProgressTaskCount(taskDef.getName());
+//                        Monitors.recordQueueDepth(taskDef.getName(), size, taskDef.getOwnerApp());
+//                        if (taskDef.concurrencyLimit() > 0) {
+//                            Monitors.recordTaskInProgress(
+//                                    taskDef.getName(), inProgressCount, taskDef.getOwnerApp());
+//                        }
+//                    });
 
             asyncSystemTasks.forEach(
                     workflowSystemTask -> {
