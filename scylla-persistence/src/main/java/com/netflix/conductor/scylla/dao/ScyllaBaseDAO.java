@@ -167,7 +167,7 @@ public abstract class ScyllaBaseDAO {
         return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_TASK_DEF_LIMIT)
                 .ifNotExists()
                 .addPartitionKey(TASK_DEF_NAME_KEY, DataType.text())
-                .addClusteringColumn(TASK_ID_KEY, DataType.uuid())
+                .addPartitionKey(TASK_ID_KEY, DataType.uuid())
                 .addColumn(WORKFLOW_ID_KEY, DataType.uuid())
                 .getQueryString();
     }
@@ -206,7 +206,7 @@ public abstract class ScyllaBaseDAO {
         return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_TASK_IN_PROGRESS)
                 .ifNotExists()
                 .addPartitionKey(TASK_DEF_NAME_KEY, DataType.text())
-                .addClusteringColumn(TASK_ID_KEY, DataType.uuid())
+                .addPartitionKey(TASK_ID_KEY, DataType.uuid())
                 .addColumn(WORKFLOW_ID_KEY, DataType.uuid())
                 .addColumn(TASK_IN_PROG_STATUS_KEY, DataType.cboolean())
                 .getQueryString();
