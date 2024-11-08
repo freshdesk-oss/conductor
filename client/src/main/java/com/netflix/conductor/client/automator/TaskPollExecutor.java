@@ -173,7 +173,6 @@ class TaskPollExecutor {
                 Map<String, String> headers = new HashMap<>();
                 headers.put("traceparent", (String) task.getInputData().get("traceparent"));
                 TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
-                LOGGER.info("span kkv header in pollAndExecute - {},propagator - {} ", headers,propagator);
                 Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
                 Span span = tracer.spanBuilder("execute-task_" + task.getTaskDefName()).setParent(context).startSpan();
                 try (Scope scope = span.makeCurrent()) {
