@@ -408,7 +408,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     @Override
     public boolean exceedsLimit(TaskModel task) {
-        Optional<TaskDef> taskDefinition = task.getTaskDefinition();
+        /*Optional<TaskDef> taskDefinition = task.getTaskDefinition();
         if (taskDefinition.isEmpty()) {
             return false;
         }
@@ -447,7 +447,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                             task.getTaskDefName(), task.getTaskId(), task.getWorkflowInstanceId());
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
-        }
+        }*/
         return false;
     }
 
@@ -773,7 +773,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     @Override
     public long getInProgressTaskCount(String taskDefName) {
-        try{
+        /*try{
             recordCassandraDaoRequests("getInProgressTaskCount", "n/a", taskDefName);
             ResultSet resultSet = session.execute(selectCountFromTaskInProgressStatement.bind(taskDefName));
             return resultSet.all().size();
@@ -783,7 +783,8 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     String.format("Failed to retrieve task-in-progress coount from taskDefName: %s", taskDefName);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
-        }
+        }*/
+        return 0;
     }
 
     /**
