@@ -350,13 +350,13 @@ public class Statements {
     /**
      * @return cql query statement to retrieve all the tasks count from task_in_progress table per taskDefName
      */
-    public String getSelectCountTaskInProgressPerTskDefStatement() {
+    /*public String getSelectCountTaskInProgressPerTskDefStatement() {
         return QueryBuilder.select()
                 .countAll()
                 .from(keyspace, TABLE_TASK_IN_PROGRESS)
                 .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
                 .getQueryString();
-    }
+    }*/
 
     /**
      * @return cql query statement to update the task in task_in_progress table per taskDefName
@@ -469,13 +469,13 @@ public class Statements {
      * @return cql query statement to retrieve all task ids for a given taskDefName with concurrent
      *     execution limit configured from the "task_def_limit" table
      */
-    public String getSelectTasksFromTaskDefLimitStatement() {
+    /*public String getSelectTasksFromTaskDefLimitStatement() {
         return QueryBuilder.select()
                 .all()
                 .from(keyspace, TABLE_TASK_DEF_LIMIT)
                 .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
                 .getQueryString();
-    }
+    }*/
 
     /**
      * @return cql query statement to retrieve all event executions for a given message and event

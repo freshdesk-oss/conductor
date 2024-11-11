@@ -67,11 +67,11 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     protected final PreparedStatement selectWorkflowsByCorIdFromWorkflowStatement;
 
-    protected final PreparedStatement selectCountFromTaskInProgressStatement;
+    //protected final PreparedStatement selectCountFromTaskInProgressStatement;
     protected final PreparedStatement selectShardFromWorkflowLookupStatement;
     protected final PreparedStatement updateWorkflowLookupStatement;
     protected final PreparedStatement deleteWorkflowLookupStatement;
-    protected final PreparedStatement selectTasksFromTaskDefLimitStatement;
+    //protected final PreparedStatement selectTasksFromTaskDefLimitStatement;
     protected final PreparedStatement selectEventExecutionsStatement;
 
     protected final PreparedStatement updateWorkflowStatement;
@@ -122,9 +122,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                 session.prepare(statements.getSelectShardFromTaskLookupTableStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
 
-        this.selectCountFromTaskInProgressStatement =
+        /*this.selectCountFromTaskInProgressStatement =
                 session.prepare(statements.getSelectCountTaskInProgressPerTskDefStatement())
-                        .setConsistencyLevel(properties.getReadConsistencyLevel());
+                        .setConsistencyLevel(properties.getReadConsistencyLevel());*/
 
         this.selectWorkflowsByCorIdFromWorkflowStatement =
                 session.prepare(statements.getSelectWorkflowsByCorrelationIdStatement())
@@ -165,9 +165,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         this.selectTaskLookupStatement =
                 session.prepare(statements.getSelectTaskFromLookupTableStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
-        this.selectTasksFromTaskDefLimitStatement =
+        /*this.selectTasksFromTaskDefLimitStatement =
                 session.prepare(statements.getSelectTasksFromTaskDefLimitStatement())
-                        .setConsistencyLevel(properties.getReadConsistencyLevel());
+                        .setConsistencyLevel(properties.getReadConsistencyLevel());*/
         this.selectEventExecutionsStatement =
                 session.prepare(
                                 statements
