@@ -713,7 +713,12 @@ public class WorkflowExecutor {
         }
 
         String workflowId = taskResult.getWorkflowInstanceId();
-        WorkflowModel workflowInstance = executionDAOFacade.getWorkflowModel(workflowId, false);
+        WorkflowModel workflowInstance;
+        if (Objects.nonNull(taskResult.getOutputData()) && Objects.nonNull(taskResult.getOutputData().get("shardId"))) {
+            workflowInstance = executionDAOFacade.getWorkflowModel(workflowId, (String) taskResult.getOutputData().get("shardId"), false);
+        } else  {
+            workflowInstance = executionDAOFacade.getWorkflowModel(workflowId, false);
+        }
 
         TaskModel task =
                 Optional.ofNullable(executionDAOFacade.getTaskModel(taskResult.getTaskId()))

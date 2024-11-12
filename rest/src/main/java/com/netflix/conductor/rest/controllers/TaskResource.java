@@ -82,8 +82,8 @@ public class TaskResource {
     @PostMapping(produces = TEXT_PLAIN_VALUE)
     @Operation(summary = "Update a task")
     public String updateTask(@RequestBody TaskResult taskResult) {
-        LOGGER.debug("Received updateTask for task: {},for workflowInstanceId {} and status {} ",
-                taskResult.getTaskId(), taskResult.getWorkflowInstanceId(), taskResult.getStatus());
+        LOGGER.info("Received updateTask for task: {},for workflowInstanceId {} and status {} and shardId {}",
+                taskResult.getTaskId(), taskResult.getWorkflowInstanceId(), taskResult.getStatus(), taskResult.getOutputData().get("shardId"));
         return taskService.updateTask(taskResult);
     }
 

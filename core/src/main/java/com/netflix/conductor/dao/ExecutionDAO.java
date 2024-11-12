@@ -146,6 +146,15 @@ public interface ExecutionDAO {
     WorkflowModel getWorkflow(String workflowId, boolean includeTasks);
 
     /**
+     * @param workflowId workflow instance id
+     * @param shardId shardId id
+     * @param includeTasks if set, includes the tasks (pending and completed) sorted by Task
+     *     Sequence number in Workflow.
+     * @return Workflow instance details
+     */
+    WorkflowModel getWorkflow(String workflowId, String shardId, boolean includeTasks);
+
+    /**
      * @param workflowName name of the workflow
      * @param version the workflow version
      * @return List of workflow ids which are running

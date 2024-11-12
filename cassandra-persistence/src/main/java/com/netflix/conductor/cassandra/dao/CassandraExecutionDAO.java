@@ -33,6 +33,7 @@ import com.netflix.conductor.model.WorkflowModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.ResultSet;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -603,6 +604,11 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
     @Override
     public WorkflowModel getWorkflow(String workflowId) {
         return getWorkflow(workflowId, true);
+    }
+
+    @Override
+    public WorkflowModel getWorkflow(String workflowId, String shardId, boolean includeTasks) {
+        return null;
     }
 
     @Override

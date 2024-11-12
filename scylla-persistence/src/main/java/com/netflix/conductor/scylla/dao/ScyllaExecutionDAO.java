@@ -669,9 +669,19 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     @Override
+    public WorkflowModel getWorkflow(String workflowId, String shardId, boolean includeTasks) {
+        UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
+        return getWorkflowModel(workflowId, includeTasks, shardId, workflowUUID);
+    }
+
+    @Override
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         String shardId = lookupShardIdFromWorkflowId(workflowId);
+        return getWorkflowModel(workflowId, includeTasks, shardId, workflowUUID);
+    }
+
+    private WorkflowModel getWorkflowModel(String workflowId, boolean includeTasks, String shardId, UUID workflowUUID) {
         Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
 
         try {

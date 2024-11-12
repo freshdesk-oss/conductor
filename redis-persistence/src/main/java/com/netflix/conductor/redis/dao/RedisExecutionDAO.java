@@ -487,6 +487,11 @@ public class RedisExecutionDAO extends BaseDynoDAO
     }
 
     @Override
+    public WorkflowModel getWorkflow(String workflowId, String shardId, boolean includeTasks) {
+        return null;
+    }
+
+    @Override
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         String json = jedisProxy.get(nsKey(WORKFLOW, workflowId));
         WorkflowModel workflow = null;

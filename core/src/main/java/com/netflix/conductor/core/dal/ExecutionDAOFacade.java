@@ -140,6 +140,12 @@ public class ExecutionDAOFacade {
         return workflowModel;
     }
 
+    public WorkflowModel getWorkflowModel(String workflowId, String shardId, boolean includeTasks) {
+        WorkflowModel workflowModel = getWorkflowModelFromDataStore(workflowId, shardId, includeTasks);
+        populateWorkflowAndTaskPayloadData(workflowModel);
+        return workflowModel;
+    }
+
     /**
      * Fetches the {@link Workflow} object from the data store given the id. Attempts to fetch from
      * {@link ExecutionDAO} first, if not found, attempts to fetch from {@link IndexDAO}.
@@ -156,6 +162,15 @@ public class ExecutionDAOFacade {
 
     private WorkflowModel getWorkflowModelFromDataStore(String workflowId, boolean includeTasks) {
         WorkflowModel workflow = executionDAO.getWorkflow(workflowId, includeTasks);
+        return getWorkflowModel(workflowId, includeTasks, workflow);
+    }
+
+    private WorkflowModel getWorkflowModelFromDataStore(String workflowId, String shardId, boolean includeTasks) {
+        WorkflowModel workflow = executionDAO.getWorkflow(workflowId, shardId, includeTasks);
+        return getWorkflowModel(workflowId, includeTasks, workflow);
+    }
+
+    private WorkflowModel getWorkflowModel(String workflowId, boolean includeTasks, WorkflowModel workflow) {
         if (workflow == null) {
             LOGGER.debug("Workflow {} not found in executionDAO, checking indexDAO", workflowId);
             String json = indexDAO.get(workflowId, RAW_JSON_FIELD);
