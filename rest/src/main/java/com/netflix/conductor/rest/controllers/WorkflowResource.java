@@ -110,10 +110,10 @@ public class WorkflowResource {
     }
 
     @GetMapping("/{workflowId}/{shardId}")
-    @Operation(summary = "Gets the workflow by workflow id")
+    @Operation(summary = "Gets the workflow by workflow id and shardId")
     public Workflow getExecutionStatus(
             @PathVariable("workflowId") String workflowId,
-            @PathVariable("workflowId") String shardId,
+            @PathVariable("shardId") String shardId,
             @RequestParam(value = "includeTasks", defaultValue = "true", required = false)
             boolean includeTasks) {
         return workflowService.getExecutionStatus(workflowId, shardId, includeTasks);
