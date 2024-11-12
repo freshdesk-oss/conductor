@@ -160,6 +160,10 @@ public class ExecutionDAOFacade {
         return getWorkflowModelFromDataStore(workflowId, includeTasks).toWorkflow();
     }
 
+    public Workflow getWorkflow(String workflowId, String shardId, boolean includeTasks) {
+        return getWorkflowModelFromDataStore(workflowId, shardId, includeTasks).toWorkflow();
+    }
+
     private WorkflowModel getWorkflowModelFromDataStore(String workflowId, boolean includeTasks) {
         WorkflowModel workflow = executionDAO.getWorkflow(workflowId, includeTasks);
         return getWorkflowModel(workflowId, includeTasks, workflow);

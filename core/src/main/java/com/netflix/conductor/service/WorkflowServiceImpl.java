@@ -187,6 +187,22 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     /**
+     * Gets the workflow by workflow id.
+     *
+     * @param workflowId id of the workflow.
+     * @param shardId id of the workflow.
+     * @param includeTasks Includes tasks associated with workflow.
+     * @return an instance of {@link Workflow}
+     */
+    public Workflow getExecutionStatus(String workflowId, String shardId, boolean includeTasks) {
+        Workflow workflow = executionService.getExecutionStatus(workflowId, shardId, includeTasks);
+        if (workflow == null) {
+            throw new NotFoundException("Workflow with id: %s not found.", workflowId);
+        }
+        return workflow;
+    }
+
+    /**
      * Removes the workflow from the system.
      *
      * @param workflowId WorkflowID of the workflow you want to remove from system.
