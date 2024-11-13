@@ -722,6 +722,7 @@ public class WorkflowExecutor {
 
         TaskModel task;
         if (Objects.nonNull(taskResult.getOutputData()) && Objects.nonNull(taskResult.getOutputData().get("shardId"))) {
+            LOGGER.info("getTaskModel through shardID call {} for task {}", taskResult.getOutputData().get("shardId"), taskResult.getTaskId());
             task = Optional.ofNullable(
                             executionDAOFacade.getTaskModel(taskResult.getTaskId(), (String) taskResult.getOutputData().get("shardId"), workflowId))
                     .orElseThrow(() -> new NotFoundException("No such task found by id: %s", taskResult.getTaskId()));
@@ -885,7 +886,11 @@ public class WorkflowExecutor {
         }
 
         if (!isLazyEvaluateWorkflow(workflowInstance.getWorkflowDefinition(), task)) {
-            decide(workflowId);
+            if (Objects.nonNull(taskResult.getOutputData()) && Objects.nonNull(taskResult.getOutputData().get("shardId"))) {
+                decide(workflowId, (String) taskResult.getOutputData().get("shardId"));
+            } else {
+                decide(workflowId);
+            }
         }
     }
 
@@ -1028,6 +1033,29 @@ public class WorkflowExecutor {
         try {
 
             WorkflowModel workflow = executionDAOFacade.getWorkflowModel(workflowId, true);
+            if (workflow == null) {
+                // This can happen if the workflowId is incorrect
+                return null;
+            }
+            return decide(workflow);
+
+        } finally {
+            executionLockService.releaseLock(workflowId);
+            watch.stop();
+            Monitors.recordWorkflowDecisionTime(watch.getTime());
+        }
+    }
+
+    /** Records a metric for the "decide" process. */
+    public WorkflowModel decide(String workflowId, String shardId) {
+        StopWatch watch = new StopWatch();
+        watch.start();
+        if (!executionLockService.acquireLock(workflowId)) {
+            return null;
+        }
+        try {
+            LOGGER.info("decide through shardID {}", shardId);
+            WorkflowModel workflow = executionDAOFacade.getWorkflowModel(workflowId, shardId, true);
             if (workflow == null) {
                 // This can happen if the workflowId is incorrect
                 return null;
