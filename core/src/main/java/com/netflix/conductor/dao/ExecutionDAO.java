@@ -81,6 +81,13 @@ public interface ExecutionDAO {
     TaskModel getTask(String taskId);
 
     /**
+     * @param taskId Task instance id
+     * @param shardId shard id
+     * @return Task
+     */
+    TaskModel getTask(String taskId, String shardId, String workflowId);
+
+    /**
      * @param taskIds Task instance ids
      * @return List of tasks
      */

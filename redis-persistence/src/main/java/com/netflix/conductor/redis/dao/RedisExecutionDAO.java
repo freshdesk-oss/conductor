@@ -356,6 +356,12 @@ public class RedisExecutionDAO extends BaseDynoDAO
     }
 
     @Override
+    public TaskModel getTask(String taskId, String shardId, String workflowId) {
+        LOGGER.warn("No such implemention for redis found by id {}", taskId);
+        return null;
+    }
+
+    @Override
     public TaskModel getTask(String taskId) {
         Preconditions.checkNotNull(taskId, "taskId cannot be null");
         return Optional.ofNullable(jedisProxy.get(nsKey(TASK, taskId)))

@@ -462,41 +462,57 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     @Override
-    public TaskModel getTask(String taskId) {
+    public TaskModel getTask(String taskId, String shardId, String workflowId) {
         try {
-            String workflowId = lookupWorkflowIdFromTaskId(taskId);
-            String shardId = lookupShardIdFromTaskId(taskId);
-            Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
-            if (workflowId == null) {
-                return null;
-            }
-            // TODO: implement for query against multiple shards
-
-            ResultSet resultSet =
-                    session.execute(
-                            selectTaskStatement.bind(
-                                    UUID.fromString(workflowId), correlationId, taskId));
-            return Optional.ofNullable(resultSet.one())
-                    .map(
-                            row -> {
-                                String taskRow = row.getString(PAYLOAD_KEY);
-                                TaskModel task = readValue(taskRow, TaskModel.class);
-                                recordCassandraDaoRequests(
-                                        "getTask", task.getTaskType(), task.getWorkflowType());
-                                recordCassandraDaoPayloadSize(
-                                        "getTask",
-                                        taskRow.length(),
-                                        task.getTaskType(),
-                                        task.getWorkflowType());
-                                return task;
-                            })
-                    .orElse(null);
+            return getTaskModel(taskId, shardId, workflowId);
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "getTask");
             String errorMsg = String.format("Error getting task by id: %s", taskId);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
         }
+    }
+
+    @Override
+    public TaskModel getTask(String taskId) {
+        try {
+            String workflowId = lookupWorkflowIdFromTaskId(taskId);
+            String shardId = lookupShardIdFromTaskId(taskId);
+            return getTaskModel(taskId, shardId, workflowId);
+        } catch (DriverException e) {
+            Monitors.error(CLASS_NAME, "getTask");
+            String errorMsg = String.format("Error getting task by id: %s", taskId);
+            LOGGER.error(errorMsg, e);
+            throw new TransientException(errorMsg);
+        }
+    }
+
+    private TaskModel getTaskModel(String taskId, String shardId, String workflowId) {
+        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+        if (workflowId == null) {
+            return null;
+        }
+        // TODO: implement for query against multiple shards
+
+        ResultSet resultSet =
+                session.execute(
+                        selectTaskStatement.bind(
+                                UUID.fromString(workflowId), correlationId, taskId));
+        return Optional.ofNullable(resultSet.one())
+                .map(
+                        row -> {
+                            String taskRow = row.getString(PAYLOAD_KEY);
+                            TaskModel task = readValue(taskRow, TaskModel.class);
+                            recordCassandraDaoRequests(
+                                    "getTask", task.getTaskType(), task.getWorkflowType());
+                            recordCassandraDaoPayloadSize(
+                                    "getTask",
+                                    taskRow.length(),
+                                    task.getTaskType(),
+                                    task.getWorkflowType());
+                            return task;
+                        })
+                .orElse(null);
     }
 
     @Override

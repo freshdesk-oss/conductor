@@ -720,13 +720,19 @@ public class WorkflowExecutor {
             workflowInstance = executionDAOFacade.getWorkflowModel(workflowId, false);
         }
 
-        TaskModel task =
-                Optional.ofNullable(executionDAOFacade.getTaskModel(taskResult.getTaskId()))
-                        .orElseThrow(
-                                () ->
-                                        new NotFoundException(
-                                                "No such task found by id: %s",
-                                                taskResult.getTaskId()));
+        TaskModel task;
+        if (Objects.nonNull(taskResult.getOutputData()) && Objects.nonNull(taskResult.getOutputData().get("shardId"))) {
+            task = Optional.ofNullable(
+                            executionDAOFacade.getTaskModel(taskResult.getTaskId(), (String) taskResult.getOutputData().get("shardId"), workflowId))
+                    .orElseThrow(() -> new NotFoundException("No such task found by id: %s", taskResult.getTaskId()));
+        } else {
+            task = Optional.ofNullable(executionDAOFacade.getTaskModel(taskResult.getTaskId()))
+                    .orElseThrow(
+                            () ->
+                                    new NotFoundException(
+                                            "No such task found by id: %s",
+                                            taskResult.getTaskId()));
+        }
 
         LOGGER.debug("WE updateTask: taskId {} with taskStatus {} belonging to workflowId {} being updated with workflowStatus {}",
                 task.getTaskId(), task.getStatus(), workflowInstance, workflowInstance.getStatus());

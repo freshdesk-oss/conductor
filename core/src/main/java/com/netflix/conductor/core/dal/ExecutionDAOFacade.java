@@ -472,6 +472,14 @@ public class ExecutionDAOFacade {
         return taskModel;
     }
 
+    public TaskModel getTaskModel(String taskId, String shardId, String workflowId) {
+        TaskModel taskModel = getTaskFromDatastore(taskId, shardId, workflowId);
+        if (taskModel != null) {
+            populateTaskData(taskModel);
+        }
+        return taskModel;
+    }
+
     public Task getTask(String taskId) {
         TaskModel taskModel = getTaskFromDatastore(taskId);
         if (taskModel != null) {
@@ -482,6 +490,10 @@ public class ExecutionDAOFacade {
 
     private TaskModel getTaskFromDatastore(String taskId) {
         return executionDAO.getTask(taskId);
+    }
+
+    private TaskModel getTaskFromDatastore(String taskId, String shardId, String workflowId) {
+        return executionDAO.getTask(taskId, shardId, workflowId);
     }
 
     public List<Task> getTasksByName(String taskName, String startKey, int count) {
