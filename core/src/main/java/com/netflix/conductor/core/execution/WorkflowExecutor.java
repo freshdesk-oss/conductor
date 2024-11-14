@@ -1054,7 +1054,6 @@ public class WorkflowExecutor {
             return null;
         }
         try {
-            LOGGER.info("decide through shardID {}", shardId);
             WorkflowModel workflow = executionDAOFacade.getWorkflowModel(workflowId, shardId, true);
             if (workflow == null) {
                 // This can happen if the workflowId is incorrect
