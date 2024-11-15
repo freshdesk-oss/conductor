@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.netflix.conductor.annotations.Audit;
@@ -45,6 +47,8 @@ public class WorkflowServiceImpl implements WorkflowService {
     private final MetadataService metadataService;
     private final StartWorkflowOperation startWorkflowOperation;
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(WorkflowServiceImpl.class);
+
     public WorkflowServiceImpl(
             WorkflowExecutor workflowExecutor,
             ExecutionService executionService,
@@ -63,6 +67,7 @@ public class WorkflowServiceImpl implements WorkflowService {
      * @return the id of the workflow instance that can be use for tracking.
      */
     public String startWorkflow(StartWorkflowRequest startWorkflowRequest) {
+        LOGGER.info("1234: startWorkflowRequest is {}", startWorkflowRequest);
         return startWorkflowOperation.execute(new StartWorkflowInput(startWorkflowRequest));
     }
 

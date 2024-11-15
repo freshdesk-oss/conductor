@@ -65,6 +65,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
 
     @Override
     public String execute(StartWorkflowInput input) {
+        LOGGER.info("1234: startWorkflowInput is {}", input);
         return startWorkflow(input);
     }
 
@@ -77,14 +78,20 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
         WorkflowDef workflowDefinition;
 
         if (input.getWorkflowDefinition() == null) {
+            LOGGER.info("1234: input is null");
             workflowDefinition =
                     metadataMapperService.lookupForWorkflowDefinition(
                             input.getName(), input.getVersion());
         } else {
+            LOGGER.info("1234: input is not null");
             workflowDefinition = input.getWorkflowDefinition();
         }
+        LOGGER.info("1234: input is {}", input);
+        LOGGER.info("1234: workflowDefinition is {}", workflowDefinition);
 
         workflowDefinition = metadataMapperService.populateTaskDefinitions(workflowDefinition);
+        LOGGER.info("1234: workflowDefinition after population task definitions is {}", workflowDefinition);
+
 
         // perform validations
         Map<String, Object> workflowInput = input.getWorkflowInput();
@@ -97,6 +104,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
 
         // Persist the Workflow
         WorkflowModel workflow = new WorkflowModel();
+        LOGGER.info("1234: workflow id being set to model is {}", workflowId);
         workflow.setWorkflowId(workflowId);
         workflow.setCorrelationId(input.getCorrelationId());
         workflow.setPriority(input.getPriority() == null ? 0 : input.getPriority());
@@ -111,6 +119,8 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
         workflow.setEvent(input.getEvent());
         workflow.setTaskToDomain(input.getTaskToDomain());
         workflow.setVariables(workflowDefinition.getVariables());
+        LOGGER.info("1234: workflowModel is {}", workflow);
+
 
         if (workflowInput != null && !workflowInput.isEmpty()) {
             Map<String, Object> parsedInput =
@@ -148,13 +158,14 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
      * This is to ensure that workflow creation action precedes any other action on a given workflow.
      */
     private void createAndEvaluate(WorkflowModel workflow) {
+        LOGGER.info("1234: inside createAndEvaluate, workflow {}", workflow);
         if (!executionLockService.acquireLock(workflow.getWorkflowId())) {
             throw new TransientException("Error acquiring lock when creating workflow: {}");
         }
         try {
             executionDAOFacade.createWorkflow(workflow);
-            LOGGER.debug(
-                    "A new instance of workflow: {} created with id: {}",
+            LOGGER.info(
+                    "1234: A new instance of workflow: {} created with id: {}",
                     workflow.getWorkflowName(),
                     workflow.getWorkflowId());
             executionDAOFacade.populateWorkflowAndTaskPayloadData(workflow);
