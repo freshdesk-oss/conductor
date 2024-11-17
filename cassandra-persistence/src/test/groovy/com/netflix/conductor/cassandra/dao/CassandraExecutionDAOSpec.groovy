@@ -31,6 +31,8 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
     @Subject
     CassandraExecutionDAO executionDAO
 
+    private String correlationId = "2180000016"
+
     def setup() {
         executionDAO = new CassandraExecutionDAO(session, objectMapper, cassandraProperties, statements)
     }
@@ -40,8 +42,8 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
         def tasks = []
 
         // create tasks for a workflow and add to list
-        TaskModel task1 = new TaskModel(workflowInstanceId: 'uuid', taskId: 'task1id', referenceTaskName: 'task1')
-        TaskModel task2 = new TaskModel(workflowInstanceId: 'uuid', taskId: 'task2id', referenceTaskName: 'task2')
+        TaskModel task1 = new TaskModel(workflowInstanceId: 'uuid', taskId: 'task1id', referenceTaskName: 'task1', correlationId: correlationId)
+        TaskModel task2 = new TaskModel(workflowInstanceId: 'uuid', taskId: 'task2id', referenceTaskName: 'task2', correlationId: correlationId)
         tasks << task1 << task2
 
         when:
@@ -72,6 +74,7 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
         WorkflowModel workflow = new WorkflowModel()
         workflow.setWorkflowDefinition(workflowDef)
         workflow.setWorkflowId(workflowId)
+        workflow.setCorrelationId(correlationId)
         workflow.setInput(new HashMap<>())
         workflow.setStatus(WorkflowModel.Status.RUNNING)
         workflow.setCreateTime(System.currentTimeMillis())
@@ -120,13 +123,13 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
         given: 'we create a workflow'
         String workflowId = new IDGenerator().generate()
         WorkflowDef workflowDef = new WorkflowDef(name: 'def1', version: 1)
-        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis())
+        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis(), correlationId: correlationId)
         executionDAO.createWorkflow(workflow)
 
         and: 'create tasks for this workflow'
-        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
+        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
 
         def taskList = [task1, task2, task3]
 
@@ -193,13 +196,13 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
         given: 'we create a workflow'
         String workflowId = new IDGenerator().generate()
         WorkflowDef workflowDef = new WorkflowDef(name: 'def1', version: 1)
-        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis())
+        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis(), correlationId: correlationId)
         executionDAO.createWorkflow(workflow)
 
         and: 'create tasks for this workflow'
-        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
+        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
 
         and: 'add the tasks to the datastore'
         executionDAO.createTasks([task1, task2, task3])
@@ -231,13 +234,13 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
         given: 'we create a workflow'
         String workflowId = new IDGenerator().generate()
         WorkflowDef workflowDef = new WorkflowDef(name: 'def1', version: 1)
-        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis())
+        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis(), correlationId: correlationId)
         executionDAO.createWorkflow(workflow)
 
         and: 'create tasks for this workflow'
-        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
+        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
 
         and: 'add the tasks to the datastore'
         executionDAO.createTasks([task1, task2, task3])
@@ -302,6 +305,7 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
         newTask.setTaskType("test_task")
         newTask.setWorkflowType("test_workflow")
         newTask.setStatus(TaskModel.Status.SCHEDULED)
+        newTask.setCorrelationId(correlationId)
 
         when: // no tasks are IN_PROGRESS
         executionDAO.addTaskToLimit(task)
@@ -409,7 +413,7 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
         String workflowId = new IDGenerator().generate()
         WorkflowTask workflowTask = new WorkflowTask(taskDefinition: new TaskDef(concurrentExecLimit: 2))
         WorkflowDef workflowDef = new WorkflowDef(name: UUID.randomUUID().toString(), version: 1, tasks: [workflowTask])
-        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis())
+        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis(), correlationId: correlationId)
 
         when: 'serialize workflow'
         def workflowJson = objectMapper.writeValueAsString(workflow)
@@ -429,7 +433,7 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
         given: 'define a workflow and tasks for this workflow'
         String workflowId = new IDGenerator().generate()
         WorkflowTask workflowTask = new WorkflowTask(taskDefinition: new TaskDef(concurrentExecLimit: 2))
-        TaskModel task = new TaskModel(workflowInstanceId: workflowId, taskType: UUID.randomUUID().toString(), referenceTaskName: UUID.randomUUID().toString(), status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), workflowTask: workflowTask)
+        TaskModel task = new TaskModel(workflowInstanceId: workflowId, taskType: UUID.randomUUID().toString(), referenceTaskName: UUID.randomUUID().toString(), status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), workflowTask: workflowTask, correlationId: correlationId)
 
         when: 'serialize task'
         def taskJson = objectMapper.writeValueAsString(task)
@@ -451,7 +455,7 @@ class CassandraExecutionDAOSpec extends CassandraSpec {
         WorkflowDef workflowDef = new WorkflowDef(name: UUID.randomUUID().toString(), version: 1, tasks: workflowTasks)
 
         def taskList = (0..999)
-                .collect { new TaskModel(workflowInstanceId: workflowId, taskType: it, referenceTaskName: it, status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), workflowTask: workflowTasks.get(it)) }
+                .collect { new TaskModel(workflowInstanceId: workflowId, taskType: it, referenceTaskName: it, status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), workflowTask: workflowTasks.get(it), correlationId: correlationId) }
 
         WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis())
 
