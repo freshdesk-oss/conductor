@@ -31,6 +31,9 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
     @Subject
     ScyllaExecutionDAO executionDAO
 
+    private String correlationId = "2180000016"
+
+
     def setup() {
         executionDAO = new ScyllaExecutionDAO(session, objectMapper, cassandraProperties, statements)
     }
@@ -40,8 +43,8 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         def tasks = []
 
         // create tasks for a workflow and add to list
-        TaskModel task1 = new TaskModel(workflowInstanceId: 'uuid', taskId: 'task1id', referenceTaskName: 'task1')
-        TaskModel task2 = new TaskModel(workflowInstanceId: 'uuid', taskId: 'task2id', referenceTaskName: 'task2')
+        TaskModel task1 = new TaskModel(workflowInstanceId: 'uuid', taskId: 'task1id', referenceTaskName: 'task1', correlationId: correlationId)
+        TaskModel task2 = new TaskModel(workflowInstanceId: 'uuid', taskId: 'task2id', referenceTaskName: 'task2', correlationId: correlationId)
         tasks << task1 << task2
 
         when:
@@ -52,7 +55,7 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
 
         and:
         // add a task from a different workflow to the list
-        TaskModel task3 = new TaskModel(workflowInstanceId: 'other-uuid', taskId: 'task3id', referenceTaskName: 'task3')
+        TaskModel task3 = new TaskModel(workflowInstanceId: 'other-uuid', taskId: 'task3id', referenceTaskName: 'task3', correlationId: correlationId)
         tasks << task3
 
         when:
@@ -66,7 +69,6 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
     def "workflow CRUD"() {
         given:
         String workflowId = new IDGenerator().generate()
-        String correlationId = "2180000016";
         WorkflowDef workflowDef = new WorkflowDef()
         workflowDef.name = "def1"
         workflowDef.setVersion(1)
@@ -122,13 +124,13 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         given: 'we create a workflow'
         String workflowId = new IDGenerator().generate()
         WorkflowDef workflowDef = new WorkflowDef(name: 'def1', version: 1)
-        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis())
+        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis(), correlationId: correlationId)
         executionDAO.createWorkflow(workflow)
 
         and: 'create tasks for this workflow'
-        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
+        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
 
         def taskList = [task1, task2, task3]
 
@@ -199,9 +201,9 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         executionDAO.createWorkflow(workflow)
 
         and: 'create tasks for this workflow'
-        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
+        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
 
         and: 'add the tasks to the datastore'
         executionDAO.createTasks([task1, task2, task3])
@@ -233,13 +235,13 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         given: 'we create a workflow'
         String workflowId = new IDGenerator().generate()
         WorkflowDef workflowDef = new WorkflowDef(name: 'def1', version: 1)
-        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis())
+        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, input: new HashMap(), status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis(), correlationId: correlationId)
         executionDAO.createWorkflow(workflow)
 
         and: 'create tasks for this workflow'
-        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
-        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate())
+        TaskModel task1 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task1', referenceTaskName: 'task1', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task2 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task2', referenceTaskName: 'task2', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
+        TaskModel task3 = new TaskModel(workflowInstanceId: workflowId, taskType: 'task3', referenceTaskName: 'task3', status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), correlationId: correlationId)
 
         and: 'add the tasks to the datastore'
         executionDAO.createTasks([task1, task2, task3])
@@ -249,7 +251,7 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
 
         then:
         removed
-        def workflowMetadata = executionDAO.getWorkflowMetadata(workflowId, "0")
+        def workflowMetadata = executionDAO.getWorkflowMetadata(workflowId, correlationId)
         workflowMetadata.totalTasks == 2
         workflowMetadata.totalPartitions == 1
 
@@ -291,6 +293,7 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         task.taskDefName = taskDefName
         task.taskId = taskId
         task.workflowInstanceId = new IDGenerator().generate()
+        task.setCorrelationId(correlationId)
         task.setWorkflowTask(workflowTask)
         task.setTaskType("test_task")
         task.setWorkflowType("test_workflow")
@@ -300,6 +303,7 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         newTask.setTaskDefName(taskDefName)
         newTask.setTaskId(new IDGenerator().generate())
         newTask.setWorkflowInstanceId(new IDGenerator().generate())
+        newTask.setCorrelationId(correlationId)
         newTask.setWorkflowTask(workflowTask)
         newTask.setTaskType("test_task")
         newTask.setWorkflowType("test_workflow")
@@ -411,7 +415,7 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         String workflowId = new IDGenerator().generate()
         WorkflowTask workflowTask = new WorkflowTask(taskDefinition: new TaskDef(concurrentExecLimit: 2))
         WorkflowDef workflowDef = new WorkflowDef(name: UUID.randomUUID().toString(), version: 1, tasks: [workflowTask])
-        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis())
+        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis(), correlationId: correlationId)
 
         when: 'serialize workflow'
         def workflowJson = objectMapper.writeValueAsString(workflow)
@@ -431,7 +435,7 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         given: 'define a workflow and tasks for this workflow'
         String workflowId = new IDGenerator().generate()
         WorkflowTask workflowTask = new WorkflowTask(taskDefinition: new TaskDef(concurrentExecLimit: 2))
-        TaskModel task = new TaskModel(workflowInstanceId: workflowId, taskType: UUID.randomUUID().toString(), referenceTaskName: UUID.randomUUID().toString(), status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), workflowTask: workflowTask)
+        TaskModel task = new TaskModel(workflowInstanceId: workflowId, taskType: UUID.randomUUID().toString(), referenceTaskName: UUID.randomUUID().toString(), status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), workflowTask: workflowTask, correlationId: correlationId)
 
         when: 'serialize task'
         def taskJson = objectMapper.writeValueAsString(task)
@@ -453,9 +457,9 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         WorkflowDef workflowDef = new WorkflowDef(name: UUID.randomUUID().toString(), version: 1, tasks: workflowTasks)
 
         def taskList = (0..999)
-                .collect { new TaskModel(workflowInstanceId: workflowId, taskType: it, referenceTaskName: it, status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), workflowTask: workflowTasks.get(it)) }
+                .collect { new TaskModel(workflowInstanceId: workflowId, taskType: it, referenceTaskName: it, status: TaskModel.Status.SCHEDULED, taskId: new IDGenerator().generate(), workflowTask: workflowTasks.get(it), correlationId: correlationId) }
 
-        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis())
+        WorkflowModel workflow = new WorkflowModel(workflowDefinition: workflowDef, workflowId: workflowId, status: WorkflowModel.Status.RUNNING, createTime: System.currentTimeMillis(), correlationId: correlationId)
 
         and: 'create workflow'
         executionDAO.createWorkflow(workflow)
@@ -466,7 +470,7 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
         println("Create 1000 tasks, duration: ${System.currentTimeMillis() - start_time} ms")
 
         then:
-        def workflowMetadata = executionDAO.getWorkflowMetadata(workflowId, "0")
+        def workflowMetadata = executionDAO.getWorkflowMetadata(workflowId, correlationId)
         workflowMetadata.totalTasks == 1000
 
         when: 'read workflow with tasks'

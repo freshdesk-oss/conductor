@@ -234,7 +234,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
         String workflowId = tasks.get(0).getWorkflowInstanceId();
         String corelationId = tasks.get(0).getCorrelationId();
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
-        Integer correlationId = Objects.isNull(corelationId) ? 0 : Integer.parseInt(corelationId);
+        Long correlationId = Objects.isNull(corelationId) ? 0L : Long.parseLong(corelationId);
         try {
             WorkflowMetadata workflowMetadata = getWorkflowMetadata(workflowId,corelationId);
             int totalTasks = workflowMetadata.getTotalTasks() + tasks.size();
@@ -338,7 +338,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
     @Override
     public void updateTask(TaskModel task) {
         try {
-            Integer correlationId = Objects.isNull(task.getCorrelationId()) ? 0 : Integer.parseInt(task.getCorrelationId());
+            Long correlationId = Objects.isNull(task.getCorrelationId()) ? 0L : Long.parseLong(task.getCorrelationId());
             String taskPayload = toJson(task);
             recordCassandraDaoRequests("updateTask", task.getTaskType(), task.getWorkflowType());
             recordCassandraDaoPayloadSize(
@@ -442,7 +442,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
         try {
             String workflowId = lookupWorkflowIdFromTaskId(taskId);
             String shardId = lookupShardIdFromTaskId(taskId);
-            Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+            Long correlationId = Objects.isNull(shardId) ? 0L : Long.parseLong(shardId);
             if (workflowId == null) {
                 return null;
             }
@@ -509,7 +509,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
             List<TaskModel> tasks = workflow.getTasks();
             workflow.setTasks(new LinkedList<>());
             String payload = toJson(workflow);
-            Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
+            Long correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0L : Long.parseLong(workflow.getCorrelationId());
             LOGGER.info(
                     "Correlation ID for workflow {} is {}",
                     workflow.getWorkflowId(),
@@ -536,7 +536,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
     public String updateWorkflow(WorkflowModel workflow) {
         try {
             List<TaskModel> tasks = workflow.getTasks();
-            Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
+            Long correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0L : Long.parseLong(workflow.getCorrelationId());
             workflow.setTasks(new LinkedList<>());
             String payload = toJson(workflow);
             recordCassandraDaoRequests("updateWorkflow", "n/a", workflow.getWorkflowName());
@@ -559,7 +559,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
     @Override
     public boolean removeWorkflow(String workflowId) {
         WorkflowModel workflow = getWorkflow(workflowId, true);
-        Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
+        Long correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0L : Long.parseLong(workflow.getCorrelationId());
         boolean removed = false;
         if (workflow != null) {
             try {
@@ -609,7 +609,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         String shardId = lookupShardIdFromWorkflowId(workflowId);
-        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+        Long correlationId = Objects.isNull(shardId) ? 0L : Long.parseLong(shardId);
 
         try {
             WorkflowModel workflow = null;
@@ -903,7 +903,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
             // get total tasks for this workflow
             WorkflowMetadata workflowMetadata = getWorkflowMetadata(task.getWorkflowInstanceId(),
                     task.getCorrelationId());
-            Integer correlationId = Objects.isNull(task.getCorrelationId()) ? 0 : Integer.parseInt(task.getCorrelationId());
+            Long correlationId = Objects.isNull(task.getCorrelationId()) ? 0L : Long.parseLong(task.getCorrelationId());
             int totalTasks = workflowMetadata.getTotalTasks();
 
             // remove from task_lookup table
@@ -984,7 +984,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
 
     @VisibleForTesting
     WorkflowMetadata getWorkflowMetadata(String workflowId, String correlationId) {
-        Integer corelId = Objects.isNull(correlationId) ? 0 : Integer.parseInt(correlationId);
+        Long corelId = Objects.isNull(correlationId) ? 0L : Long.parseLong(correlationId);
         ResultSet resultSet =
                 session.execute(selectTotalStatement.bind(UUID.fromString(workflowId),corelId));
         recordCassandraDaoRequests("getWorkflowMetadata");
