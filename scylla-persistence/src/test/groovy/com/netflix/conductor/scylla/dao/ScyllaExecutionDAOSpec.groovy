@@ -66,12 +66,14 @@ class ScyllaExecutionDAOSpec extends ScyllaSpec {
     def "workflow CRUD"() {
         given:
         String workflowId = new IDGenerator().generate()
+        String correlationId = "2180000016";
         WorkflowDef workflowDef = new WorkflowDef()
         workflowDef.name = "def1"
         workflowDef.setVersion(1)
         WorkflowModel workflow = new WorkflowModel()
         workflow.setWorkflowDefinition(workflowDef)
         workflow.setWorkflowId(workflowId)
+        workflow.setCorrelationId(correlationId)
         workflow.setInput(new HashMap<>())
         workflow.setStatus(WorkflowModel.Status.RUNNING)
         workflow.setCreateTime(System.currentTimeMillis())
