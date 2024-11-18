@@ -20,6 +20,8 @@ dependencies {
     implementation project(':conductor-redis-lock')
     implementation "com.scylladb:scylla-driver-core:${revScylla}"
     implementation "org.apache.commons:commons-lang3"
+    implementation "com.github.ben-manes.caffeine:caffeine:${revCaffeine}"
+    implementation "org.springframework.boot:spring-boot-starter-cache"
 
     testImplementation project(':conductor-core').sourceSets.test.output
     testImplementation project(':conductor-common').sourceSets.test.output

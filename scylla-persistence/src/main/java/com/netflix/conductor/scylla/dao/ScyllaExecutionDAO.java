@@ -34,6 +34,7 @@ import com.netflix.conductor.model.WorkflowModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
@@ -41,6 +42,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.netflix.conductor.scylla.config.cache.CachingConfig.SHARD_ID_CACHE;
 import static com.netflix.conductor.scylla.util.Constants.*;
 
 @Trace
@@ -49,7 +51,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ScyllaExecutionDAO.class);
     private static final String CLASS_NAME = ScyllaExecutionDAO.class.getSimpleName();
-    private static final Object lock = new Object();
 
     protected final PreparedStatement insertWorkflowStatement;
     protected final PreparedStatement insertTaskStatement;
@@ -1071,7 +1072,8 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     @VisibleForTesting
-    String lookupWorkflowIdFromTaskId(String taskId) {
+    @Cacheable(value = SHARD_ID_CACHE, key = "#workflowId")
+    public String lookupWorkflowIdFromTaskId(String taskId) {
         UUID taskUUID = toUUID(taskId, "Invalid task id");
         try {
             ResultSet resultSet = session.execute(selectTaskLookupStatement.bind(taskUUID));
@@ -1090,7 +1092,8 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @return method to get the shardId from task_lookup table for shard_mapping
      */
     @VisibleForTesting
-    String lookupShardIdFromTaskId(String taskId) {
+    @Cacheable(value = SHARD_ID_CACHE, key = "#taskId")
+    public String lookupShardIdFromTaskId(String taskId) {
         UUID taskUUID = toUUID(taskId, "Invalid task id");
         try {
             ResultSet resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
