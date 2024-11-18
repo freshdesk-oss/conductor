@@ -1092,7 +1092,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     @VisibleForTesting
-    @Cacheable(value = SHARD_ID_CACHE, key = "#workflowId")
     public String lookupWorkflowIdFromTaskId(String taskId) {
         UUID taskUUID = toUUID(taskId, "Invalid task id");
         try {
@@ -1132,7 +1131,8 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @return method to get the shardId from workflow_lookup table for shard_mapping
      */
     @VisibleForTesting
-    String lookupShardIdFromWorkflowId(String workflowId) {
+    @Cacheable(value = SHARD_ID_CACHE, key = "#workflowId")
+    public String lookupShardIdFromWorkflowId(String workflowId) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         try {
             ResultSet resultSet = session.execute(selectShardFromWorkflowLookupStatement.bind(workflowUUID));
