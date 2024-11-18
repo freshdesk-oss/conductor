@@ -140,7 +140,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
         } catch (Exception e) {
             Monitors.recordWorkflowStartError(
                     workflowDefinition.getName(), WorkflowContext.get().getClientApp());
-            LOGGER.error("Unable to start workflow: {}", workflowDefinition.getName(), e);
+            LOGGER.error("1234: Unable to start workflow: {}, ex: ", workflowDefinition.getName(), e);
 
             // It's possible the remove workflow call hits an exception as well, in that case we
             // want to log both errors to help diagnosis.
@@ -160,8 +160,10 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
     private void createAndEvaluate(WorkflowModel workflow) {
         LOGGER.info("1234: inside createAndEvaluate, workflow {}", workflow);
         if (!executionLockService.acquireLock(workflow.getWorkflowId())) {
+            LOGGER.info("1234: not able to acquire lock.");
             throw new TransientException("Error acquiring lock when creating workflow: {}");
         }
+        LOGGER.info("1234: acquired lock on workflow {}", workflow.getWorkflowId());
         try {
             executionDAOFacade.createWorkflow(workflow);
             LOGGER.info(
@@ -169,9 +171,15 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
                     workflow.getWorkflowName(),
                     workflow.getWorkflowId());
             executionDAOFacade.populateWorkflowAndTaskPayloadData(workflow);
+            LOGGER.info(
+                    "1234: populateWorkflowAndTaskPayloadData name {} with id: {}",
+                    workflow.getWorkflowName(),
+                    workflow.getWorkflowId());
             eventPublisher.publishEvent(new WorkflowEvaluationEvent(workflow));
+            LOGGER.info("1234: published event for workflow {}", workflow.getWorkflowId());
         } finally {
             executionLockService.releaseLock(workflow.getWorkflowId());
+            LOGGER.info("1234: lock released for workflow {}", workflow.getWorkflowId());
         }
     }
 

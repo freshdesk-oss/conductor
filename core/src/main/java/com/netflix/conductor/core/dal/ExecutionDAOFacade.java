@@ -249,19 +249,26 @@ public class ExecutionDAOFacade {
      * @return the id of the created workflow
      */
     public String createWorkflow(WorkflowModel workflowModel) {
+        LOGGER.info("1234: inside createWorkflow {}", workflowModel.getWorkflowId());
         externalizeWorkflowData(workflowModel);
+        LOGGER.info("1234: inside createWorkflow {}", workflowModel.getWorkflowId());
         executionDAO.createWorkflow(workflowModel);
+        LOGGER.info("1234: creating workflow through execution dao {}", workflowModel.getWorkflowId());
         // Add to decider queue
         queueDAO.push(
                 DECIDER_QUEUE,
                 workflowModel.getWorkflowId(),
                 workflowModel.getPriority(),
                 properties.getWorkflowOffsetTimeout().getSeconds());
+        LOGGER.info("1234: pushing workflow {} to queue", workflowModel.getWorkflowId());
         if (properties.isAsyncIndexingEnabled()) {
+            LOGGER.info("1234: async index enabled");
             indexDAO.asyncIndexWorkflow(new WorkflowSummary(workflowModel.toWorkflow()));
         } else {
+            LOGGER.info("1234: async index disabled");
             indexDAO.indexWorkflow(new WorkflowSummary(workflowModel.toWorkflow()));
         }
+        LOGGER.info("1234: returning workflow {}", workflowModel.getWorkflowId());
         return workflowModel.getWorkflowId();
     }
 

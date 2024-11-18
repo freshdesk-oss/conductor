@@ -75,6 +75,7 @@ public class ExecutionLockService {
                     Thread.currentThread().getId(),
                     lockId);
         }
+        LOGGER.info("1234: lock acquired for workflow {}", lockId);
         return true;
     }
 
