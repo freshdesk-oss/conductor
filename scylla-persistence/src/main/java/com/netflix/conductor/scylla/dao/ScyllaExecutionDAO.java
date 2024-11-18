@@ -31,6 +31,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -61,7 +62,9 @@ import com.netflix.conductor.scylla.util.Statements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
@@ -693,6 +696,19 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         LOGGER.info("fetch shardId from workflowId {}", workflowId);
+
+        CaffeineCache caffeineCache = (CaffeineCache) cacheManager.getCache(SHARD_ID_CACHE);
+        if (caffeineCache != null) {
+            // Retrieve the native Caffeine cache and get the keys
+            Set<Object> keys = caffeineCache.getNativeCache().asMap().keySet();
+            // Print the first three keys
+            keys.stream()
+                    .limit(3)  // Limit to first 3 keys
+                    .forEach(System.out::println);  // Print each key
+        } else {
+            System.out.println("Cache not found: " + SHARD_ID_CACHE);
+        }
+
         String shardId = lookupShardIdFromWorkflowId(workflowId);
         Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
 
@@ -1153,8 +1169,11 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         }
     }
 
+    private CacheManager cacheManager;
+
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.redisLock = (RedisLock) applicationContext.getBean("provideRedisLock");
+        this.cacheManager = (CacheManager) applicationContext.getBean("cacheManager");
     }
 }

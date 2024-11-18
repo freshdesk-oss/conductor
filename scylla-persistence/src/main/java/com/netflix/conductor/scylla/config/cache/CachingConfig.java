@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.netflix.conductor.scylla.config.ScyllaProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -25,8 +26,9 @@ import org.springframework.cache.support.CompositeCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
 @EnableCaching
+@Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(ScyllaProperties.class)
 public class CachingConfig {
     public static final String TASK_DEF_CACHE = "taskDefCache";
     public static final String EVENT_HANDLER_CACHE = "eventHandlerCache";
