@@ -133,7 +133,7 @@ public abstract class ScyllaBaseDAO {
         return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_WORKFLOWS)
                 .ifNotExists()
                 .addPartitionKey(WORKFLOW_ID_KEY, DataType.uuid())
-                .addPartitionKey(SHARD_ID_KEY, DataType.cint())
+                .addPartitionKey(SHARD_ID_KEY, DataType.bigint())
                 .addClusteringColumn(ENTITY_KEY, DataType.text())
                 .addClusteringColumn(TASK_ID_KEY, DataType.text())
                 .addColumn(PAYLOAD_KEY, DataType.text())
@@ -147,7 +147,7 @@ public abstract class ScyllaBaseDAO {
         return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_TASK_LOOKUP)
                 .ifNotExists()
                 .addPartitionKey(TASK_ID_KEY, DataType.uuid())
-                .addColumn(SHARD_ID_KEY,DataType.cint())
+                .addColumn(SHARD_ID_KEY,DataType.bigint())
                 .addColumn(WORKFLOW_ID_KEY, DataType.uuid())
                 .getQueryString();
     }
@@ -159,7 +159,7 @@ public abstract class ScyllaBaseDAO {
         return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_WORKFLOW_LOOKUP)
                 .ifNotExists()
                 .addPartitionKey(WORKFLOW_ID_KEY, DataType.uuid())
-                .addColumn(SHARD_ID_KEY,DataType.cint())
+                .addColumn(SHARD_ID_KEY,DataType.bigint())
                 .getQueryString();
     }
 

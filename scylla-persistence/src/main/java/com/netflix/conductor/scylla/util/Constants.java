@@ -16,9 +16,9 @@ public interface Constants {
 
     String DAO_NAME = "scylla";
 
-    String TABLE_WORKFLOWS = "workflows";
-    String TABLE_TASK_LOOKUP = "task_lookup";
-    String TABLE_WORKFLOW_LOOKUP = "workflow_lookup";
+    String TABLE_WORKFLOWS = "workflows_new";
+    String TABLE_TASK_LOOKUP = "task_lookup_new";
+    String TABLE_WORKFLOW_LOOKUP = "workflow_lookup_new";
     String TABLE_TASK_DEF_LIMIT = "task_def_limit";
     String TABLE_WORKFLOW_DEFS = "workflow_definitions";
     String TABLE_WORKFLOW_DEFS_INDEX = "workflow_defs_index";

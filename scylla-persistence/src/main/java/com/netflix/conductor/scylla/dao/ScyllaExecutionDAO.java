@@ -1100,7 +1100,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         try {
             ResultSet resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
             return Optional.ofNullable(resultSet.one())
-                    .map(row -> String.valueOf(row.getInt(SHARD_ID_KEY)))
+                    .map(row -> String.valueOf(row.getLong(SHARD_ID_KEY)))
                     .orElse(null);
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "lookupShardIdFromTaskId");
@@ -1121,7 +1121,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
             return Optional.ofNullable(resultSet.one())
                     .map(row -> {
-                        return String.valueOf(row.getInt(SHARD_ID_KEY));
+                        return String.valueOf(row.getLong(SHARD_ID_KEY));
                     })
                     .orElse(null);
         } catch (DriverException e) {
