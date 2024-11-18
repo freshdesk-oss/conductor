@@ -533,26 +533,31 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             List<TaskModel> tasks = workflow.getTasks();
             workflow.setTasks(new LinkedList<>());
             String payload = toJson(workflow);
-            Long correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Long.parseLong(workflow.getCorrelationId());
+            LOGGER.info("1234: payload is {}", payload);
+            Long correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0L : Long.parseLong(workflow.getCorrelationId());
             LOGGER.info(
-                    "Correlation ID for workflow {} is {}",
+                    "1234: Correlation ID for workflow {} is {}",
                     workflow.getWorkflowId(),
                     correlationId);
             recordCassandraDaoRequests("createWorkflow", "n/a", workflow.getWorkflowName());
+            LOGGER.info("1234: recorded CassandraDaoRequests");
             recordCassandraDaoPayloadSize(
                     "createWorkflow", payload.length(), "n/a", workflow.getWorkflowName());
+            LOGGER.info("1234: recorded CassandraDaoPayloadSize");
             session.execute(
                     insertWorkflowStatement.bind(
                             UUID.fromString(workflow.getWorkflowId()), correlationId, "", payload, 0, 1,1));
+            LOGGER.info("1234: executed statements");
 
             workflow.setTasks(tasks);
+            LOGGER.info("1234: tasks were set in workflow {}", workflow.getWorkflowId());
             return workflow.getWorkflowId();
-        } catch (DriverException e) {
+        } catch (Exception e) {
             Monitors.error(CLASS_NAME, "createWorkflow");
-            String errorMsg =
-                    String.format("Error creating workflow: %s", workflow.getWorkflowId());
-            LOGGER.error(errorMsg, e);
-            throw new TransientException(errorMsg, e);
+//            String errorMsg =
+//                    String.format("Error creating workflow: %s", workflow.getWorkflowId());
+            LOGGER.error("1234: DriverException occurred for workflow Id {}, ex: ", workflow.getWorkflowId(), e);
+            throw new RuntimeException(e);
         }
     }
 
