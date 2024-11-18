@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.netflix.conductor.scylla.config.ScyllaProperties;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -33,15 +34,15 @@ public class CachingConfig {
     public static final String SHARD_ID_CACHE = "shardIdCache";
 
     @Bean
-    public CacheManager cacheManager() {
+    public CacheManager cacheManager(ScyllaProperties properties) {
         // Old cache manager for backward compatibility (TASK_DEF_CACHE, EVENT_HANDLER_CACHE)
         ConcurrentMapCacheManager oldCacheManager = new ConcurrentMapCacheManager(TASK_DEF_CACHE, EVENT_HANDLER_CACHE);
 
         // Caffeine cache manager for new cache (SHARD_ID_CACHE) with TTL and LRU
         CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager(SHARD_ID_CACHE);
         caffeineCacheManager.setCaffeine(Caffeine.newBuilder()
-                .expireAfterWrite(10, TimeUnit.MINUTES)
-                .maximumSize(1000000)
+                .expireAfterWrite(properties.getTtlShardIdCache(), TimeUnit.MINUTES)
+                .maximumSize(properties.getLengthShardIdCache())
         );
 
         // Composite CacheManager to handle both old and new caches

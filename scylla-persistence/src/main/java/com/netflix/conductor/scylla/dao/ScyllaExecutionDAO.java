@@ -12,15 +12,39 @@
  */
 package com.netflix.conductor.scylla.dao;
 
-import com.datastax.driver.core.*;
+import static com.netflix.conductor.scylla.config.cache.CachingConfig.SHARD_ID_CACHE;
+import static com.netflix.conductor.scylla.util.Constants.DEFAULT_TOTAL_PARTITIONS;
+import static com.netflix.conductor.scylla.util.Constants.ENTITY_KEY;
+import static com.netflix.conductor.scylla.util.Constants.ENTITY_TYPE_TASK;
+import static com.netflix.conductor.scylla.util.Constants.ENTITY_TYPE_WORKFLOW;
+import static com.netflix.conductor.scylla.util.Constants.PAYLOAD_KEY;
+import static com.netflix.conductor.scylla.util.Constants.SHARD_ID_KEY;
+import static com.netflix.conductor.scylla.util.Constants.TASK_ID_KEY;
+import static com.netflix.conductor.scylla.util.Constants.TOTAL_PARTITIONS_KEY;
+import static com.netflix.conductor.scylla.util.Constants.TOTAL_TASKS_KEY;
+import static com.netflix.conductor.scylla.util.Constants.VERSION;
+import static com.netflix.conductor.scylla.util.Constants.WORKFLOW_ID_KEY;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import com.datastax.driver.core.BatchStatement;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.DriverException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.netflix.conductor.annotations.Trace;
-import com.netflix.conductor.redislock.lock.RedisLock;
-import com.netflix.conductor.scylla.config.ScyllaProperties;
-import com.netflix.conductor.scylla.util.Statements;
 import com.netflix.conductor.common.metadata.events.EventExecution;
 import com.netflix.conductor.common.metadata.tasks.TaskDef;
 import com.netflix.conductor.core.exception.NonTransientException;
@@ -31,19 +55,15 @@ import com.netflix.conductor.dao.ExecutionDAO;
 import com.netflix.conductor.metrics.Monitors;
 import com.netflix.conductor.model.TaskModel;
 import com.netflix.conductor.model.WorkflowModel;
+import com.netflix.conductor.redislock.lock.RedisLock;
+import com.netflix.conductor.scylla.config.ScyllaProperties;
+import com.netflix.conductor.scylla.util.Statements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import static com.netflix.conductor.scylla.config.cache.CachingConfig.SHARD_ID_CACHE;
-import static com.netflix.conductor.scylla.util.Constants.*;
 
 @Trace
 public class ScyllaExecutionDAO extends ScyllaBaseDAO
@@ -255,7 +275,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                         if (task.getScheduledTime() == 0) {
                             task.setScheduledTime(System.currentTimeMillis());
                         }
-                        BatchStatement batchStatement = new BatchStatement();
+                        BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
                         batchStatement.add(updateTaskLookupStatement.bind(
                                 workflowUUID, correlationId, toUUID(task.getTaskId(), "Invalid task id")));
                         batchStatement.add(updateWorkflowLookupStatement.bind(
@@ -266,7 +286,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     });
 
             // update all the tasks in the workflow using batch
-            BatchStatement batchStatement = new BatchStatement();
+            BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
             tasks.forEach(
                     task -> {
                         String taskPayload = toJson(task);
@@ -982,7 +1002,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
             recordCassandraDaoRequests("removeTask", task.getTaskType(), task.getWorkflowType());
             // delete task from workflows table and decrement total tasks by 1
-            BatchStatement batchStatement = new BatchStatement();
+            BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
             batchStatement.add(
                     deleteTaskStatement.bind(
                             UUID.fromString(task.getWorkflowInstanceId()),
