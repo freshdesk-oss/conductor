@@ -692,6 +692,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
+        LOGGER.info("fetch shardId from workflowId {}", workflowId);
         String shardId = lookupShardIdFromWorkflowId(workflowId);
         Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
 
@@ -1139,7 +1140,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
             return Optional.ofNullable(resultSet.one())
                     .map(row -> {
-                        return String.valueOf(row.getInt(SHARD_ID_KEY));
+                        String shardID = String.valueOf(row.getInt(SHARD_ID_KEY));
+                        LOGGER.info("fetch shardId from workflowId from DB {} shardID - {}", workflowId, shardID);
+                        return shardID;
                     })
                     .orElse(null);
         } catch (DriverException e) {
