@@ -13,8 +13,6 @@
 
 package com.netflix.conductor.scylla.config.cache;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -23,6 +21,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.cache.support.CompositeCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -45,21 +44,9 @@ public class CachingConfig {
                 .maximumSize(properties.getLengthShardIdCache())
         );
 
-        // Composite CacheManager to handle both old and new caches
-        return new CacheManager() {
-            @Override
-            public org.springframework.cache.Cache getCache(String name) {
-                if (SHARD_ID_CACHE.equals(name)) {
-                    return caffeineCacheManager.getCache(name);
-                }
-                return oldCacheManager.getCache(name);
-            }
+        CompositeCacheManager compositeCacheManager = new CompositeCacheManager(caffeineCacheManager, oldCacheManager);
+        compositeCacheManager.setFallbackToNoOpCache(true);
 
-            @Override
-            public Collection<String> getCacheNames() {
-                // Return the cache names for both old and new caches
-                return Arrays.asList(TASK_DEF_CACHE, EVENT_HANDLER_CACHE, SHARD_ID_CACHE);
-            }
-        };
+        return compositeCacheManager;
     }
 }
