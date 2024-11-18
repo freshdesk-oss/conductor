@@ -31,7 +31,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -66,6 +65,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.util.StringUtils;
 
 @Trace
 public class ScyllaExecutionDAO extends ScyllaBaseDAO
@@ -694,15 +694,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
-        LOGGER.info("First fetch shardId from workflowId in getWorkflow {}", workflowId);
-
-        if (caffeineCache != null) {
-            LOGGER.info("Inside fetch shardId from workflowId in getWorkflow keys {}", caffeineCache.getName());
-            Set<Object> keys = caffeineCache.getNativeCache().asMap().keySet();
-            LOGGER.info("fetch shardId from workflowId in getWorkflow keys {} and keys size {}", keys.size(), keys);
-        } else {
-            LOGGER.info("Cache not found: " + SHARD_ID_CACHE);
-        }
 
         String shardId = lookupShardIdFromWorkflowId(workflowId);
         Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
@@ -1126,15 +1117,18 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     public String lookupShardIdFromTaskId(String taskId) {
         String cachedShardId = caffeineCache.get(taskId, String.class);
         if (cachedShardId != null) {
-            LOGGER.info("Shard ID found in cache for workflowId {}: {}", taskId, cachedShardId);
+            LOGGER.info("Shard ID found in cache for taskId {}: {}", taskId, cachedShardId);
             return cachedShardId;
         }
         UUID taskUUID = toUUID(taskId, "Invalid task id");
         try {
             ResultSet resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
-            return Optional.ofNullable(resultSet.one())
-                    .map(row -> String.valueOf(row.getInt(SHARD_ID_KEY)))
-                    .orElse(null);
+            String shardId = Optional.ofNullable(resultSet.one()).map(row -> String.valueOf(row.getInt(SHARD_ID_KEY))).orElse(null);
+            if (StringUtils.hasLength(shardId)) {
+                LOGGER.info("Fetched shardId from DB for taskId {}: {}", taskId, shardId);
+                caffeineCache.put(taskId, shardId);
+            }
+            return shardId;
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "lookupShardIdFromTaskId");
             String errorMsg = String.format("Failed to lookup shardId from taskId: %s", taskId);
@@ -1157,13 +1151,12 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         try {
             ResultSet resultSet = session.execute(selectShardFromWorkflowLookupStatement.bind(workflowUUID));
 
-            return Optional.ofNullable(resultSet.one())
-                    .map(row -> {
-                        String shardID = String.valueOf(row.getInt(SHARD_ID_KEY));
-                        LOGGER.info("fetch shardId from workflowId from DB {} shardID - {}", workflowId, shardID);
-                        return shardID;
-                    })
-                    .orElse(null);
+            String shardId = Optional.ofNullable(resultSet.one()).map(row -> String.valueOf(row.getInt(SHARD_ID_KEY))).orElse(null);
+            if (StringUtils.hasLength(shardId)) {
+                LOGGER.info("Fetched shardId from DB for workflowId {}: {}", workflowId, shardId);
+                caffeineCache.put(workflowId, shardId);
+            }
+            return shardId;
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "lookupShardIdFromWorkflowId");
             String errorMsg = String.format("Failed to lookup shardId from workflowId: %s", workflowId);
