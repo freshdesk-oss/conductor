@@ -695,18 +695,15 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
-        LOGGER.info("fetch shardId from workflowId {}", workflowId);
+        LOGGER.info("First fetch shardId from workflowId in getWorkflow {}", workflowId);
 
         CaffeineCache caffeineCache = (CaffeineCache) cacheManager.getCache(SHARD_ID_CACHE);
         if (caffeineCache != null) {
-            // Retrieve the native Caffeine cache and get the keys
+            LOGGER.info("Inside fetch shardId from workflowId in getWorkflow keys {}", caffeineCache.getName());
             Set<Object> keys = caffeineCache.getNativeCache().asMap().keySet();
-            // Print the first three keys
-            keys.stream()
-                    .limit(3)  // Limit to first 3 keys
-                    .forEach(System.out::println);  // Print each key
+            LOGGER.info("fetch shardId from workflowId in getWorkflow keys {} and keys size {}", keys.size(), keys);
         } else {
-            System.out.println("Cache not found: " + SHARD_ID_CACHE);
+            LOGGER.info("Cache not found: " + SHARD_ID_CACHE);
         }
 
         String shardId = lookupShardIdFromWorkflowId(workflowId);
