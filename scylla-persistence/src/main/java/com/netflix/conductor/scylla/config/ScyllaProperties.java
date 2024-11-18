@@ -74,8 +74,8 @@ public class ScyllaProperties {
     @DurationUnit(ChronoUnit.SECONDS)
     private Duration eventExecutionPersistenceTtl = Duration.ZERO;
 
-    private int ttlShardIdCache = 10;
-    private int lengthShardIdCache = 1500000;
+    private int ttlShardIdCache = 10; //In Minutes
+    private int lengthShardIdCache = 1500000; //Length of cache
 
     public int getTtlShardIdCache() {
         return ttlShardIdCache;
