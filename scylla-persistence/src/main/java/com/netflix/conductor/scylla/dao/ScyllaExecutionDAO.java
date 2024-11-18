@@ -61,9 +61,11 @@ import com.netflix.conductor.scylla.util.Statements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.util.StringUtils;
 
 @Trace
 public class ScyllaExecutionDAO extends ScyllaBaseDAO
@@ -692,6 +694,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
+
         String shardId = lookupShardIdFromWorkflowId(workflowId);
         Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
 
@@ -1111,14 +1114,19 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @return method to get the shardId from task_lookup table for shard_mapping
      */
     @VisibleForTesting
-    @Cacheable(value = SHARD_ID_CACHE, key = "#taskId")
     public String lookupShardIdFromTaskId(String taskId) {
+        String cachedShardId = caffeineCache.get(taskId, String.class);
+        if (StringUtils.hasLength(cachedShardId)) {
+            return cachedShardId;
+        }
         UUID taskUUID = toUUID(taskId, "Invalid task id");
         try {
             ResultSet resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
-            return Optional.ofNullable(resultSet.one())
-                    .map(row -> String.valueOf(row.getInt(SHARD_ID_KEY)))
-                    .orElse(null);
+            String shardId = Optional.ofNullable(resultSet.one()).map(row -> String.valueOf(row.getInt(SHARD_ID_KEY))).orElse(null);
+            if (StringUtils.hasLength(shardId)) {
+                caffeineCache.put(taskId, shardId);
+            }
+            return shardId;
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "lookupShardIdFromTaskId");
             String errorMsg = String.format("Failed to lookup shardId from taskId: %s", taskId);
@@ -1131,17 +1139,20 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @return method to get the shardId from workflow_lookup table for shard_mapping
      */
     @VisibleForTesting
-    @Cacheable(value = SHARD_ID_CACHE, key = "#workflowId")
     public String lookupShardIdFromWorkflowId(String workflowId) {
+        String cachedShardId = caffeineCache.get(workflowId, String.class);
+        if (StringUtils.hasLength(cachedShardId)) {
+            return cachedShardId;
+        }
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         try {
             ResultSet resultSet = session.execute(selectShardFromWorkflowLookupStatement.bind(workflowUUID));
 
-            return Optional.ofNullable(resultSet.one())
-                    .map(row -> {
-                        return String.valueOf(row.getInt(SHARD_ID_KEY));
-                    })
-                    .orElse(null);
+            String shardId = Optional.ofNullable(resultSet.one()).map(row -> String.valueOf(row.getInt(SHARD_ID_KEY))).orElse(null);
+            if (StringUtils.hasLength(shardId)) {
+                caffeineCache.put(workflowId, shardId);
+            }
+            return shardId;
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "lookupShardIdFromWorkflowId");
             String errorMsg = String.format("Failed to lookup shardId from workflowId: %s", workflowId);
@@ -1150,8 +1161,13 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         }
     }
 
+    private CacheManager cacheManager;
+    private CaffeineCache caffeineCache;
+
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.redisLock = (RedisLock) applicationContext.getBean("provideRedisLock");
+        this.cacheManager = (CacheManager) applicationContext.getBean("cacheManager");
+        this.caffeineCache = (CaffeineCache) cacheManager.getCache(SHARD_ID_CACHE);
     }
 }
