@@ -63,7 +63,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -697,7 +696,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         LOGGER.info("First fetch shardId from workflowId in getWorkflow {}", workflowId);
 
-        CaffeineCache caffeineCache = (CaffeineCache) cacheManager.getCache(SHARD_ID_CACHE);
         if (caffeineCache != null) {
             LOGGER.info("Inside fetch shardId from workflowId in getWorkflow keys {}", caffeineCache.getName());
             Set<Object> keys = caffeineCache.getNativeCache().asMap().keySet();
@@ -1125,8 +1123,12 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @return method to get the shardId from task_lookup table for shard_mapping
      */
     @VisibleForTesting
-    @Cacheable(value = SHARD_ID_CACHE, key = "#taskId")
     public String lookupShardIdFromTaskId(String taskId) {
+        String cachedShardId = caffeineCache.get(taskId, String.class);
+        if (cachedShardId != null) {
+            LOGGER.info("Shard ID found in cache for workflowId {}: {}", taskId, cachedShardId);
+            return cachedShardId;
+        }
         UUID taskUUID = toUUID(taskId, "Invalid task id");
         try {
             ResultSet resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
@@ -1145,8 +1147,12 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @return method to get the shardId from workflow_lookup table for shard_mapping
      */
     @VisibleForTesting
-    @Cacheable(value = SHARD_ID_CACHE, key = "#workflowId")
     public String lookupShardIdFromWorkflowId(String workflowId) {
+        String cachedShardId = caffeineCache.get(workflowId, String.class);
+        if (cachedShardId != null) {
+            LOGGER.info("Shard ID found in cache for workflowId {}: {}", workflowId, cachedShardId);
+            return cachedShardId;
+        }
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         try {
             ResultSet resultSet = session.execute(selectShardFromWorkflowLookupStatement.bind(workflowUUID));
@@ -1167,10 +1173,12 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     private CacheManager cacheManager;
+    private CaffeineCache caffeineCache;
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.redisLock = (RedisLock) applicationContext.getBean("provideRedisLock");
         this.cacheManager = (CacheManager) applicationContext.getBean("cacheManager");
+        this.caffeineCache = (CaffeineCache) cacheManager.getCache(SHARD_ID_CACHE);
     }
 }
