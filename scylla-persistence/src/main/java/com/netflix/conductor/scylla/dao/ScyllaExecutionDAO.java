@@ -1116,8 +1116,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @VisibleForTesting
     public String lookupShardIdFromTaskId(String taskId) {
         String cachedShardId = caffeineCache.get(taskId, String.class);
-        if (cachedShardId != null) {
-            LOGGER.info("Shard ID found in cache for taskId {}: {}", taskId, cachedShardId);
+        if (StringUtils.hasLength(cachedShardId)) {
             return cachedShardId;
         }
         UUID taskUUID = toUUID(taskId, "Invalid task id");
@@ -1125,7 +1124,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             ResultSet resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
             String shardId = Optional.ofNullable(resultSet.one()).map(row -> String.valueOf(row.getInt(SHARD_ID_KEY))).orElse(null);
             if (StringUtils.hasLength(shardId)) {
-                LOGGER.info("Fetched shardId from DB for taskId {}: {}", taskId, shardId);
                 caffeineCache.put(taskId, shardId);
             }
             return shardId;
@@ -1143,8 +1141,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @VisibleForTesting
     public String lookupShardIdFromWorkflowId(String workflowId) {
         String cachedShardId = caffeineCache.get(workflowId, String.class);
-        if (cachedShardId != null) {
-            LOGGER.info("Shard ID found in cache for workflowId {}: {}", workflowId, cachedShardId);
+        if (StringUtils.hasLength(cachedShardId)) {
             return cachedShardId;
         }
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
@@ -1153,7 +1150,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
             String shardId = Optional.ofNullable(resultSet.one()).map(row -> String.valueOf(row.getInt(SHARD_ID_KEY))).orElse(null);
             if (StringUtils.hasLength(shardId)) {
-                LOGGER.info("Fetched shardId from DB for workflowId {}: {}", workflowId, shardId);
                 caffeineCache.put(workflowId, shardId);
             }
             return shardId;
