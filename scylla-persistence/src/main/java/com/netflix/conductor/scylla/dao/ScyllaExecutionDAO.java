@@ -1117,6 +1117,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     public String lookupShardIdFromTaskId(String taskId) {
         String cachedShardId = caffeineCache.get(taskId, String.class);
         if (StringUtils.hasLength(cachedShardId)) {
+            LOGGER.info("lookupShardIdFromTaskId read from cache {} for taskId {}", cachedShardId, taskId);
             return cachedShardId;
         }
         UUID taskUUID = toUUID(taskId, "Invalid task id");
@@ -1124,6 +1125,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             ResultSet resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
             String shardId = Optional.ofNullable(resultSet.one()).map(row -> String.valueOf(row.getInt(SHARD_ID_KEY))).orElse(null);
             if (StringUtils.hasLength(shardId)) {
+                LOGGER.info("lookupShardIdFromTaskId save in cache {} for taskId {}", cachedShardId, taskId);
                 caffeineCache.put(taskId, shardId);
             }
             return shardId;
@@ -1142,6 +1144,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     public String lookupShardIdFromWorkflowId(String workflowId) {
         String cachedShardId = caffeineCache.get(workflowId, String.class);
         if (StringUtils.hasLength(cachedShardId)) {
+            LOGGER.info("lookupShardIdFromWorkflowId read from cache {} for workflowID {}", cachedShardId, workflowId);
             return cachedShardId;
         }
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
@@ -1150,6 +1153,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
             String shardId = Optional.ofNullable(resultSet.one()).map(row -> String.valueOf(row.getInt(SHARD_ID_KEY))).orElse(null);
             if (StringUtils.hasLength(shardId)) {
+                LOGGER.info("lookupShardIdFromWorkflowId save in cache {} for workflowID {}", cachedShardId, workflowId);
                 caffeineCache.put(workflowId, shardId);
             }
             return shardId;
