@@ -12,15 +12,38 @@
  */
 package com.netflix.conductor.scylla.dao;
 
-import com.datastax.driver.core.*;
+import static com.netflix.conductor.scylla.util.Constants.DEFAULT_TOTAL_PARTITIONS;
+import static com.netflix.conductor.scylla.util.Constants.ENTITY_KEY;
+import static com.netflix.conductor.scylla.util.Constants.ENTITY_TYPE_TASK;
+import static com.netflix.conductor.scylla.util.Constants.ENTITY_TYPE_WORKFLOW;
+import static com.netflix.conductor.scylla.util.Constants.PAYLOAD_KEY;
+import static com.netflix.conductor.scylla.util.Constants.SHARD_ID_KEY;
+import static com.netflix.conductor.scylla.util.Constants.TASK_ID_KEY;
+import static com.netflix.conductor.scylla.util.Constants.TOTAL_PARTITIONS_KEY;
+import static com.netflix.conductor.scylla.util.Constants.TOTAL_TASKS_KEY;
+import static com.netflix.conductor.scylla.util.Constants.VERSION;
+import static com.netflix.conductor.scylla.util.Constants.WORKFLOW_ID_KEY;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import com.datastax.driver.core.BatchStatement;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.DriverException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.netflix.conductor.annotations.Trace;
-import com.netflix.conductor.redislock.lock.RedisLock;
-import com.netflix.conductor.scylla.config.ScyllaProperties;
-import com.netflix.conductor.scylla.util.Statements;
 import com.netflix.conductor.common.metadata.events.EventExecution;
 import com.netflix.conductor.common.metadata.tasks.TaskDef;
 import com.netflix.conductor.core.exception.NonTransientException;
@@ -31,17 +54,14 @@ import com.netflix.conductor.dao.ExecutionDAO;
 import com.netflix.conductor.metrics.Monitors;
 import com.netflix.conductor.model.TaskModel;
 import com.netflix.conductor.model.WorkflowModel;
+import com.netflix.conductor.redislock.lock.RedisLock;
+import com.netflix.conductor.scylla.config.ScyllaProperties;
+import com.netflix.conductor.scylla.util.Statements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import static com.netflix.conductor.scylla.util.Constants.*;
 
 @Trace
 public class ScyllaExecutionDAO extends ScyllaBaseDAO
@@ -254,7 +274,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                         if (task.getScheduledTime() == 0) {
                             task.setScheduledTime(System.currentTimeMillis());
                         }
-                        BatchStatement batchStatement = new BatchStatement();
+                        BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
                         batchStatement.add(updateTaskLookupStatement.bind(
                                 workflowUUID, correlationId, toUUID(task.getTaskId(), "Invalid task id")));
                         batchStatement.add(updateWorkflowLookupStatement.bind(
@@ -265,7 +285,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     });
 
             // update all the tasks in the workflow using batch
-            BatchStatement batchStatement = new BatchStatement();
+            BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
             tasks.forEach(
                     task -> {
                         String taskPayload = toJson(task);
@@ -298,6 +318,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             return tasks;
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "createTasks");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format(
                             "Error creating %d tasks for workflow: %s", tasks.size(), workflowId);
@@ -376,6 +397,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             redisLock.releaseLock(task.getTaskId());
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "updateTask");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format(
                             "Error updating task: %s in workflow: %s",
@@ -383,6 +405,10 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg, e);
         }
+    }
+
+    private void logErrorToDebug(String mName, DriverException e) {
+        LOGGER.error("Error in ScyllaExecutionDAO method - {} message - {} stackTrace- {}", mName, e.getMessage(), e.getStackTrace());
     }
 
     /**
@@ -441,6 +467,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             }
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "exceedsLimit");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format(
                             "Failed to get in progress limit - %s:%s in workflow :%s",
@@ -462,41 +489,60 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     @Override
-    public TaskModel getTask(String taskId) {
+    public TaskModel getTask(String shardId, String taskId) {
         try {
             String workflowId = lookupWorkflowIdFromTaskId(taskId);
-            String shardId = lookupShardIdFromTaskId(taskId);
-            Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
-            if (workflowId == null) {
-                return null;
-            }
-            // TODO: implement for query against multiple shards
-
-            ResultSet resultSet =
-                    session.execute(
-                            selectTaskStatement.bind(
-                                    UUID.fromString(workflowId), correlationId, taskId));
-            return Optional.ofNullable(resultSet.one())
-                    .map(
-                            row -> {
-                                String taskRow = row.getString(PAYLOAD_KEY);
-                                TaskModel task = readValue(taskRow, TaskModel.class);
-                                recordCassandraDaoRequests(
-                                        "getTask", task.getTaskType(), task.getWorkflowType());
-                                recordCassandraDaoPayloadSize(
-                                        "getTask",
-                                        taskRow.length(),
-                                        task.getTaskType(),
-                                        task.getWorkflowType());
-                                return task;
-                            })
-                    .orElse(null);
+            return getTaskModel(shardId, taskId, workflowId);
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "getTask");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg = String.format("Error getting task by id: %s", taskId);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
         }
+    }
+
+    @Override
+    public TaskModel getTask(String taskId) {
+        try {
+            String workflowId = lookupWorkflowIdFromTaskId(taskId);
+            String shardId = lookupShardIdFromTaskId(taskId);
+            return getTaskModel(shardId, taskId, workflowId);
+        } catch (DriverException e) {
+            Monitors.error(CLASS_NAME, "getTask");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
+            String errorMsg = String.format("Error getting task by id: %s", taskId);
+            LOGGER.error(errorMsg, e);
+            throw new TransientException(errorMsg);
+        }
+    }
+
+    private TaskModel getTaskModel(String shardId, String taskId, String workflowId) {
+        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+        if (workflowId == null) {
+            return null;
+        }
+        // TODO: implement for query against multiple shards
+
+        ResultSet resultSet =
+                session.execute(
+                        selectTaskStatement.bind(
+                                UUID.fromString(workflowId), correlationId, taskId));
+        return Optional.ofNullable(resultSet.one())
+                .map(
+                        row -> {
+                            String taskRow = row.getString(PAYLOAD_KEY);
+                            TaskModel task = readValue(taskRow, TaskModel.class);
+                            recordCassandraDaoRequests(
+                                    "getTask", task.getTaskType(), task.getWorkflowType());
+                            recordCassandraDaoPayloadSize(
+                                    "getTask",
+                                    taskRow.length(),
+                                    task.getTaskType(),
+                                    task.getWorkflowType());
+                            return task;
+                        })
+                .orElse(null);
     }
 
     @Override
@@ -549,6 +595,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             return workflow.getWorkflowId();
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "createWorkflow");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format("Error creating workflow: %s", workflow.getWorkflowId());
             LOGGER.error(errorMsg, e);
@@ -580,6 +627,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             }
             return workflow.getWorkflowId();
         } catch (DriverException e) {
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             handleError(workflow, e, "updateWorkflow");
             throw new TransientException("Failed to update workflow: " + workflow.getWorkflowId(), e);
         }
@@ -634,6 +682,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                 removed = resultSet.wasApplied();
             } catch (DriverException e) {
                 Monitors.error(CLASS_NAME, "removeWorkflow");
+                logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
                 String errorMsg = String.format("Failed to remove workflow: %s", workflowId);
                 LOGGER.error(errorMsg, e);
                 throw new TransientException(errorMsg);
@@ -669,11 +718,23 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     @Override
+    public WorkflowModel getWorkflow(String shardId, String workflowId, boolean includeTasks) {
+        UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
+        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+
+        return getWorkflowModel(workflowId, includeTasks, workflowUUID, correlationId);
+    }
+
+    @Override
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         String shardId = lookupShardIdFromWorkflowId(workflowId);
         Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
 
+        return getWorkflowModel(workflowId, includeTasks, workflowUUID, correlationId);
+    }
+
+    private WorkflowModel getWorkflowModel(String workflowId, boolean includeTasks, UUID workflowUUID, Integer correlationId) {
         try {
             WorkflowModel workflow = null;
             ResultSet resultSet;
@@ -732,6 +793,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             return workflow;
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "getWorkflow");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg = String.format("Failed to get workflow: %s", workflowId);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
@@ -779,6 +841,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             return resultSet.all().size();
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "getInProgressTaskCount");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format("Failed to retrieve task-in-progress coount from taskDefName: %s", taskDefName);
             LOGGER.error(errorMsg, e);
@@ -821,6 +884,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         return wfList;
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "getWorkflowsByCorrelationId");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format("Failed to retrieve workflows from correlationId: %s", correlationId);
             LOGGER.error(errorMsg, e);
@@ -849,6 +913,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     .wasApplied();
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "addEventExecution");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format(
                             "Failed to add event execution for event: %s, handler: %s",
@@ -874,6 +939,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                             eventExecution.getId()));
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "updateEventExecution");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format(
                             "Failed to update event execution for event: %s, handler: %s",
@@ -894,6 +960,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                             eventExecution.getId()));
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "removeEventExecution");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format(
                             "Failed to remove event execution for event: %s, handler: %s",
@@ -919,6 +986,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     String.format(
                             "Failed to fetch event executions for event: %s, handler: %s",
                             eventName, eventHandlerName);
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
         }
@@ -936,6 +1004,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                             UUID.fromString(task.getTaskId())));
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "addTaskToLimit");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg =
                     String.format(
                             "Error updating taskDefLimit for task - %s:%s in workflow: %s",
@@ -981,7 +1050,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
             recordCassandraDaoRequests("removeTask", task.getTaskType(), task.getWorkflowType());
             // delete task from workflows table and decrement total tasks by 1
-            BatchStatement batchStatement = new BatchStatement();
+            BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
             batchStatement.add(
                     deleteTaskStatement.bind(
                             UUID.fromString(task.getWorkflowInstanceId()),
@@ -1000,6 +1069,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             return resultSet.wasApplied();
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "removeTask");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg = String.format("Failed to remove task: %s", task.getTaskId());
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
@@ -1018,6 +1088,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             session.execute(deleteWorkflowLookupStatement.bind(UUID.fromString(task.getWorkflowInstanceId())));
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "removeTaskLookup");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg = String.format("Failed to remove task lookup: %s", task.getTaskId());
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
@@ -1080,6 +1151,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     .orElse(null);
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "lookupWorkflowIdFromTaskId");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg = String.format("Failed to lookup workflowId from taskId: %s", taskId);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg, e);
@@ -1099,6 +1171,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     .orElse(null);
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "lookupShardIdFromTaskId");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg = String.format("Failed to lookup shardId from taskId: %s", taskId);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg, e);
@@ -1121,6 +1194,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     .orElse(null);
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "lookupShardIdFromWorkflowId");
+            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
             String errorMsg = String.format("Failed to lookup shardId from workflowId: %s", workflowId);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg, e);
