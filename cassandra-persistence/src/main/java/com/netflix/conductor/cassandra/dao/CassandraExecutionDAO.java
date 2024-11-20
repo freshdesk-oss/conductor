@@ -438,6 +438,12 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
     }
 
     @Override
+    public TaskModel getTask(String shardId, String taskId) {
+        LOGGER.warn("No such task found by id {}", taskId);
+        return null;
+    }
+
+    @Override
     public TaskModel getTask(String taskId) {
         try {
             String workflowId = lookupWorkflowIdFromTaskId(taskId);
@@ -596,6 +602,12 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
      */
     @Override
     public void removeFromPendingWorkflow(String workflowType, String workflowId) {
+        throw new UnsupportedOperationException(
+                "This method is not implemented in CassandraExecutionDAO. Please use ExecutionDAOFacade instead.");
+    }
+
+    @Override
+    public WorkflowModel getWorkflow(String shardId, String workflowId, boolean includeTasks) {
         throw new UnsupportedOperationException(
                 "This method is not implemented in CassandraExecutionDAO. Please use ExecutionDAOFacade instead.");
     }
