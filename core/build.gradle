@@ -37,7 +37,8 @@ dependencies {
 
     implementation "com.netflix.spectator:spectator-api:${revSpectator}"
 
-    implementation "org.apache.bval:bval-jsr:${revBval}"
+    //implementation "org.apache.bval:bval-jsr:${revBval}"
+    implementation "org.hibernate.validator:hibernate-validator:${revHibernateValidator}"
 
     implementation "com.github.ben-manes.caffeine:caffeine"
 

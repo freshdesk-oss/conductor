@@ -57,4 +57,5 @@ ext {
     revSpotifyCompletableFutures = '0.3.3'
     revTestContainer = '1.19.1'
     revScylla = '3.11.5.0'
+    revHibernateValidator = '6.2.5.Final'
 }

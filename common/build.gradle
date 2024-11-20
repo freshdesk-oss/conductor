@@ -13,7 +13,8 @@ dependencies {
 
     implementation "org.apache.commons:commons-lang3"
 
-    implementation "org.apache.bval:bval-jsr:${revBval}"
+    //implementation "org.apache.bval:bval-jsr:${revBval}"
+    implementation "org.hibernate.validator:hibernate-validator:${revHibernateValidator}"
 
     implementation "com.google.protobuf:protobuf-java:${revProtoBuf}"
 
