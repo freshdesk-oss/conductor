@@ -12,10 +12,22 @@
  */
 package com.netflix.conductor.rest.controllers;
 
+import static com.netflix.conductor.rest.config.RequestMappingConstants.TASKS;
+import static org.springframework.http.MediaType.TEXT_PLAIN_VALUE;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.netflix.conductor.common.metadata.tasks.PollData;
+import com.netflix.conductor.common.metadata.tasks.Task;
+import com.netflix.conductor.common.metadata.tasks.TaskExecLog;
+import com.netflix.conductor.common.metadata.tasks.TaskResult;
+import com.netflix.conductor.common.run.ExternalStorageLocation;
+import com.netflix.conductor.common.run.SearchResult;
+import com.netflix.conductor.common.run.TaskSummary;
+import com.netflix.conductor.service.TaskService;
+import io.swagger.v3.oas.annotations.Operation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -26,21 +38,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.netflix.conductor.common.metadata.tasks.PollData;
-import com.netflix.conductor.common.metadata.tasks.Task;
-import com.netflix.conductor.common.metadata.tasks.TaskExecLog;
-import com.netflix.conductor.common.metadata.tasks.TaskResult;
-import com.netflix.conductor.common.run.ExternalStorageLocation;
-import com.netflix.conductor.common.run.SearchResult;
-import com.netflix.conductor.common.run.TaskSummary;
-import com.netflix.conductor.service.TaskService;
-
-import io.swagger.v3.oas.annotations.Operation;
-
-import static com.netflix.conductor.rest.config.RequestMappingConstants.TASKS;
-
-import static org.springframework.http.MediaType.TEXT_PLAIN_VALUE;
 
 @RestController
 @RequestMapping(value = TASKS)
@@ -82,8 +79,8 @@ public class TaskResource {
     @PostMapping(produces = TEXT_PLAIN_VALUE)
     @Operation(summary = "Update a task")
     public String updateTask(@RequestBody TaskResult taskResult) {
-        LOGGER.debug("Received updateTask for task: {},for workflowInstanceId {} and status {} ",
-                taskResult.getTaskId(), taskResult.getWorkflowInstanceId(), taskResult.getStatus());
+        LOGGER.info("Received updateTask for task: {},for workflowInstanceId {} and status {} and shard {}", taskResult.getTaskId(),
+                taskResult.getWorkflowInstanceId(), taskResult.getStatus(), taskResult.getOutputData().get("shardId"));
         return taskService.updateTask(taskResult);
     }
 
