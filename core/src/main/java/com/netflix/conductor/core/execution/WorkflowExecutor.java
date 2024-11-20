@@ -738,6 +738,7 @@ public class WorkflowExecutor {
         String shardId = (String) taskResult.getOutputData().get("shardId");
         WorkflowModel workflowInstance;
         TaskModel task;
+        LOGGER.info("Inside updateTask - shardId - {}", shardId);
         if (StringUtils.isNotEmpty(shardId)) {
             workflowInstance = executionDAOFacade.getWorkflowModel(shardId, workflowId, false);
             task = Optional.ofNullable(executionDAOFacade.getTaskModel(shardId, taskResult.getTaskId()))
