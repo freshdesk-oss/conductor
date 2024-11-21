@@ -610,7 +610,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
             workflow.setTasks(new LinkedList<>());
 
-            WorkflowModel prevWorkflow = getWorkflow(workflow.getWorkflowId(), false);
+            WorkflowModel prevWorkflow = getWorkflow(workflow.getCorrelationId(), workflow.getWorkflowId(), false);
             LOGGER.debug("Update workflow - getPrevious workflow status {} - current Status {} for workflowId {} and prevVersion {} ",
                     prevWorkflow.getStatus(),
                     workflow.getStatus(),
@@ -648,7 +648,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     private void handleConcurrentUpdate(WorkflowModel workflow, List<TaskModel> tasks, String payload, Integer correlationId) {
         LOGGER.info("Concurrent update detected, update failed for workflow: {} retrying..", workflow.getWorkflowId());
-        WorkflowModel retriedWorkflow = getWorkflow(workflow.getWorkflowId());
+        WorkflowModel retriedWorkflow = getWorkflow(String.valueOf(correlationId), workflow.getWorkflowId());
 
         if (!retriedWorkflow.getStatus().equals(WorkflowModel.Status.COMPLETED)) {
             if (attemptUpdateWorkflow(workflow, retriedWorkflow, payload, correlationId, true)) {
@@ -715,6 +715,10 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public WorkflowModel getWorkflow(String workflowId) {
         return getWorkflow(workflowId, true);
+    }
+
+    public WorkflowModel getWorkflow(String shardId, String workflowId) {
+        return getWorkflow(shardId, workflowId, true);
     }
 
     @Override
