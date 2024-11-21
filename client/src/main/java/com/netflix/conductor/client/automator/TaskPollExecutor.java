@@ -39,13 +39,6 @@ import com.netflix.discovery.EurekaClient;
 import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.Spectator;
 import com.netflix.spectator.api.patterns.ThreadPoolMonitor;
-import io.opentelemetry.api.GlobalOpenTelemetry;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Context;
-import io.opentelemetry.context.Scope;
-import io.opentelemetry.context.propagation.TextMapPropagator;
-import io.opentelemetry.context.propagation.TextMapGetter;
 
 /**
  * Manages the threadpool used by the workers for execution and server communication (polling and
@@ -56,7 +49,6 @@ class TaskPollExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(TaskPollExecutor.class);
 
     private static final Registry REGISTRY = Spectator.globalRegistry();
-    private static final Tracer tracer = GlobalOpenTelemetry.getTracer("worker-service-abstractCustomTask");
 
     private final EurekaClient eurekaClient;
     private final TaskClient taskClient;
@@ -115,6 +107,42 @@ class TaskPollExecutor {
                                 .build());
     }
 
+    void executeTask(String traceParent, String spanName, Worker worker, Task task, PollingSemaphore pollingSemaphore, String taskType, String domain) {
+        if (Objects.nonNull(task) && StringUtils.isNotBlank(task.getTaskId())) {
+                        MetricsContainer.incrementTaskPollCount(taskType, 1);
+                        LOGGER.debug(
+                                "Polled task: {} of type: {} in domain: '{}', from worker: {}",
+                                task.getTaskId(),
+                                taskType,
+                                domain,
+                                worker.getIdentity());
+
+                        CompletableFuture<Task> taskCompletableFuture =
+                                CompletableFuture.supplyAsync(
+                                        () -> processTask(task, worker, pollingSemaphore),
+                                        executorService);
+
+                        if (task.getResponseTimeoutSeconds() > 0 && worker.leaseExtendEnabled()) {
+                            ScheduledFuture<?> leaseExtendFuture =
+                                    leaseExtendExecutorService.scheduleWithFixedDelay(
+                                            extendLease(task, taskCompletableFuture),
+                                            Math.round(
+                                                    task.getResponseTimeoutSeconds()
+                                                            * LEASE_EXTEND_DURATION_FACTOR),
+                                            Math.round(
+                                                    task.getResponseTimeoutSeconds()
+                                                            * LEASE_EXTEND_DURATION_FACTOR),
+                                            TimeUnit.SECONDS);
+                            leaseExtendMap.put(task.getTaskId(), leaseExtendFuture);
+                        }
+
+                        taskCompletableFuture.whenComplete(this::finalizeTask);
+        } else {
+            // no task was returned in the poll, release the permit
+            pollingSemaphore.complete(1);
+        }
+    }
+
     void pollAndExecute(Worker worker) {
         Boolean discoveryOverride =
                 Optional.ofNullable(
@@ -170,48 +198,8 @@ class TaskPollExecutor {
                                                     worker.getBatchPollTimeoutInMS()));
             acquiredTasks = tasks.size();
             for (Task task : tasks) {
-                Map<String, String> headers = new HashMap<>();
-                headers.put("traceparent", (String) task.getInputData().get("traceparent"));
-                TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
-                Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
-                Span span = tracer.spanBuilder("execute-task_" + task.getTaskDefName()).setParent(context).startSpan();
-                try (Scope scope = span.makeCurrent()) {
-                    if (Objects.nonNull(task) && StringUtils.isNotBlank(task.getTaskId())) {
-                        MetricsContainer.incrementTaskPollCount(taskType, 1);
-                        LOGGER.debug(
-                                "Polled task: {} of type: {} in domain: '{}', from worker: {}",
-                                task.getTaskId(),
-                                taskType,
-                                domain,
-                                worker.getIdentity());
-
-                        CompletableFuture<Task> taskCompletableFuture =
-                                CompletableFuture.supplyAsync(
-                                        () -> processTask(task, worker, pollingSemaphore),
-                                        executorService);
-
-                        if (task.getResponseTimeoutSeconds() > 0 && worker.leaseExtendEnabled()) {
-                            ScheduledFuture<?> leaseExtendFuture =
-                                    leaseExtendExecutorService.scheduleWithFixedDelay(
-                                            extendLease(task, taskCompletableFuture),
-                                            Math.round(
-                                                    task.getResponseTimeoutSeconds()
-                                                            * LEASE_EXTEND_DURATION_FACTOR),
-                                            Math.round(
-                                                    task.getResponseTimeoutSeconds()
-                                                            * LEASE_EXTEND_DURATION_FACTOR),
-                                            TimeUnit.SECONDS);
-                            leaseExtendMap.put(task.getTaskId(), leaseExtendFuture);
-                        }
-
-                        taskCompletableFuture.whenComplete(this::finalizeTask);
-                    } else {
-                        // no task was returned in the poll, release the permit
-                        pollingSemaphore.complete(1);
-                    }
-                } finally {
-                    span.end();
-                }
+                    executeTask((String) task.getInputData().get("traceparent"),
+                            "execute-task_" + task.getTaskDefName(), worker, task, pollingSemaphore, taskType, domain);
             }
         } catch (Exception e) {
             MetricsContainer.incrementTaskPollErrorCount(worker.getTaskDefName(), e);
