@@ -438,7 +438,7 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
     }
 
     @Override
-    public TaskModel getTask(String shardId, String taskId) {
+    public TaskModel getTask(String shardId, String workflowId, String taskId) {
         LOGGER.warn("No such task found by id {}", taskId);
         return null;
     }

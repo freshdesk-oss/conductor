@@ -356,7 +356,7 @@ public class RedisExecutionDAO extends BaseDynoDAO
     }
 
     @Override
-    public TaskModel getTask(String shardId, String taskId) {
+    public TaskModel getTask(String shardId, String workflowId, String taskId) {
         LOGGER.warn("No such task found by id {} for shardId {}", taskId, shardId);
         return null;
     }

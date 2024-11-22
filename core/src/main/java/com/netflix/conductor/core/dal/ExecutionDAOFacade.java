@@ -482,8 +482,8 @@ public class ExecutionDAOFacade {
                 .collect(Collectors.toList());
     }
 
-    public TaskModel getTaskModel(String shardId, String taskId) {
-        TaskModel taskModel = getTaskFromDatastore(shardId, taskId);
+    public TaskModel getTaskModel(String shardId, String workflowId, String taskId) {
+        TaskModel taskModel = getTaskFromDatastore(shardId, workflowId, taskId);
         return getTaskModel(taskModel);
     }
 
@@ -511,8 +511,8 @@ public class ExecutionDAOFacade {
         return executionDAO.getTask(taskId);
     }
 
-    private TaskModel getTaskFromDatastore(String shardId, String taskId) {
-        return executionDAO.getTask(shardId, taskId);
+    private TaskModel getTaskFromDatastore(String shardId, String workflowId, String taskId) {
+        return executionDAO.getTask(shardId, workflowId, taskId);
     }
 
     public List<Task> getTasksByName(String taskName, String startKey, int count) {
