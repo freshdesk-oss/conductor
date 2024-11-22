@@ -109,7 +109,7 @@ public class WorkflowResource {
         return workflowService.getExecutionStatus(workflowId, includeTasks);
     }
 
-    @GetMapping("/account/{accountId}/workflow/{workflowId}")
+    @GetMapping("/accounts/{accountId}/workflows/{workflowId}")
     @Operation(summary = "Gets the workflow by workflow id and account id")
     public Workflow getExecutionStatus(
             @PathVariable("accountId") String accountId,
