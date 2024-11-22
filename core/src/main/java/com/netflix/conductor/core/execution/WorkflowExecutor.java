@@ -736,23 +736,13 @@ public class WorkflowExecutor {
 
         String workflowId = taskResult.getWorkflowInstanceId();
         String shardId = (String) taskResult.getOutputData().get("shardId");
-        WorkflowModel workflowInstance;
-        TaskModel task;
-        LOGGER.info("Inside updateTask - shardId - {}", shardId);
-        if (StringUtils.isNotEmpty(shardId)) {
-            workflowInstance = executionDAOFacade.getWorkflowModel(shardId, workflowId, false);
-            task = Optional.ofNullable(executionDAOFacade.getTaskModel(shardId, taskResult.getTaskId()))
-                    .orElseThrow(() -> new NotFoundException("No such task found by id: %s", taskResult.getTaskId()));
-        } else {
-            workflowInstance = executionDAOFacade.getWorkflowModel(workflowId, false);
-            task =
-                    Optional.ofNullable(executionDAOFacade.getTaskModel(taskResult.getTaskId()))
-                            .orElseThrow(
-                                    () ->
-                                            new NotFoundException(
-                                                    "No such task found by id: %s",
-                                                    taskResult.getTaskId()));
-        }
+
+        LOGGER.info("Inside updateTask to update task for shardId - {} workflowId - {} taskId - {}", shardId, workflowId, taskResult.getTaskId());
+
+        WorkflowModel workflowInstance =
+                findWorkflowInstance(shardId, workflowId).orElseThrow(() -> new NotFoundException("Workflow not found for id: %s", workflowId));
+        TaskModel task = findTask(shardId, workflowId, taskResult.getTaskId()).orElseThrow(
+                () -> new NotFoundException("No such task found by id: %s", taskResult.getTaskId()));
 
         LOGGER.debug("WE updateTask: taskId {} with taskStatus {} belonging to workflowId {} being updated with workflowStatus {}",
                 task.getTaskId(), task.getStatus(), workflowInstance, workflowInstance.getStatus());
@@ -907,6 +897,20 @@ public class WorkflowExecutor {
         if (!isLazyEvaluateWorkflow(workflowInstance.getWorkflowDefinition(), task)) {
             decide(workflowId);
         }
+    }
+
+    private Optional<WorkflowModel> findWorkflowInstance(String shardId, String workflowId) {
+        if (StringUtils.isNotEmpty(shardId)) {
+            return Optional.ofNullable(executionDAOFacade.getWorkflowModel(shardId, workflowId, false));
+        }
+        return Optional.ofNullable(executionDAOFacade.getWorkflowModel(workflowId, false));
+    }
+
+    private Optional<TaskModel> findTask(String shardId, String workflowId, String taskId) {
+        if (StringUtils.isNotEmpty(shardId)) {
+            return Optional.ofNullable(executionDAOFacade.getTaskModel(shardId, workflowId, taskId));
+        }
+        return Optional.ofNullable(executionDAOFacade.getTaskModel(taskId));
     }
 
     private void notifyTaskStatusListener(TaskModel task) {

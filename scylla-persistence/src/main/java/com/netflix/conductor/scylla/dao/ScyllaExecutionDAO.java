@@ -489,9 +489,8 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     @Override
-    public TaskModel getTask(String shardId, String taskId) {
+    public TaskModel getTask(String shardId, String workflowId, String taskId) {
         try {
-            String workflowId = lookupWorkflowIdFromTaskId(taskId);
             return getTaskModel(shardId, taskId, workflowId);
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "getTask");
