@@ -87,11 +87,11 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     protected final PreparedStatement selectWorkflowsByCorIdFromWorkflowStatement;
 
-    protected final PreparedStatement selectCountFromTaskInProgressStatement;
+    //protected final PreparedStatement selectCountFromTaskInProgressStatement;
     protected final PreparedStatement selectShardFromWorkflowLookupStatement;
     protected final PreparedStatement updateWorkflowLookupStatement;
     protected final PreparedStatement deleteWorkflowLookupStatement;
-    protected final PreparedStatement selectTasksFromTaskDefLimitStatement;
+    //protected final PreparedStatement selectTasksFromTaskDefLimitStatement;
     protected final PreparedStatement selectEventExecutionsStatement;
 
     protected final PreparedStatement updateWorkflowStatement;
@@ -142,9 +142,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                 session.prepare(statements.getSelectShardFromTaskLookupTableStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
 
-        this.selectCountFromTaskInProgressStatement =
+        /*this.selectCountFromTaskInProgressStatement =
                 session.prepare(statements.getSelectCountTaskInProgressPerTskDefStatement())
-                        .setConsistencyLevel(properties.getReadConsistencyLevel());
+                        .setConsistencyLevel(properties.getReadConsistencyLevel());*/
 
         this.selectWorkflowsByCorIdFromWorkflowStatement =
                 session.prepare(statements.getSelectWorkflowsByCorrelationIdStatement())
@@ -185,9 +185,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         this.selectTaskLookupStatement =
                 session.prepare(statements.getSelectTaskFromLookupTableStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
-        this.selectTasksFromTaskDefLimitStatement =
+        /*this.selectTasksFromTaskDefLimitStatement =
                 session.prepare(statements.getSelectTasksFromTaskDefLimitStatement())
-                        .setConsistencyLevel(properties.getReadConsistencyLevel());
+                        .setConsistencyLevel(properties.getReadConsistencyLevel());*/
         this.selectEventExecutionsStatement =
                 session.prepare(
                                 statements
@@ -837,7 +837,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     @Override
     public long getInProgressTaskCount(String taskDefName) {
-        try{
+        /*try {
             recordCassandraDaoRequests("getInProgressTaskCount", "n/a", taskDefName);
             ResultSet resultSet = session.execute(selectCountFromTaskInProgressStatement.bind(taskDefName));
             return resultSet.all().size();
@@ -848,7 +848,8 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     String.format("Failed to retrieve task-in-progress coount from taskDefName: %s", taskDefName);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
-        }
+        }*/
+        return -1;
     }
 
     /**
