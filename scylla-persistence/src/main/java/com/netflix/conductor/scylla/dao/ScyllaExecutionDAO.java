@@ -849,7 +849,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
         }*/
-        return -1;
+        return 0;
     }
 
     /**
