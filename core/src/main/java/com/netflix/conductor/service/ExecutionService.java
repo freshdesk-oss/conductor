@@ -374,6 +374,10 @@ public class ExecutionService {
         return executionDAOFacade.getWorkflow(workflowId, includeTasks);
     }
 
+    public Workflow getExecutionStatus(String accountId, String workflowId, boolean includeTasks) {
+        return executionDAOFacade.getWorkflow(accountId, workflowId, includeTasks);
+    }
+
     public List<String> getRunningWorkflows(String workflowName, int version) {
         return executionDAOFacade.getRunningWorkflowIds(workflowName, version);
     }

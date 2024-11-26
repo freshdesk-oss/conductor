@@ -356,6 +356,12 @@ public class RedisExecutionDAO extends BaseDynoDAO
     }
 
     @Override
+    public TaskModel getTask(String shardId, String workflowId, String taskId) {
+        LOGGER.warn("No such task found by id {} for shardId {}", taskId, shardId);
+        return null;
+    }
+
+    @Override
     public TaskModel getTask(String taskId) {
         Preconditions.checkNotNull(taskId, "taskId cannot be null");
         return Optional.ofNullable(jedisProxy.get(nsKey(TASK, taskId)))
@@ -484,6 +490,12 @@ public class RedisExecutionDAO extends BaseDynoDAO
     @Override
     public WorkflowModel getWorkflow(String workflowId) {
         return getWorkflow(workflowId, true);
+    }
+
+    @Override
+    public WorkflowModel getWorkflow(String shardId, String workflowId, boolean includeTasks) {
+        throw new UnsupportedOperationException(
+                "This method is not implemented in RedisExecutionDao. Please use ExecutionDAOFacade instead.");
     }
 
     @Override

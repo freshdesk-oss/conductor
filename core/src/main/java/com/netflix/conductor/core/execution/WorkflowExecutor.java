@@ -12,21 +12,35 @@
  */
 package com.netflix.conductor.core.execution;
 
-import java.util.*;
+import static com.netflix.conductor.core.utils.Utils.DECIDER_QUEUE;
+import static com.netflix.conductor.model.TaskModel.Status.CANCELED;
+import static com.netflix.conductor.model.TaskModel.Status.FAILED;
+import static com.netflix.conductor.model.TaskModel.Status.FAILED_WITH_TERMINAL_ERROR;
+import static com.netflix.conductor.model.TaskModel.Status.IN_PROGRESS;
+import static com.netflix.conductor.model.TaskModel.Status.SCHEDULED;
+import static com.netflix.conductor.model.TaskModel.Status.SKIPPED;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.StopWatch;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
-
 import com.netflix.conductor.annotations.Trace;
 import com.netflix.conductor.annotations.VisibleForTesting;
-import com.netflix.conductor.common.metadata.tasks.*;
+import com.netflix.conductor.common.metadata.tasks.PollData;
+import com.netflix.conductor.common.metadata.tasks.TaskDef;
+import com.netflix.conductor.common.metadata.tasks.TaskExecLog;
+import com.netflix.conductor.common.metadata.tasks.TaskResult;
+import com.netflix.conductor.common.metadata.tasks.TaskType;
 import com.netflix.conductor.common.metadata.workflow.RerunWorkflowRequest;
 import com.netflix.conductor.common.metadata.workflow.SkipTaskRequest;
 import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
@@ -38,7 +52,11 @@ import com.netflix.conductor.core.config.ConductorProperties;
 import com.netflix.conductor.core.dal.ExecutionDAOFacade;
 import com.netflix.conductor.core.event.WorkflowCreationEvent;
 import com.netflix.conductor.core.event.WorkflowEvaluationEvent;
-import com.netflix.conductor.core.exception.*;
+import com.netflix.conductor.core.exception.ConflictException;
+import com.netflix.conductor.core.exception.NonTransientException;
+import com.netflix.conductor.core.exception.NotFoundException;
+import com.netflix.conductor.core.exception.TerminateWorkflowException;
+import com.netflix.conductor.core.exception.TransientException;
 import com.netflix.conductor.core.execution.tasks.SystemTaskRegistry;
 import com.netflix.conductor.core.execution.tasks.Terminate;
 import com.netflix.conductor.core.execution.tasks.WorkflowSystemTask;
@@ -55,9 +73,13 @@ import com.netflix.conductor.metrics.Monitors;
 import com.netflix.conductor.model.TaskModel;
 import com.netflix.conductor.model.WorkflowModel;
 import com.netflix.conductor.service.ExecutionLockService;
-
-import static com.netflix.conductor.core.utils.Utils.DECIDER_QUEUE;
-import static com.netflix.conductor.model.TaskModel.Status.*;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.StopWatch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 /** Workflow services provider interface */
 @Trace
@@ -713,15 +735,14 @@ public class WorkflowExecutor {
         }
 
         String workflowId = taskResult.getWorkflowInstanceId();
-        WorkflowModel workflowInstance = executionDAOFacade.getWorkflowModel(workflowId, false);
+        String shardId = (String) taskResult.getOutputData().get("shardId");
 
-        TaskModel task =
-                Optional.ofNullable(executionDAOFacade.getTaskModel(taskResult.getTaskId()))
-                        .orElseThrow(
-                                () ->
-                                        new NotFoundException(
-                                                "No such task found by id: %s",
-                                                taskResult.getTaskId()));
+        LOGGER.info("Inside updateTask to update task for shardId - {} workflowId - {} taskId - {}", shardId, workflowId, taskResult.getTaskId());
+
+        WorkflowModel workflowInstance =
+                findWorkflowInstance(shardId, workflowId).orElseThrow(() -> new NotFoundException("Workflow not found for id: %s", workflowId));
+        TaskModel task = findTask(shardId, workflowId, taskResult.getTaskId()).orElseThrow(
+                () -> new NotFoundException("No such task found by id: %s", taskResult.getTaskId()));
 
         LOGGER.debug("WE updateTask: taskId {} with taskStatus {} belonging to workflowId {} being updated with workflowStatus {}",
                 task.getTaskId(), task.getStatus(), workflowInstance, workflowInstance.getStatus());
@@ -876,6 +897,20 @@ public class WorkflowExecutor {
         if (!isLazyEvaluateWorkflow(workflowInstance.getWorkflowDefinition(), task)) {
             decide(workflowId);
         }
+    }
+
+    private Optional<WorkflowModel> findWorkflowInstance(String shardId, String workflowId) {
+        if (StringUtils.isNotEmpty(shardId)) {
+            return Optional.ofNullable(executionDAOFacade.getWorkflowModel(shardId, workflowId, false));
+        }
+        return Optional.ofNullable(executionDAOFacade.getWorkflowModel(workflowId, false));
+    }
+
+    private Optional<TaskModel> findTask(String shardId, String workflowId, String taskId) {
+        if (StringUtils.isNotEmpty(shardId)) {
+            return Optional.ofNullable(executionDAOFacade.getTaskModel(shardId, workflowId, taskId));
+        }
+        return Optional.ofNullable(executionDAOFacade.getTaskModel(taskId));
     }
 
     private void notifyTaskStatusListener(TaskModel task) {
