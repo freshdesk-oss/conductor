@@ -204,6 +204,11 @@ public class Statements {
      *     table
      */
     public String getSelectAllTaskDefsStatement() {
+        System.out.println("getSelectAllTaskDefsStatement" + QueryBuilder.select()
+                .all()
+                .from(keyspace, TABLE_TASK_DEFS)
+                .where(eq(TASK_DEFS_KEY, bindMarker()))
+                .getQueryString());
         return QueryBuilder.select()
                 .all()
                 .from(keyspace, TABLE_TASK_DEFS)

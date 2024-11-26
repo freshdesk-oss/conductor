@@ -578,6 +578,7 @@ public class WorkflowExecutor {
 
         executionLockService.releaseLock(workflow.getWorkflowId());
         executionLockService.deleteLock(workflow.getWorkflowId());
+        LOGGER.debug("Completed workflow execution && released all the locks for {}", workflow.getWorkflowId());
         return workflow;
     }
 
@@ -1092,7 +1093,9 @@ public class WorkflowExecutor {
 
             List<TaskModel> tasksToBeScheduled = outcome.tasksToBeScheduled;
             setTaskDomains(tasksToBeScheduled, workflow);
+            LOGGER.info("WorkflowExecutor decide tasksToBeScheduled {}", tasksToBeScheduled.stream().map(TaskModel::getReferenceTaskName).toList());
             List<TaskModel> tasksToBeUpdated = outcome.tasksToBeUpdated;
+            LOGGER.info("WorkflowExecutor decide tasksToBeUpdated {}", tasksToBeUpdated.stream().map(TaskModel::getReferenceTaskName).toList());
 
             tasksToBeScheduled = dedupAndAddTasks(workflow, tasksToBeScheduled);
 
@@ -1251,7 +1254,6 @@ public class WorkflowExecutor {
                                                         + "_"
                                                         + task.getRetryCount()))
                         .collect(Collectors.toList());
-
         workflow.getTasks().addAll(dedupedTasks);
         return dedupedTasks;
     }
@@ -1397,8 +1399,8 @@ public class WorkflowExecutor {
             queueDAO.push(taskQueueName, task.getTaskId(), task.getWorkflowPriority(), 0);
         }
         LOGGER.debug(
-                "Added task {} with priority {} to queue {} with call back seconds {}",
-                task,
+                "Added taskRefName {} with priority {} to queue {} with call back seconds {}",
+                task.getReferenceTaskName(),
                 task.getWorkflowPriority(),
                 taskQueueName,
                 task.getCallbackAfterSeconds());
@@ -1477,14 +1479,27 @@ public class WorkflowExecutor {
     }
 
     @VisibleForTesting
-    boolean scheduleTask(WorkflowModel workflow, List<TaskModel> tasks) {
+    synchronized boolean scheduleTask(WorkflowModel workflow, List<TaskModel> tasks) {
         List<TaskModel> tasksToBeQueued;
+        List<TaskModel> filteredTasks;
         boolean startedSystemTasks = false;
+
+        LOGGER.info("WorkflowExecutor received tasks for scheduleTask {}", tasks.stream().map(TaskModel::getReferenceTaskName).toList());
 
         try {
             if (tasks == null || tasks.isEmpty()) {
                 return false;
             }
+            List<String> dbTaskInWorkflows = new ArrayList<>();
+            try {
+                WorkflowModel workflowScylla = getWorkflow(workflow.getWorkflowId(), true);
+                dbTaskInWorkflows = workflowScylla.getTasks().stream().map(tsk -> tsk.getReferenceTaskName()).toList();
+                LOGGER.info("WorkflowExecutor scheduleTask dbTaskInWorkflows {}", dbTaskInWorkflows);
+            } catch(Exception e) {
+                LOGGER.error("Error getting workflow from Scylla for workflowInstanceId {} and error {}", workflow.getWorkflowId(), e);
+            }
+            List<String> finalDbTaskInWorkflows = dbTaskInWorkflows;
+            filteredTasks = tasks.stream().filter(tsk -> !finalDbTaskInWorkflows.contains(tsk.getReferenceTaskName())).toList();
 
             // Get the highest seq number
             int count = workflow.getTasks().stream().mapToInt(TaskModel::getSeq).max().orElse(0);
@@ -1501,18 +1516,23 @@ public class WorkflowExecutor {
                     workflow.getWorkflowName(),
                     String.valueOf(workflow.getWorkflowVersion()));
 
+
             // Save the tasks in the DAO
-            executionDAOFacade.createTasks(tasks);
+            executionDAOFacade.createTasks(filteredTasks);
 
             List<TaskModel> systemTasks =
-                    tasks.stream()
+                    filteredTasks.stream()
                             .filter(task -> systemTaskRegistry.isSystemTask(task.getTaskType()))
                             .collect(Collectors.toList());
 
+            LOGGER.info("WorkflowExecutor scheduleTask systemTasks {}", systemTasks);
+
             tasksToBeQueued =
-                    tasks.stream()
+                    filteredTasks.stream()
                             .filter(task -> !systemTaskRegistry.isSystemTask(task.getTaskType()))
                             .collect(Collectors.toList());
+
+            LOGGER.info("WorkflowExecutor scheduleTask customTasks {}", tasksToBeQueued);
 
             // Traverse through all the system tasks, start the sync tasks, in case of async queue
             // the tasks
@@ -1529,6 +1549,7 @@ public class WorkflowExecutor {
                 }
                 if (!workflowSystemTask.isAsync()) {
                     try {
+                        LOGGER.info("WorkflowExecutor decide system tasks are not async task  {}", task);
                         // start execution of synchronous system tasks
                         workflowSystemTask.start(workflow, task, this);
                     } catch (Exception e) {
@@ -1543,6 +1564,7 @@ public class WorkflowExecutor {
                     startedSystemTasks = true;
                     executionDAOFacade.updateTask(task);
                 } else {
+                    LOGGER.info("WorkflowExecutor decide system tasks are async task  {}", task);
                     tasksToBeQueued.add(task);
                 }
             }

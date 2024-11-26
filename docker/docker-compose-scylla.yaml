@@ -4,7 +4,7 @@ services:
   conductor-server:
     environment:
       - CONFIG_PROP=config-scylla.properties
-
+      - PROCESS_NAME=main
   scylla:
     image: scylladb/scylla
     ports:

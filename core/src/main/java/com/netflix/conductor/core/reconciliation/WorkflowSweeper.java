@@ -100,10 +100,13 @@ public class WorkflowSweeper {
         long workflowOffsetTimeout =
                 workflowOffsetWithJitter(properties.getWorkflowOffsetTimeout().getSeconds());
         if (workflow != null) {
-            long startTime = Instant.now().toEpochMilli();
+            // long startTime = Instant.now().toEpochMilli();
             unack(workflow, workflowOffsetTimeout);
-            long endTime = Instant.now().toEpochMilli();
-            Monitors.recordUnackTime(workflow.getWorkflowName(), endTime - startTime);
+            // long endTime = Instant.now().toEpochMilli();
+            // This metrics(recordUnackTime) has workflowName in our prod account we have more number of workflows.
+            // So we may get cardinality problems in haystack due to this.
+            // Disabling this temporarily.
+            // Monitors.recordUnackTime(workflow.getWorkflowName(), endTime - startTime);
         } else {
             LOGGER.warn(
                     "Workflow with {} id can not be found. Attempting to unack using the id",

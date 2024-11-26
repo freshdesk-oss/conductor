@@ -18,9 +18,7 @@ import com.netflix.conductor.model.WorkflowModel;
 public interface WorkflowStatusListener {
 
     default void onWorkflowCompletedIfEnabled(WorkflowModel workflow) {
-        if (workflow.getWorkflowDefinition().isWorkflowStatusListenerEnabled()) {
             onWorkflowCompleted(workflow);
-        }
     }
 
     default void onWorkflowTerminatedIfEnabled(WorkflowModel workflow) {
