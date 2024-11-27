@@ -12,6 +12,9 @@
  */
 package com.netflix.conductor.core.dal;
 
+import static com.netflix.conductor.core.utils.Utils.DECIDER_QUEUE;
+
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -21,13 +24,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import javax.annotation.PreDestroy;
-
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.conductor.common.metadata.events.EventExecution;
 import com.netflix.conductor.common.metadata.tasks.PollData;
 import com.netflix.conductor.common.metadata.tasks.Task;
@@ -45,15 +43,19 @@ import com.netflix.conductor.core.exception.TerminateWorkflowException;
 import com.netflix.conductor.core.exception.TransientException;
 import com.netflix.conductor.core.utils.ExternalPayloadStorageUtils;
 import com.netflix.conductor.core.utils.QueueUtils;
-import com.netflix.conductor.dao.*;
+import com.netflix.conductor.dao.ConcurrentExecutionLimitDAO;
+import com.netflix.conductor.dao.ExecutionDAO;
+import com.netflix.conductor.dao.IndexDAO;
+import com.netflix.conductor.dao.PollDataDAO;
+import com.netflix.conductor.dao.QueueDAO;
+import com.netflix.conductor.dao.RateLimitingDAO;
 import com.netflix.conductor.metrics.Monitors;
 import com.netflix.conductor.model.TaskModel;
 import com.netflix.conductor.model.WorkflowModel;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import static com.netflix.conductor.core.utils.Utils.DECIDER_QUEUE;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 /**
  * Service that acts as a facade for accessing execution data from the {@link ExecutionDAO}, {@link
@@ -135,7 +137,18 @@ public class ExecutionDAOFacade {
     }
 
     public WorkflowModel getWorkflowModel(String workflowId, boolean includeTasks) {
-        WorkflowModel workflowModel = getWorkflowModelFromDataStore(workflowId, includeTasks);
+        return getAndPopulateWorkflowModel("", workflowId, includeTasks);
+    }
+
+    public WorkflowModel getWorkflowModel(String shardId, String workflowId, boolean includeTasks) {
+        return getAndPopulateWorkflowModel(shardId, workflowId, includeTasks);
+    }
+
+    private WorkflowModel getAndPopulateWorkflowModel(String shardId, String workflowId, boolean includeTasks) {
+        WorkflowModel workflowModel = (StringUtils.isEmpty(shardId))
+                ? getWorkflowModelFromDataStore(workflowId, includeTasks)
+                : getWorkflowModelFromDataStore(shardId, workflowId, includeTasks);
+
         populateWorkflowAndTaskPayloadData(workflowModel);
         return workflowModel;
     }
@@ -154,8 +167,32 @@ public class ExecutionDAOFacade {
         return getWorkflowModelFromDataStore(workflowId, includeTasks).toWorkflow();
     }
 
+    /**
+     * Fetches the {@link Workflow} object from the data store given the id. Attempts to fetch from
+     * {@link ExecutionDAO} first, if not found, attempts to fetch from {@link IndexDAO}.
+     *
+     * @param accountId the id of the account to which workflow belongs to be fetched
+     * @param workflowId the id of the workflow to be fetched
+     * @param includeTasks if true, fetches the {@link Task} data in the workflow.
+     * @return the {@link Workflow} object
+     * @throws NotFoundException no such {@link Workflow} is found.
+     * @throws TransientException parsing the {@link Workflow} object fails.
+     */
+    public Workflow getWorkflow(String accountId, String workflowId, boolean includeTasks) {
+        return getWorkflowModelFromDataStore(accountId, workflowId, includeTasks).toWorkflow();
+    }
+
+    private WorkflowModel getWorkflowModelFromDataStore(String accountId, String workflowId, boolean includeTasks) {
+        WorkflowModel workflow = executionDAO.getWorkflow(accountId, workflowId, includeTasks);
+        return getWorkflowModel(workflowId, includeTasks, workflow);
+    }
+
     private WorkflowModel getWorkflowModelFromDataStore(String workflowId, boolean includeTasks) {
         WorkflowModel workflow = executionDAO.getWorkflow(workflowId, includeTasks);
+        return getWorkflowModel(workflowId, includeTasks, workflow);
+    }
+
+    private WorkflowModel getWorkflowModel(String workflowId, boolean includeTasks, WorkflowModel workflow) {
         if (workflow == null) {
             LOGGER.debug("Workflow {} not found in executionDAO, checking indexDAO", workflowId);
             String json = indexDAO.get(workflowId, RAW_JSON_FIELD);
@@ -445,8 +482,17 @@ public class ExecutionDAOFacade {
                 .collect(Collectors.toList());
     }
 
+    public TaskModel getTaskModel(String shardId, String workflowId, String taskId) {
+        TaskModel taskModel = getTaskFromDatastore(shardId, workflowId, taskId);
+        return getTaskModel(taskModel);
+    }
+
     public TaskModel getTaskModel(String taskId) {
         TaskModel taskModel = getTaskFromDatastore(taskId);
+        return getTaskModel(taskModel);
+    }
+
+    private TaskModel getTaskModel(TaskModel taskModel) {
         if (taskModel != null) {
             populateTaskData(taskModel);
         }
@@ -463,6 +509,10 @@ public class ExecutionDAOFacade {
 
     private TaskModel getTaskFromDatastore(String taskId) {
         return executionDAO.getTask(taskId);
+    }
+
+    private TaskModel getTaskFromDatastore(String shardId, String workflowId, String taskId) {
+        return executionDAO.getTask(shardId, workflowId, taskId);
     }
 
     public List<Task> getTasksByName(String taskName, String startKey, int count) {

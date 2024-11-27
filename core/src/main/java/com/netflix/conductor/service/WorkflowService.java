@@ -12,16 +12,13 @@
  */
 package com.netflix.conductor.service;
 
-import java.util.List;
-import java.util.Map;
-
 import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-
-import org.springframework.validation.annotation.Validated;
+import java.util.List;
+import java.util.Map;
 
 import com.netflix.conductor.common.metadata.workflow.RerunWorkflowRequest;
 import com.netflix.conductor.common.metadata.workflow.SkipTaskRequest;
@@ -31,6 +28,7 @@ import com.netflix.conductor.common.run.ExternalStorageLocation;
 import com.netflix.conductor.common.run.SearchResult;
 import com.netflix.conductor.common.run.Workflow;
 import com.netflix.conductor.common.run.WorkflowSummary;
+import org.springframework.validation.annotation.Validated;
 
 @Validated
 public interface WorkflowService {
@@ -127,6 +125,18 @@ public interface WorkflowService {
      * @return an instance of {@link Workflow}
      */
     Workflow getExecutionStatus(
+            @NotEmpty(message = "WorkflowId cannot be null or empty.") String workflowId,
+            boolean includeTasks);
+
+    /**
+     * Gets the workflow by workflow Id.
+     *
+     * @param workflowId Id of the workflow.
+     * @param includeTasks Includes tasks associated with workflow.
+     * @return an instance of {@link Workflow}
+     */
+    Workflow getExecutionStatus(
+            @NotEmpty(message = "WorkflowId cannot be null or empty.") String accountId,
             @NotEmpty(message = "WorkflowId cannot be null or empty.") String workflowId,
             boolean includeTasks);
 

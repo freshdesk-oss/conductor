@@ -109,6 +109,16 @@ public class WorkflowResource {
         return workflowService.getExecutionStatus(workflowId, includeTasks);
     }
 
+    @GetMapping("/accounts/{accountId}/workflows/{workflowId}")
+    @Operation(summary = "Gets the workflow by workflow id and account id")
+    public Workflow getExecutionStatus(
+            @PathVariable("accountId") String accountId,
+            @PathVariable("workflowId") String workflowId,
+            @RequestParam(value = "includeTasks", defaultValue = "true", required = false)
+            boolean includeTasks) {
+        return workflowService.getExecutionStatus(accountId, workflowId, includeTasks);
+    }
+
     @DeleteMapping("/{workflowId}/remove")
     @Operation(summary = "Removes the workflow from the system")
     public void delete(
