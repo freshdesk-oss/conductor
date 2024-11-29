@@ -20,7 +20,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
+import com.netflix.conductor.client.aspect.TracingAspect;
 import com.netflix.conductor.client.automator.TaskRunnerConfigurer;
 import com.netflix.conductor.client.http.TaskClient;
 import com.netflix.conductor.client.worker.Worker;
@@ -29,6 +31,7 @@ import com.netflix.discovery.EurekaClient;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(ClientProperties.class)
+@EnableAspectJAutoProxy
 public class ConductorClientAutoConfiguration {
 
     @Autowired(required = false)
@@ -64,5 +67,10 @@ public class ConductorClientAutoConfiguration {
                 .withShutdownGracePeriodSeconds(clientProperties.getShutdownGracePeriodSeconds())
                 .withEurekaClient(eurekaClient)
                 .build();
+    }
+
+    @Bean
+    public TracingAspect tracingAspect() {
+        return new TracingAspect();
     }
 }

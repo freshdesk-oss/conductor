@@ -108,6 +108,7 @@ class TaskPollExecutor {
     }
 
     void executeTask(String traceParent, String spanName, Worker worker, Task task, PollingSemaphore pollingSemaphore, String taskType, String domain) {
+        LOGGER.info("inside ExecutTask traceParent {} spanName {}", traceParent, spanName);
         if (Objects.nonNull(task) && StringUtils.isNotBlank(task.getTaskId())) {
                         MetricsContainer.incrementTaskPollCount(taskType, 1);
                         LOGGER.debug(

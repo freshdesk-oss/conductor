@@ -31,15 +31,16 @@ public class TracingAspect {
     private static final Logger LOGGER = LoggerFactory.getLogger(TracingAspect.class);
 
     // Pointcut to intercept methods with a specific annotation or all methods in a package
-    @Pointcut("execution(* com.netflix.conductor.client.*(String traceParent, String spanName,..))")  // Target methods in 'conductor.client' package
+    @Pointcut("execution(* com.netflix.conductor.client..*(String traceParent, String spanName, ..))")  // Target methods in 'conductor.client' package
     public void traceableMethods() {}
 
     // Before advice: starts the trace before the method execution
     @Before("traceableMethods()")
     public void startTracing(JoinPoint joinPoint) {
-        LOGGER.info("inside startTracing"); 
+        LOGGER.info("inside startTracing");
         String traceParent = (String) joinPoint.getArgs()[0];
         String spanName = (String) joinPoint.getArgs()[1];
+        LOGGER.info("traceParent: {}, spanName {}", traceParent, spanName); 
         Map<String, String> headers = new HashMap<>();
         headers.put("traceparent", traceParent);
         TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
