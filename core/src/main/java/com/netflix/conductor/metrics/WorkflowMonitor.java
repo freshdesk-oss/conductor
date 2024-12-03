@@ -74,51 +74,31 @@ public class WorkflowMonitor {
     }
 
     @Scheduled(
-            initialDelayString = "${conductor.workflow-monitor.stats.initial-delay:120000}",
-            fixedDelayString = "${conductor.workflow-monitor.stats.delay:60000}")
+            initialDelayString = "${conductor.workflow-monitor.stats.initial-delay}",
+            fixedDelayString = "${conductor.workflow-monitor.stats.delay}")
     public void reportMetrics() {
+        taskDefs = new ArrayList<>(metadataService.getTaskDefs());
+
         try {
-            if (refreshCounter <= 0) {
-                workflowDefs = metadataService.getWorkflowDefs();
-                taskDefs = new ArrayList<>(metadataService.getTaskDefs());
-                refreshCounter = metadataRefreshInterval;
-            }
-
-            getPendingWorkflowToOwnerAppMap(workflowDefs)
-                    .forEach(
-                            (workflowName, ownerApp) -> {
-                                long count =
-                                        executionDAOFacade.getPendingWorkflowCount(workflowName);
-                                Monitors.recordRunningWorkflows(count, workflowName, ownerApp);
-                            });
-
-            taskDefs.forEach(
-                    taskDef -> {
+                taskDefs.forEach(
+                        taskDef -> {
                         long size = queueDAO.getSize(taskDef.getName());
-                        long inProgressCount =
-                                executionDAOFacade.getInProgressTaskCount(taskDef.getName());
                         Monitors.recordQueueDepth(taskDef.getName(), size, taskDef.getOwnerApp());
-                        if (taskDef.concurrencyLimit() > 0) {
-                            Monitors.recordTaskInProgress(
-                                    taskDef.getName(), inProgressCount, taskDef.getOwnerApp());
-                        }
-                    });
-
-            asyncSystemTasks.forEach(
-                    workflowSystemTask -> {
-                        long size = queueDAO.getSize(workflowSystemTask.getTaskType());
-                        long inProgressCount =
-                                executionDAOFacade.getInProgressTaskCount(
-                                        workflowSystemTask.getTaskType());
-                        Monitors.recordQueueDepth(workflowSystemTask.getTaskType(), size, "system");
-                        Monitors.recordTaskInProgress(
-                                workflowSystemTask.getTaskType(), inProgressCount, "system");
-                    });
-
-            refreshCounter--;
+                        });
         } catch (Exception e) {
-            LOGGER.error("Error while publishing scheduled metrics", e);
+                LOGGER.error("Error while publishing scheduled metrics", e);
         }
+
+        try {
+                asyncSystemTasks.forEach(
+                        workflowSystemTask -> {
+                        long size = queueDAO.getSize(workflowSystemTask.getTaskType());
+                        Monitors.recordQueueDepth(workflowSystemTask.getTaskType(), size, "system");
+                        });
+        } catch (Exception e) {
+                LOGGER.error("Error while publishing scheduled metrics", e);
+        }
+        LOGGER.info("Workflow Scheduled Monitor Completed");
     }
 
     /**

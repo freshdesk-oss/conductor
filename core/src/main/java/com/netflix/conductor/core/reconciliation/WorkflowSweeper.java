@@ -100,10 +100,7 @@ public class WorkflowSweeper {
         long workflowOffsetTimeout =
                 workflowOffsetWithJitter(properties.getWorkflowOffsetTimeout().getSeconds());
         if (workflow != null) {
-            long startTime = Instant.now().toEpochMilli();
             unack(workflow, workflowOffsetTimeout);
-            long endTime = Instant.now().toEpochMilli();
-            Monitors.recordUnackTime(workflow.getWorkflowName(), endTime - startTime);
         } else {
             LOGGER.warn(
                     "Workflow with {} id can not be found. Attempting to unack using the id",
