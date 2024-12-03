@@ -77,37 +77,13 @@ public class WorkflowMonitor {
             initialDelayString = "${conductor.workflow-monitor.stats.initial-delay}",
             fixedDelayString = "${conductor.workflow-monitor.stats.delay}")
     public void reportMetrics() {
-        if (refreshCounter <= 0) {
-                // workflowDefs = metadataService.getWorkflowDefs();
-                taskDefs = new ArrayList<>(metadataService.getTaskDefs());
-                refreshCounter = metadataRefreshInterval;
-        }
-
-        // Commented out as we don't have use case for Pending Workflows as of now and hence we don't have pending workflow implementation from
-        // scylla persistence.
-        // try {
-        //         getPendingWorkflowToOwnerAppMap(workflowDefs)
-        //                 .forEach(
-        //                         (workflowName, ownerApp) -> {
-        //                         long count =
-        //                                 executionDAOFacade.getPendingWorkflowCount(workflowName);
-        //                         Monitors.recordRunningWorkflows(count, workflowName, ownerApp);
-        //                         });
-        // } catch (Exception e) {
-        //     LOGGER.error("Error while publishing scheduled metrics", e);
-        // }
+        taskDefs = new ArrayList<>(metadataService.getTaskDefs());
 
         try {
                 taskDefs.forEach(
                         taskDef -> {
                         long size = queueDAO.getSize(taskDef.getName());
-                        // long inProgressCount =
-                        //         executionDAOFacade.getInProgressTaskCount(taskDef.getName());
                         Monitors.recordQueueDepth(taskDef.getName(), size, taskDef.getOwnerApp());
-                        // if (taskDef.concurrencyLimit() > 0) {
-                        //         Monitors.recordTaskInProgress(
-                        //                 taskDef.getName(), inProgressCount, taskDef.getOwnerApp());
-                        // }
                         });
         } catch (Exception e) {
                 LOGGER.error("Error while publishing scheduled metrics", e);
@@ -117,18 +93,12 @@ public class WorkflowMonitor {
                 asyncSystemTasks.forEach(
                         workflowSystemTask -> {
                         long size = queueDAO.getSize(workflowSystemTask.getTaskType());
-                        // long inProgressCount =
-                        //         executionDAOFacade.getInProgressTaskCount(
-                        //                 workflowSystemTask.getTaskType());
                         Monitors.recordQueueDepth(workflowSystemTask.getTaskType(), size, "system");
-                        // Monitors.recordTaskInProgress(
-                        //         workflowSystemTask.getTaskType(), inProgressCount, "system");
                         });
         } catch (Exception e) {
                 LOGGER.error("Error while publishing scheduled metrics", e);
         }
         LOGGER.info("Workflow Scheduled Monitor Completed");
-        // refreshCounter--;
     }
 
     /**
