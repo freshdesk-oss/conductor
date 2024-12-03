@@ -325,8 +325,8 @@ public class Statements {
     /**
      * @return cql query statement to insert tasks to task_in_progress table
      */
-    public String getInsertTaskInProgressStatement() {
-        return QueryBuilder.insertInto(keyspace, TABLE_TASK_IN_PROGRESS)
+    public String getInsertTaskInProgressV2Statement() {
+        return QueryBuilder.insertInto(keyspace, TABLE_TASK_IN_PROGRESS_V2)
                 .value(TASK_DEF_NAME_KEY, bindMarker())
                 .value(TASK_ID_KEY, bindMarker())
                 .value(WORKFLOW_ID_KEY, bindMarker())
@@ -348,15 +348,30 @@ public class Statements {
     }
 
     /**
-     * @return cql query statement to retrieve all the tasks count from task_in_progress table per taskDefName
+     * @return cql query statement to retrieve all the tasks count from task_in_progress table
+     * per taskDefName and task_id
      */
+    public String getSelectTaskInProgressV2Statement() {
+        return QueryBuilder.select()
+                .countAll()
+                .from(keyspace, TABLE_TASK_IN_PROGRESS_V2)
+                .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
+                .and(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /*
+     *
+     //**
+     * @return cql query statement to retrieve all the tasks count from task_in_progress table per taskDefName
+     *//*
     public String getSelectCountTaskInProgressPerTskDefStatement() {
         return QueryBuilder.select()
                 .countAll()
                 .from(keyspace, TABLE_TASK_IN_PROGRESS)
                 .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
                 .getQueryString();
-    }
+    }*/
 
     /**
      * @return cql query statement to update the task in task_in_progress table per taskDefName
@@ -371,12 +386,36 @@ public class Statements {
     }
 
     /**
+     * @return cql query statement to update the task in task_in_progress table per taskDefName
+     * and task_id
+     */
+    public String getUpdateTaskInProgressV2Statement() {
+        return QueryBuilder.update(keyspace, TABLE_TASK_IN_PROGRESS_V2)
+                .with(set(TASK_IN_PROG_STATUS_KEY, bindMarker()))
+                .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
+                .and(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
      * @return cql query statement to delete the task in task_in_progress table per taskDefName
      * and task_id
      */
     public String getDeleteTaskInProgressStatement() {
         return QueryBuilder.delete()
                 .from(keyspace, TABLE_TASK_IN_PROGRESS)
+                .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
+                .and(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to delete the task in task_in_progress table per taskDefName
+     * and task_id
+     */
+    public String getDeleteTaskInProgressV2Statement() {
+        return QueryBuilder.delete()
+                .from(keyspace, TABLE_TASK_IN_PROGRESS_V2)
                 .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
                 .and(eq(TASK_ID_KEY, bindMarker()))
                 .getQueryString();
