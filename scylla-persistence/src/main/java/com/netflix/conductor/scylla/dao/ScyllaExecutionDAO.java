@@ -110,6 +110,8 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     protected final int eventExecutionsTTL;
     private RedisLock redisLock;
 
+    private boolean isConcurrencyLimitEnabled;
+
     public ScyllaExecutionDAO(
             Session session,
             ObjectMapper objectMapper,
@@ -434,6 +436,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     @Override
     public boolean exceedsLimit(TaskModel task) {
+        if (!isConcurrencyLimitEnabled()) {
+            return false;
+        }
         Optional<TaskDef> taskDefinition = task.getTaskDefinition();
         if (taskDefinition.isEmpty()) {
             return false;
@@ -997,6 +1002,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     @Override
     public void addTaskToLimit(TaskModel task) {
+        if (!isConcurrencyLimitEnabled()) {
+            return;
+        }
         try {
             recordCassandraDaoRequests(
                     "addTaskToLimit", task.getTaskType(), task.getWorkflowType());
@@ -1019,6 +1027,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     @Override
     public void removeTaskFromLimit(TaskModel task) {
+        if (!isConcurrencyLimitEnabled()) {
+            return;
+        }
         try {
             recordCassandraDaoRequests(
                     "removeTaskFromLimit", task.getTaskType(), task.getWorkflowType());
@@ -1204,8 +1215,17 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         }
     }
 
+    public boolean isConcurrencyLimitEnabled() {
+        return isConcurrencyLimitEnabled;
+    }
+
+    public void setConcurrencyLimitEnabled(boolean concurrencyLimitEnabled) {
+        isConcurrencyLimitEnabled = concurrencyLimitEnabled;
+    }
+
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.redisLock = (RedisLock) applicationContext.getBean("provideRedisLock");
+        setConcurrencyLimitEnabled(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("concurrencyLimitEnabled")));
     }
 }
