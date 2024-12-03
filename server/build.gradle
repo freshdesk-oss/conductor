@@ -45,6 +45,7 @@ dependencies {
     implementation 'com.netflix.conductor:conductor-kafka:3.13.3'
 
     implementation 'io.micrometer:micrometer-registry-prometheus:1.11.0'
+    implementation "com.netflix.spectator:spectator-reg-micrometer:${revSpectator}"
 
     implementation "io.opentelemetry:opentelemetry-extension-annotations:1.18.0"
     implementation "io.opentelemetry:opentelemetry-api:1.35.0"
