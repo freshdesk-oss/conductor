@@ -577,7 +577,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     private TaskModel getTaskModel(String shardId, String taskId, String workflowId) {
-        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+        Long correlationId = Objects.isNull(shardId) ? 0L : Long.parseLong(shardId);
         if (workflowId == null) {
             return null;
         }
@@ -783,7 +783,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public WorkflowModel getWorkflow(String shardId, String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
-        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+        Long correlationId = Objects.isNull(shardId) ? 0L : Long.parseLong(shardId);
 
         return getWorkflowModel(workflowId, includeTasks, workflowUUID, correlationId);
     }
@@ -797,7 +797,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         return getWorkflowModel(workflowId, includeTasks, workflowUUID, correlationId);
     }
 
-    private WorkflowModel getWorkflowModel(String workflowId, boolean includeTasks, UUID workflowUUID, Integer correlationId) {
+    private WorkflowModel getWorkflowModel(String workflowId, boolean includeTasks, UUID workflowUUID, Long correlationId) {
         try {
             WorkflowModel workflow = null;
             ResultSet resultSet;
