@@ -81,6 +81,13 @@ public interface ExecutionDAO {
     TaskModel getTask(String taskId);
 
     /**
+     * @param shardId shard id to which task belongs
+     * @param taskId Task instance id
+     * @return Task
+     */
+    TaskModel getTask(String shardId, String workflowId, String taskId);
+
+    /**
      * @param taskIds Task instance ids
      * @return List of tasks
      */
@@ -144,6 +151,15 @@ public interface ExecutionDAO {
      * @return Workflow instance details
      */
     WorkflowModel getWorkflow(String workflowId, boolean includeTasks);
+
+    /**
+     * @param accountId to which workflow belongs
+     * @param workflowId workflow instance id
+     * @param includeTasks if set, includes the tasks (pending and completed) sorted by Task
+     *     Sequence number in Workflow.
+     * @return Workflow instance details
+     */
+    WorkflowModel getWorkflow(String accountId, String workflowId, boolean includeTasks);
 
     /**
      * @param workflowName name of the workflow
