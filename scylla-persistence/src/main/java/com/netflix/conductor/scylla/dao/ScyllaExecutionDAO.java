@@ -537,7 +537,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             LOGGER.warn("No such task found by id {}", taskId);
             return false;
         }
-        return removeTask(task);1
+        return removeTask(task);
     }
 
     @Override
