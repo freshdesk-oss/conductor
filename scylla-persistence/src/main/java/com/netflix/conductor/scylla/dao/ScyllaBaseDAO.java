@@ -99,11 +99,8 @@ public abstract class ScyllaBaseDAO {
                 session.execute(getCreateWorkflowDefsTableStatement());
                 session.execute(getCreateWorkflowDefsIndexTableStatement());
                 session.execute(getCreateTaskDefsTableStatement());
-                //[clean up after migration]
                 //Added task_in_progress
                 session.execute(getCreateTaskInProgressTableStatement());
-                //Added task_in_progress_v2
-                session.execute(getCreateTaskInProgressTableV2Statement());
                 //Added workflow_lookup
                 //Added task_in_progress_v2
                 session.execute(getCreateTaskInProgressTableV2Statement());
@@ -204,7 +201,6 @@ public abstract class ScyllaBaseDAO {
                 .getQueryString();
     }
 
-    //[clean up after migration]
     /**
      * @return cql statement to create task_in_progress table for tasks stats identification
      */
