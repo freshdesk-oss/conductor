@@ -105,6 +105,8 @@ public abstract class ScyllaBaseDAO {
                 //Added task_in_progress_v2
                 session.execute(getCreateTaskInProgressTableV2Statement());
                 //Added workflow_lookup
+                //Added task_in_progress_v2
+                session.execute(getCreateTaskInProgressTableV2Statement());
                 session.execute(getCreateWorkflowLookupTableStatement());
                 session.execute(getCreateEventHandlersTableStatement());
                 session.execute(getCreateEventExecutionsTableStatement());
