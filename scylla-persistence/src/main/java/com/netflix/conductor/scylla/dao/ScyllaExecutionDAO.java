@@ -348,7 +348,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     public void addTaskInProgress(TaskModel task) {
         ResultSet resultSet = getTaskInProgressTaskFromTaskModel(task);
-        if (resultSet.isExhausted()) {
+        if (resultSet.all().size() < 1) {
             session.execute(insertTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId()),
                     UUID.fromString(task.getWorkflowInstanceId()), true));
         } else {
@@ -358,12 +358,30 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     private ResultSet getTaskInProgressTaskFromTaskModel(TaskModel task) {
-        ResultSet resultSet = session.execute(selectTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
-        if (resultSet.isExhausted()) {
-            logTaskInProgressStatus(task);
-            return session.execute(selectTaskInProgressStatement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        try {
+            ResultSet resultSet = fetchFromTaskInProgressV2Query(task);
+            if (isResultSetNotValid(resultSet)) {
+                return fetchFromTaskInProgressQuery(task);
+            }
+            return resultSet;
+        } catch (Exception ex) {
+            LOGGER.error("Error while reading task from task_in_progress_v2 table - taskDefName: {}, taskId: {}, status: {}",
+                    task.getTaskDefName(), task.getTaskId(), task.getStatus(), ex);
+            return null;
         }
-        return null;
+    }
+
+    private ResultSet fetchFromTaskInProgressV2Query(TaskModel task) {
+        return session.execute(selectTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+    }
+
+    private ResultSet fetchFromTaskInProgressQuery(TaskModel task) {
+        logTaskInProgressStatus(task);
+        return session.execute(selectTaskInProgressStatement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+    }
+
+    private boolean isResultSetNotValid(ResultSet resultSet) {
+        return Objects.isNull(resultSet) || resultSet.all().size() < 1;
     }
 
     /**
