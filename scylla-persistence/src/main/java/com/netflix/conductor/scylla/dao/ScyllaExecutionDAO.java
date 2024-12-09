@@ -537,7 +537,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             LOGGER.warn("No such task found by id {}", taskId);
             return false;
         }
-        return removeTask(task);
+        return removeTask(task);1
     }
 
     @Override
@@ -1268,7 +1268,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     public void setConcurrencyLimitEnabled(boolean concurrencyLimitEnabled) {
-        isConcurrencyLimitEnabled = concurrencyLimitEnabled;
+        this.isConcurrencyLimitEnabled = concurrencyLimitEnabled;
     }
 
     @Override
