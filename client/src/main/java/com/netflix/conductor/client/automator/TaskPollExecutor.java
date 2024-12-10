@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.netflix.appinfo.InstanceInfo.InstanceStatus;
+import com.netflix.conductor.client.annotations.TraceableMethods;
 import com.netflix.conductor.client.config.PropertyFactory;
 import com.netflix.conductor.client.http.TaskClient;
 import com.netflix.conductor.client.telemetry.MetricsContainer;
@@ -107,6 +108,7 @@ class TaskPollExecutor {
                                 .build());
     }
 
+    @TraceableMethods
     void executeTask(String traceParent, String spanName, Worker worker, Task task, PollingSemaphore pollingSemaphore, String taskType, String domain) {
         LOGGER.info("inside ExecutTask traceParent {} spanName {}", traceParent, spanName);
         if (Objects.nonNull(task) && StringUtils.isNotBlank(task.getTaskId())) {

@@ -31,7 +31,8 @@ public class TracingAspect {
     private static final Logger LOGGER = LoggerFactory.getLogger(TracingAspect.class);
 
     // Pointcut to intercept methods with a specific annotation or all methods in a package
-    @Pointcut("execution(* com.netflix.conductor.client..*(String traceParent, String spanName, ..))")  // Target methods in 'conductor.client' package
+    // @Pointcut("execution(* com.netflix.conductor.client..*(String traceParent, String spanName, ..))")  // Target methods in 'conductor.client' package
+    @Pointcut("@annotation(TraceableMethods)") 
     public void traceableMethods() {}
 
     // Before advice: starts the trace before the method execution
