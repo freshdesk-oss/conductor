@@ -490,7 +490,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             LOGGER.warn("No such task found by id {}", taskId);
             return false;
         }
-        return removeTask(task);1
+        return removeTask(task);
     }
 
     @Override
@@ -1226,6 +1226,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.redisLock = (RedisLock) applicationContext.getBean("provideRedisLock");
-        setConcurrencyLimitEnabled(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("concurrencyLimitEnabled")));
+        setConcurrencyLimitEnabled(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("concurrencyLimitEnabled", "false")));
     }
 }
