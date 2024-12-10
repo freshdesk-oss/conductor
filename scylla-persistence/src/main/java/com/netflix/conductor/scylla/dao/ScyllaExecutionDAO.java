@@ -62,6 +62,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.util.CollectionUtils;
 
 @Trace
 public class ScyllaExecutionDAO extends ScyllaBaseDAO
@@ -342,7 +343,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     public void addTaskInProgress(TaskModel task) {
         ResultSet resultSet = getTaskInProgressTaskFromTaskModel(task);
-        if (resultSet.all().size() < 1) {
+        if (CollectionUtils.isEmpty(resultSet.all())) {
             session.execute(insertTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId()),
                     UUID.fromString(task.getWorkflowInstanceId()), true));
         } else {
@@ -375,20 +376,17 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     private boolean isResultSetNotValid(ResultSet resultSet) {
-        return Objects.isNull(resultSet) || resultSet.all().size() < 1;
+        return Objects.isNull(resultSet) || CollectionUtils.isEmpty(resultSet.all());
     }
 
     /**
      * @method to remove the task_in_progress table with the status of the task
      */
     public void removeTaskInProgress(TaskModel task) {
-        ResultSet resultSet = session.execute(
-                deleteTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
-        if (!resultSet.wasApplied()) {
-            logTaskInProgressStatus(task);
-            session.execute(
-                    deleteTaskInProgressStatement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
-        }
+        BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
+        batchStatement.add(deleteTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        batchStatement.add(deleteTaskInProgressStatement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        session.execute(batchStatement);
     }
 
     private void logTaskInProgressStatus(TaskModel task) {
@@ -400,12 +398,11 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @method to update the task_in_progress table with the status of the task
      */
     public void updateTaskInProgress(TaskModel task, boolean inProgress) {
-        ResultSet resultSet =
-                session.execute(updateTaskInProgressV2Statement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
-        if (!resultSet.wasApplied()) {
-            logTaskInProgressStatus(task);
-            session.execute(updateTaskInProgressStatement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
-        }
+        BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
+        batchStatement.add(
+                updateTaskInProgressV2Statement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        batchStatement.add(updateTaskInProgressStatement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        session.execute(batchStatement);
     }
 
     @Override
