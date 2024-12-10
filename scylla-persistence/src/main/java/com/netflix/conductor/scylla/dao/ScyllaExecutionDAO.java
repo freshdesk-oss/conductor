@@ -69,7 +69,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ScyllaExecutionDAO.class);
     private static final String CLASS_NAME = ScyllaExecutionDAO.class.getSimpleName();
-    private static final Object lock = new Object();
 
     protected final PreparedStatement insertWorkflowStatement;
     protected final PreparedStatement insertTaskStatement;
@@ -90,7 +89,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     protected final PreparedStatement selectWorkflowsByCorIdFromWorkflowStatement;
 
-    //protected final PreparedStatement selectCountFromTaskInProgressStatement;
     protected final PreparedStatement selectShardFromWorkflowLookupStatement;
     protected final PreparedStatement updateWorkflowLookupStatement;
     protected final PreparedStatement deleteWorkflowLookupStatement;
@@ -149,10 +147,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         this.selectShardFromTaskLookupStatement =
                 session.prepare(statements.getSelectShardFromTaskLookupTableStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
-
-        /*this.selectCountFromTaskInProgressStatement =
-                session.prepare(statements.getSelectCountTaskInProgressPerTskDefStatement())
-                        .setConsistencyLevel(properties.getReadConsistencyLevel());*/
 
         this.selectWorkflowsByCorIdFromWorkflowStatement =
                 session.prepare(statements.getSelectWorkflowsByCorrelationIdStatement())
