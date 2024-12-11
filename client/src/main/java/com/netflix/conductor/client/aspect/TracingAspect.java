@@ -32,11 +32,11 @@ public class TracingAspect {
 
     // Pointcut to intercept methods with a specific annotation or all methods in a package
     // @Pointcut("execution(* com.netflix.conductor.client..*(String traceParent, String spanName, ..))")  // Target methods in 'conductor.client' package
-    @Pointcut("@annotation(TraceableMethods)") 
-    public void traceableMethods() {}
+    // @Pointcut("@annotation(TraceableMethods)") 
+    // public void traceableMethods() {}
 
     // Before advice: starts the trace before the method execution
-    @Before("traceableMethods()")
+    @Before("@annotation(TraceableMethods)")
     public void startTracing(JoinPoint joinPoint) {
         LOGGER.info("inside startTracing");
         String traceParent = (String) joinPoint.getArgs()[0];
@@ -51,7 +51,7 @@ public class TracingAspect {
     }
 
     // After advice: ends the trace after the method execution
-    @After("traceableMethods()")
+    @After("@annotation(TraceableMethods)")
     public void endTracing(JoinPoint joinPoint) {
         LOGGER.info("inside endTracing"); 
         Span.current().end();
