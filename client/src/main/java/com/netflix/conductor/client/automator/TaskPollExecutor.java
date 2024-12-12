@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.netflix.appinfo.InstanceInfo.InstanceStatus;
 import com.netflix.conductor.client.annotations.TraceableMethod;
+import com.netflix.conductor.client.aspect.TracingAspect;
 import com.netflix.conductor.client.config.PropertyFactory;
 import com.netflix.conductor.client.http.TaskClient;
 import com.netflix.conductor.client.telemetry.MetricsContainer;
@@ -40,6 +41,16 @@ import com.netflix.discovery.EurekaClient;
 import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.Spectator;
 import com.netflix.spectator.api.patterns.ThreadPoolMonitor;
+
+import com.netflix.conductor.client.automator.TextMapGetterHelper;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapPropagator;
+import io.opentelemetry.context.propagation.TextMapGetter;
 
 /**
  * Manages the threadpool used by the workers for execution and server communication (polling and
@@ -66,6 +77,8 @@ class TaskPollExecutor {
     private static final double LEASE_EXTEND_DURATION_FACTOR = 0.8;
     private ScheduledExecutorService leaseExtendExecutorService;
     Map<String /* ID of the task*/, ScheduledFuture<?>> leaseExtendMap = new HashMap<>();
+
+    private static final Tracer tracer = GlobalOpenTelemetry.getTracer("conductor-client");
 
     TaskPollExecutor(
             EurekaClient eurekaClient,
@@ -108,9 +121,28 @@ class TaskPollExecutor {
                                 .build());
     }
 
-    @TraceableMethod
-    void executeTask(String traceParent, String spanName, Worker worker, Task task, PollingSemaphore pollingSemaphore, String taskType, String domain) {
-        LOGGER.info("inside ExecutTask traceParent {} spanName {}", traceParent, spanName);
+    private void startTracing(String traceParent, String spanName) {
+        try {
+            Map<String, String> headers = new HashMap<>();
+            headers.put("traceparent", traceParent);
+            TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+            Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
+            Span span = tracer.spanBuilder(spanName).setParent(context).startSpan();
+            Scope scope = span.makeCurrent();
+        } catch (Exception ex) {
+            LOGGER.error("Exception while startTracing", ex);
+        }
+    }
+
+    private void endTracing() {
+        try {
+            Span.current().end();
+        } catch (Exception ex) {
+            LOGGER.error("Exception while endTracing", ex);
+        }
+    }
+
+    void executeTask(Worker worker, Task task, PollingSemaphore pollingSemaphore, String taskType, String domain) {
         if (Objects.nonNull(task) && StringUtils.isNotBlank(task.getTaskId())) {
                         MetricsContainer.incrementTaskPollCount(taskType, 1);
                         LOGGER.debug(
@@ -201,8 +233,9 @@ class TaskPollExecutor {
                                                     worker.getBatchPollTimeoutInMS()));
             acquiredTasks = tasks.size();
             for (Task task : tasks) {
-                    executeTask((String) task.getInputData().get("traceparent"),
-                            "execute-task_" + task.getTaskDefName(), worker, task, pollingSemaphore, taskType, domain);
+                    startTracing((String) task.getInputData().get("traceparent"), "execute-task_" + task.getTaskDefName());
+                    executeTask(worker, task, pollingSemaphore, taskType, domain);
+                    endTracing();
             }
         } catch (Exception e) {
             MetricsContainer.incrementTaskPollErrorCount(worker.getTaskDefName(), e);
