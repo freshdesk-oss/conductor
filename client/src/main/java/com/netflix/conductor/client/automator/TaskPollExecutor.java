@@ -134,45 +134,13 @@ class TaskPollExecutor {
 
     private void endTracing() {
         try {
-            Span.current().end();
+            Span span = Span.current();
+            if (span != null) {
+                span.end();
+                LOGGER.info("span ended");
+            }
         } catch (Exception ex) {
             LOGGER.error("Exception while endTracing", ex);
-        }
-    }
-
-    void executeTask(Worker worker, Task task, PollingSemaphore pollingSemaphore, String taskType, String domain) {
-        if (Objects.nonNull(task) && StringUtils.isNotBlank(task.getTaskId())) {
-                        MetricsContainer.incrementTaskPollCount(taskType, 1);
-                        LOGGER.debug(
-                                "Polled task: {} of type: {} in domain: '{}', from worker: {}",
-                                task.getTaskId(),
-                                taskType,
-                                domain,
-                                worker.getIdentity());
-
-                        CompletableFuture<Task> taskCompletableFuture =
-                                CompletableFuture.supplyAsync(
-                                        () -> processTask(task, worker, pollingSemaphore),
-                                        executorService);
-
-                        if (task.getResponseTimeoutSeconds() > 0 && worker.leaseExtendEnabled()) {
-                            ScheduledFuture<?> leaseExtendFuture =
-                                    leaseExtendExecutorService.scheduleWithFixedDelay(
-                                            extendLease(task, taskCompletableFuture),
-                                            Math.round(
-                                                    task.getResponseTimeoutSeconds()
-                                                            * LEASE_EXTEND_DURATION_FACTOR),
-                                            Math.round(
-                                                    task.getResponseTimeoutSeconds()
-                                                            * LEASE_EXTEND_DURATION_FACTOR),
-                                            TimeUnit.SECONDS);
-                            leaseExtendMap.put(task.getTaskId(), leaseExtendFuture);
-                        }
-
-                        taskCompletableFuture.whenComplete(this::finalizeTask);
-        } else {
-            // no task was returned in the poll, release the permit
-            pollingSemaphore.complete(1);
         }
     }
 
@@ -231,9 +199,39 @@ class TaskPollExecutor {
                                                     worker.getBatchPollTimeoutInMS()));
             acquiredTasks = tasks.size();
             for (Task task : tasks) {
-                    startTracing((String) task.getInputData().get("traceparent"), "execute-task_" + task.getTaskDefName());
-                    executeTask(worker, task, pollingSemaphore, taskType, domain);
-                    endTracing();
+                if (Objects.nonNull(task) && StringUtils.isNotBlank(task.getTaskId())) {
+                    MetricsContainer.incrementTaskPollCount(taskType, 1);
+                    LOGGER.debug(
+                            "Polled task: {} of type: {} in domain: '{}', from worker: {}",
+                            task.getTaskId(),
+                            taskType,
+                            domain,
+                            worker.getIdentity());
+
+                    CompletableFuture<Task> taskCompletableFuture =
+                            CompletableFuture.supplyAsync(
+                                    () -> processTask(task, worker, pollingSemaphore),
+                                    executorService);
+
+                    if (task.getResponseTimeoutSeconds() > 0 && worker.leaseExtendEnabled()) {
+                        ScheduledFuture<?> leaseExtendFuture =
+                                leaseExtendExecutorService.scheduleWithFixedDelay(
+                                        extendLease(task, taskCompletableFuture),
+                                        Math.round(
+                                                task.getResponseTimeoutSeconds()
+                                                        * LEASE_EXTEND_DURATION_FACTOR),
+                                        Math.round(
+                                                task.getResponseTimeoutSeconds()
+                                                        * LEASE_EXTEND_DURATION_FACTOR),
+                                        TimeUnit.SECONDS);
+                        leaseExtendMap.put(task.getTaskId(), leaseExtendFuture);
+                    }
+
+                    taskCompletableFuture.whenComplete(this::finalizeTask);
+                } else {
+                    // no task was returned in the poll, release the permit
+                    pollingSemaphore.complete(1);
+                }
             }
         } catch (Exception e) {
             MetricsContainer.incrementTaskPollErrorCount(worker.getTaskDefName(), e);
@@ -282,12 +280,14 @@ class TaskPollExecutor {
                 worker.getClass().getSimpleName(),
                 worker.getIdentity());
         try {
+            startTracing((String) task.getInputData().get("traceparent"), "execute-task_" + task.getTaskDefName());
             executeTask(worker, task);
         } catch (Throwable t) {
             task.setStatus(Task.Status.FAILED);
             TaskResult result = new TaskResult(task);
             handleException(t, result, worker, task);
         } finally {
+            endTracing();
             pollingSemaphore.complete(1);
         }
         return task;
