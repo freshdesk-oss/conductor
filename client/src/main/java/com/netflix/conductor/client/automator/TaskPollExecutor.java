@@ -137,7 +137,6 @@ class TaskPollExecutor {
             Span span = Span.current();
             if (span != null) {
                 span.end();
-                LOGGER.info("span ended");
             }
         } catch (Exception ex) {
             LOGGER.error("Exception while endTracing", ex);
