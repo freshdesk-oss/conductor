@@ -16,20 +16,41 @@
 
 echo "Starting Conductor server"
 
+function print_log()
+{
+    echo -e "$(date +'[%F %T %Z]') $*"
+}
+
 # Start the server
 cd /app/libs
-echo "Property file: $CONFIG_PROP"
-echo $CONFIG_PROP
+print_log "Property file: $CONFIG_PROP"
+print_log $CONFIG_PROP
 export config_file=
 
 if [ -z "$CONFIG_PROP" ];
   then
-    echo "Using an in-memory instance of conductor";
+    print_log "Using an in-memory instance of conductor";
     export config_file=/app/config/config-local.properties
   else
-    echo "Using '$CONFIG_PROP'";
+    print_log "Using '$CONFIG_PROP'";
     export config_file=/app/config/$CONFIG_PROP
 fi
+
+[[ -z ${HOSTNAME} ]] && { print_log "Error: HOSTNAME environment variable not set"; exit 1; }
+
+if [[ "$HOSTNAME" == *"conductor-monitor"* ]]; then
+    print_log "Generating Envs for conductor-monitor"
+    export WORKFLOW_MONITOR_STATS_INITIAL_DELAY="30000"
+    export WORKFLOW_MONITOR_STATS_FIXED_DELAY="10000"
+else
+    print_log "Generating Envs for common layers"
+    # Disabling scheduled monitor for common layers by keeping large delay(30 days)
+    export WORKFLOW_MONITOR_STATS_INITIAL_DELAY="2592000000"
+    export WORKFLOW_MONITOR_STATS_FIXED_DELAY="2592000000"
+fi
+
+echo "WORKFLOW_MONITOR_STATS_INITIAL_DELAY: $WORKFLOW_MONITOR_STATS_INITIAL_DELAY"
+echo "WORKFLOW_MONITOR_STATS_FIXED_DELAY: $WORKFLOW_MONITOR_STATS_FIXED_DELAY"
 
 echo "Using java options config: $JAVA_OPTS"
 

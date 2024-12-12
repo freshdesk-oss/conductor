@@ -248,20 +248,20 @@ public abstract class ScyllaBaseDAO {
     }
 
     void recordCassandraDaoRequests(String action) {
-        recordCassandraDaoRequests(action, "n/a", "n/a");
+        // recordCassandraDaoRequests(action, "n/a", "n/a");
     }
 
     void recordCassandraDaoRequests(String action, String taskType, String workflowType) {
-        Monitors.recordDaoRequests(DAO_NAME, action, taskType, workflowType);
+        // Monitors.recordDaoRequests(DAO_NAME, action, taskType, workflowType);
     }
 
     void recordCassandraDaoEventRequests(String action, String event) {
-        Monitors.recordDaoEventRequests(DAO_NAME, action, event);
+        // Monitors.recordDaoEventRequests(DAO_NAME, action, event);
     }
 
     void recordCassandraDaoPayloadSize(
             String action, int size, String taskType, String workflowType) {
-        Monitors.recordDaoPayloadSize(DAO_NAME, action, taskType, workflowType, size);
+        // Monitors.recordDaoPayloadSize(DAO_NAME, action, taskType, workflowType, size);
     }
 
     static class WorkflowMetadata {
