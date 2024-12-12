@@ -32,28 +32,36 @@ public class TracingAspect {
 
     // Pointcut to intercept methods with a specific annotation or all methods in a package
     // @Pointcut("execution(* com.netflix.conductor.client..*(String traceParent, String spanName, ..))")  // Target methods in 'conductor.client' package
-    // @Pointcut("@annotation(TraceableMethods)") 
-    // public void traceableMethods() {}
+    // @Pointcut("@annotation(TraceableMethod)") 
+    // public void traceableMethod() {}
 
     // Before advice: starts the trace before the method execution
-    @Before("@annotation(TraceableMethods)")
+    @Before("@annotation(com.netflix.conductor.client.annotations.TraceableMethod)")
     public void startTracing(JoinPoint joinPoint) {
-        LOGGER.info("inside startTracing");
-        String traceParent = (String) joinPoint.getArgs()[0];
-        String spanName = (String) joinPoint.getArgs()[1];
-        LOGGER.info("traceParent: {}, spanName {}", traceParent, spanName); 
-        Map<String, String> headers = new HashMap<>();
-        headers.put("traceparent", traceParent);
-        TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
-        Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
-        Span span = tracer.spanBuilder(spanName).setParent(context).startSpan();
-        Scope scope = span.makeCurrent();
+        try {
+            LOGGER.info("inside startTracing");
+            String traceParent = (String) joinPoint.getArgs()[0];
+            String spanName = (String) joinPoint.getArgs()[1];
+            LOGGER.info("traceParent: {}, spanName {}", traceParent, spanName); 
+            Map<String, String> headers = new HashMap<>();
+            headers.put("traceparent", traceParent);
+            TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+            Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
+            Span span = tracer.spanBuilder(spanName).setParent(context).startSpan();
+            Scope scope = span.makeCurrent();
+        } catch (Exception ex) {
+            LOGGER.info("Error while running startTracing in TracingAspect"); 
+        }
     }
 
     // After advice: ends the trace after the method execution
-    @After("@annotation(TraceableMethods)")
+    @After("@annotation(com.netflix.conductor.client.annotations.TraceableMethod)")
     public void endTracing(JoinPoint joinPoint) {
-        LOGGER.info("inside endTracing"); 
-        Span.current().end();
+        try {
+            LOGGER.info("inside endTracing"); 
+            Span.current().end();
+        } catch (Exception ex) {
+            LOGGER.info("Error while running endTracing in TracingAspect"); 
+        }
     }
 }
