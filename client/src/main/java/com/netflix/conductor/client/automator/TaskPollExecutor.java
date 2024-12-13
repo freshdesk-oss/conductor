@@ -122,7 +122,7 @@ class TaskPollExecutor {
     private void startTracing(String traceParent, String spanName) {
         try {
             Map<String, String> headers = new HashMap<>();
-            headers.put("traceparent", traceParent);
+            headers.put("traceParent", traceParent);
             TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
             Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
             Span span = tracer.spanBuilder(spanName).setParent(context).startSpan();
@@ -279,7 +279,7 @@ class TaskPollExecutor {
                 worker.getClass().getSimpleName(),
                 worker.getIdentity());
         try {
-            startTracing((String) task.getInputData().get("traceparent"), "execute-task_" + task.getTaskDefName());
+            startTracing((String) task.getInputData().get("traceParent"), "execute-task_" + task.getTaskDefName());
             executeTask(worker, task);
         } catch (Throwable t) {
             task.setStatus(Task.Status.FAILED);
