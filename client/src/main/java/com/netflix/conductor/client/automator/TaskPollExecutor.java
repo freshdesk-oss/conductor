@@ -122,7 +122,7 @@ class TaskPollExecutor {
     private void startTracing(String traceParent, String spanName) {
         try {
             Map<String, String> headers = new HashMap<>();
-            headers.put("traceParent", traceParent);
+            headers.put("traceparent", traceParent);
             TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
             Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
             Span span = tracer.spanBuilder(spanName).setParent(context).startSpan();
