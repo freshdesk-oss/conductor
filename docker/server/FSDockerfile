@@ -35,8 +35,8 @@ COPY --from=builder /conductor/server/build/libs/$OPENTELEMETRY_JAR_FILE /app/li
 
 # Required Packages
 RUN yum install -y procps shadow-utils mysql screen nc wget
-RUN yum install python3-pip python3-wheel python3-devel gcc -y
-RUN pip3 install scylla-cqlsh
+#RUN yum install python3-pip python3-wheel python3-devel gcc -y
+#RUN pip3 install scylla-cqlsh
 
 # This Jar is used for profiling with java-agent
 RUN wget https://github.com/grafana/pyroscope-java/releases/download/v0.14.0/pyroscope.jar -P /app/libs
