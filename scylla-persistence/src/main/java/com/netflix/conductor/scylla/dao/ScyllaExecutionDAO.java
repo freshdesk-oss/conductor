@@ -74,6 +74,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     protected final PreparedStatement insertWorkflowStatement;
     protected final PreparedStatement insertTaskStatement;
     protected final PreparedStatement insertEventExecutionStatement;
+    protected final PreparedStatement insertTaskInProgressStatement;
     protected final PreparedStatement insertTaskInProgressV2Statement;
     protected final PreparedStatement selectTaskInProgressStatement;
     protected final PreparedStatement selectTaskInProgressV2Statement;
@@ -113,6 +114,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     private RedisLock redisLock;
 
     private boolean isConcurrencyLimitEnabled;
+    private boolean fallbackToOldTaskInProgressActive;
 
     public ScyllaExecutionDAO(
             Session session,
@@ -133,6 +135,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                 session.prepare(statements.getInsertEventExecutionStatement())
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
 
+        this.insertTaskInProgressStatement =
+                session.prepare(statements.getInsertTaskInProgressStatement())
+                        .setConsistencyLevel(properties.getWriteConsistencyLevel());
         this.insertTaskInProgressV2Statement =
                 session.prepare(statements.getInsertTaskInProgressV2Statement())
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
@@ -344,6 +349,10 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     public void addTaskInProgress(TaskModel task) {
         ResultSet resultSet = getTaskInProgressTaskFromTaskModel(task);
         if (CollectionUtils.isEmpty(resultSet.all())) {
+            if (isFallbackToOldTaskInProgressActive()) {
+                session.execute(insertTaskInProgressStatement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId()),
+                        UUID.fromString(task.getWorkflowInstanceId()), true));
+            }
             session.execute(insertTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId()),
                     UUID.fromString(task.getWorkflowInstanceId()), true));
         } else {
@@ -383,10 +392,14 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @method to remove the task_in_progress table with the status of the task
      */
     public void removeTaskInProgress(TaskModel task) {
-        BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
-        batchStatement.add(deleteTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
-        batchStatement.add(deleteTaskInProgressStatement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
-        session.execute(batchStatement);
+        if (isFallbackToOldTaskInProgressActive()) {
+            BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
+            batchStatement.add(deleteTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+            batchStatement.add(deleteTaskInProgressStatement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+            session.execute(batchStatement);
+        } else {
+            session.execute(deleteTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        }
     }
 
     private void logTaskInProgressStatus(TaskModel task) {
@@ -398,11 +411,15 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @method to update the task_in_progress table with the status of the task
      */
     public void updateTaskInProgress(TaskModel task, boolean inProgress) {
-        BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
-        batchStatement.add(
-                updateTaskInProgressV2Statement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
-        batchStatement.add(updateTaskInProgressStatement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
-        session.execute(batchStatement);
+        if (isFallbackToOldTaskInProgressActive()) {
+            BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
+            batchStatement.add(
+                    updateTaskInProgressV2Statement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+            batchStatement.add(updateTaskInProgressStatement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+            session.execute(batchStatement);
+        } else {
+            session.execute(updateTaskInProgressV2Statement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        }
     }
 
     @Override
@@ -1262,9 +1279,18 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         this.isConcurrencyLimitEnabled = concurrencyLimitEnabled;
     }
 
+    public boolean isFallbackToOldTaskInProgressActive() {
+        return fallbackToOldTaskInProgressActive;
+    }
+
+    public void setFallbackToOldTaskInProgressActive(boolean fallbackToOldTaskInProgressActive) {
+        this.fallbackToOldTaskInProgressActive = fallbackToOldTaskInProgressActive;
+    }
+
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.redisLock = (RedisLock) applicationContext.getBean("provideRedisLock");
         setConcurrencyLimitEnabled(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("concurrencyLimitEnabled", "false")));
+        setFallbackToOldTaskInProgressActive(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldTaskInProgressActive", "false")));
     }
 }
