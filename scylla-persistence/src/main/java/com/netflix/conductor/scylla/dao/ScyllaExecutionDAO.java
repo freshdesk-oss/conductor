@@ -62,6 +62,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.util.CollectionUtils;
 
 @Trace
 public class ScyllaExecutionDAO extends ScyllaBaseDAO
@@ -69,15 +70,17 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ScyllaExecutionDAO.class);
     private static final String CLASS_NAME = ScyllaExecutionDAO.class.getSimpleName();
-    private static final Object lock = new Object();
 
     protected final PreparedStatement insertWorkflowStatement;
     protected final PreparedStatement insertTaskStatement;
     protected final PreparedStatement insertEventExecutionStatement;
-    protected final PreparedStatement insertTaskInProgressStatement;
+    protected final PreparedStatement insertTaskInProgressV2Statement;
     protected final PreparedStatement selectTaskInProgressStatement;
+    protected final PreparedStatement selectTaskInProgressV2Statement;
     protected final PreparedStatement updateTaskInProgressStatement;
+    protected final PreparedStatement updateTaskInProgressV2Statement;
     protected final PreparedStatement deleteTaskInProgressStatement;
+    protected final PreparedStatement deleteTaskInProgressV2Statement;
     protected final PreparedStatement selectTotalStatement;
     protected final PreparedStatement selectTaskStatement;
     protected final PreparedStatement selectWorkflowStatement;
@@ -87,7 +90,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     protected final PreparedStatement selectWorkflowsByCorIdFromWorkflowStatement;
 
-    protected final PreparedStatement selectCountFromTaskInProgressStatement;
     protected final PreparedStatement selectShardFromWorkflowLookupStatement;
     protected final PreparedStatement updateWorkflowLookupStatement;
     protected final PreparedStatement deleteWorkflowLookupStatement;
@@ -131,21 +133,20 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                 session.prepare(statements.getInsertEventExecutionStatement())
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
 
-        this.insertTaskInProgressStatement =
-                session.prepare(statements.getInsertTaskInProgressStatement())
+        this.insertTaskInProgressV2Statement =
+                session.prepare(statements.getInsertTaskInProgressV2Statement())
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
-
 
         this.selectTaskInProgressStatement =
                 session.prepare(statements.getSelectTaskInProgressStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
 
-        this.selectShardFromTaskLookupStatement =
-                session.prepare(statements.getSelectShardFromTaskLookupTableStatement())
+        this.selectTaskInProgressV2Statement =
+                session.prepare(statements.getSelectTaskInProgressV2Statement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
 
-        this.selectCountFromTaskInProgressStatement =
-                session.prepare(statements.getSelectCountTaskInProgressPerTskDefStatement())
+        this.selectShardFromTaskLookupStatement =
+                session.prepare(statements.getSelectShardFromTaskLookupTableStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
 
         this.selectWorkflowsByCorIdFromWorkflowStatement =
@@ -168,8 +169,16 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                 session.prepare(statements.getUpdateTaskInProgressStatement())
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
 
+        this.updateTaskInProgressV2Statement =
+                session.prepare(statements.getUpdateTaskInProgressV2Statement())
+                        .setConsistencyLevel(properties.getWriteConsistencyLevel());
+
         this.deleteTaskInProgressStatement =
                 session.prepare(statements.getDeleteTaskInProgressStatement())
+                        .setConsistencyLevel(properties.getWriteConsistencyLevel());
+
+        this.deleteTaskInProgressV2Statement =
+                session.prepare(statements.getDeleteTaskInProgressV2Statement())
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
 
         this.selectTotalStatement =
@@ -333,38 +342,67 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      * @method to add the task_in_progress table with the status of the task if task is not already present
      */
     public void addTaskInProgress(TaskModel task) {
-        ResultSet resultSet =
-                session.execute(
-                        selectTaskInProgressStatement.bind(task.getTaskDefName(),
-                                UUID.fromString(task.getTaskId())));
-        if (resultSet.all().isEmpty() || resultSet.all().size()<1) {
-            session.execute(
-                    insertTaskInProgressStatement.bind(task.getTaskDefName(),
-                            UUID.fromString(task.getTaskId()),
-                            UUID.fromString(task.getWorkflowInstanceId()),
-                            true));
+        ResultSet resultSet = getTaskInProgressTaskFromTaskModel(task);
+        if (CollectionUtils.isEmpty(resultSet.all())) {
+            session.execute(insertTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId()),
+                    UUID.fromString(task.getWorkflowInstanceId()), true));
+        } else {
+            LOGGER.info("Task with defName {} and Id {} and status {} in addTaskInProgress NOT inserted as already exists  ", task.getTaskDefName(),
+                    task.getTaskId(), task.getStatus());
         }
-        else {
-            LOGGER.info("Task with defName {} and Id {} and status {} in addTaskInProgress NOT inserted as already exists  "
-                    ,task.getTaskDefName(), task.getTaskId(),task.getStatus());
-        }
+    }
 
+    private ResultSet getTaskInProgressTaskFromTaskModel(TaskModel task) {
+        try {
+            ResultSet resultSet = fetchFromTaskInProgressV2Query(task);
+            if (isResultSetNotValid(resultSet)) {
+                return fetchFromTaskInProgressQuery(task);
+            }
+            return resultSet;
+        } catch (Exception ex) {
+            LOGGER.error("Error while reading task from task_in_progress_v2 table - taskDefName: {}, taskId: {}, status: {}",
+                    task.getTaskDefName(), task.getTaskId(), task.getStatus(), ex);
+            return null;
+        }
+    }
+
+    private ResultSet fetchFromTaskInProgressV2Query(TaskModel task) {
+        return session.execute(selectTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+    }
+
+    private ResultSet fetchFromTaskInProgressQuery(TaskModel task) {
+        logTaskInProgressStatus(task);
+        return session.execute(selectTaskInProgressStatement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+    }
+
+    private boolean isResultSetNotValid(ResultSet resultSet) {
+        return Objects.isNull(resultSet) || CollectionUtils.isEmpty(resultSet.all());
     }
 
     /**
      * @method to remove the task_in_progress table with the status of the task
      */
     public void removeTaskInProgress(TaskModel task) {
-        session.execute(
-                deleteTaskInProgressStatement.bind(task.getTaskDefName(),UUID.fromString(task.getTaskId())));
+        BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
+        batchStatement.add(deleteTaskInProgressV2Statement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        batchStatement.add(deleteTaskInProgressStatement.bind(task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        session.execute(batchStatement);
+    }
+
+    private void logTaskInProgressStatus(TaskModel task) {
+        LOGGER.info("Task NOT found in task_in_progress_v2 table - taskDefName {} taskId {} status {}", task.getTaskDefName(), task.getTaskId(),
+                task.getStatus());
     }
 
     /**
      * @method to update the task_in_progress table with the status of the task
      */
     public void updateTaskInProgress(TaskModel task, boolean inProgress) {
-        session.execute(
-                updateTaskInProgressStatement.bind(inProgress,task.getTaskDefName(),UUID.fromString(task.getTaskId())));
+        BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
+        batchStatement.add(
+                updateTaskInProgressV2Statement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        batchStatement.add(updateTaskInProgressStatement.bind(inProgress, task.getTaskDefName(), UUID.fromString(task.getTaskId())));
+        session.execute(batchStatement);
     }
 
     @Override
@@ -843,7 +881,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     @Override
     public long getInProgressTaskCount(String taskDefName) {
-        try{
+        /*try {
             recordCassandraDaoRequests("getInProgressTaskCount", "n/a", taskDefName);
             ResultSet resultSet = session.execute(selectCountFromTaskInProgressStatement.bind(taskDefName));
             return resultSet.all().size();
@@ -854,7 +892,8 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                     String.format("Failed to retrieve task-in-progress coount from taskDefName: %s", taskDefName);
             LOGGER.error(errorMsg, e);
             throw new TransientException(errorMsg);
-        }
+        }*/
+        return 0L;
     }
 
     /**
