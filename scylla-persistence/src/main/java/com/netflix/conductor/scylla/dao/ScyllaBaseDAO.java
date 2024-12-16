@@ -102,6 +102,8 @@ public abstract class ScyllaBaseDAO {
                 //Added task_in_progress
                 session.execute(getCreateTaskInProgressTableStatement());
                 //Added workflow_lookup
+                //Added task_in_progress_v2
+                session.execute(getCreateTaskInProgressTableV2Statement());
                 session.execute(getCreateWorkflowLookupTableStatement());
                 session.execute(getCreateEventHandlersTableStatement());
                 session.execute(getCreateEventExecutionsTableStatement());
@@ -212,6 +214,19 @@ public abstract class ScyllaBaseDAO {
                 .getQueryString();
     }
 
+    /**
+     * @return cql statement to create task_in_progress table for tasks stats identification
+     */
+    private String getCreateTaskInProgressTableV2Statement() {
+        return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_TASK_IN_PROGRESS_V2)
+                .ifNotExists()
+                .addPartitionKey(TASK_DEF_NAME_KEY, DataType.text())
+                .addPartitionKey(TASK_ID_KEY, DataType.uuid())
+                .addColumn(WORKFLOW_ID_KEY, DataType.uuid())
+                .addColumn(TASK_IN_PROG_STATUS_KEY, DataType.cboolean())
+                .getQueryString();
+    }
+
     private String getCreateEventHandlersTableStatement() {
         return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_EVENT_HANDLERS)
                 .ifNotExists()
@@ -248,20 +263,20 @@ public abstract class ScyllaBaseDAO {
     }
 
     void recordCassandraDaoRequests(String action) {
-        recordCassandraDaoRequests(action, "n/a", "n/a");
+        // recordCassandraDaoRequests(action, "n/a", "n/a");
     }
 
     void recordCassandraDaoRequests(String action, String taskType, String workflowType) {
-        Monitors.recordDaoRequests(DAO_NAME, action, taskType, workflowType);
+        // Monitors.recordDaoRequests(DAO_NAME, action, taskType, workflowType);
     }
 
     void recordCassandraDaoEventRequests(String action, String event) {
-        Monitors.recordDaoEventRequests(DAO_NAME, action, event);
+        // Monitors.recordDaoEventRequests(DAO_NAME, action, event);
     }
 
     void recordCassandraDaoPayloadSize(
             String action, int size, String taskType, String workflowType) {
-        Monitors.recordDaoPayloadSize(DAO_NAME, action, taskType, workflowType, size);
+        // Monitors.recordDaoPayloadSize(DAO_NAME, action, taskType, workflowType, size);
     }
 
     static class WorkflowMetadata {

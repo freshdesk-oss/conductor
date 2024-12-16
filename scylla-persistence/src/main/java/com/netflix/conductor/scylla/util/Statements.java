@@ -690,4 +690,53 @@ public class Statements {
                 .and(eq(EVENT_HANDLER_NAME_KEY, bindMarker()))
                 .getQueryString();
     }
+
+    /**
+     * @return cql query statement to delete the task in task_in_progress_v2 table per taskDefName
+     * and task_id
+     */
+    public String getDeleteTaskInProgressV2Statement() {
+        return QueryBuilder.delete()
+                .from(keyspace, TABLE_TASK_IN_PROGRESS_V2)
+                .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
+                .and(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to update the task in task_in_progress_v2 table per taskDefName
+     * and task_id
+     */
+    public String getUpdateTaskInProgressV2Statement() {
+        return QueryBuilder.update(keyspace, TABLE_TASK_IN_PROGRESS_V2)
+                .with(set(TASK_IN_PROG_STATUS_KEY, bindMarker()))
+                .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
+                .and(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to retrieve all the tasks count from task_in_progress_v2 table
+     * per taskDefName and task_id
+     */
+    public String getSelectTaskInProgressV2Statement() {
+        return QueryBuilder.select()
+                .countAll()
+                .from(keyspace, TABLE_TASK_IN_PROGRESS_V2)
+                .where(eq(TASK_DEF_NAME_KEY, bindMarker()))
+                .and(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to insert tasks to task_in_progress_v2 table
+     */
+    public String getInsertTaskInProgressV2Statement() {
+        return QueryBuilder.insertInto(keyspace, TABLE_TASK_IN_PROGRESS_V2)
+                .value(TASK_DEF_NAME_KEY, bindMarker())
+                .value(TASK_ID_KEY, bindMarker())
+                .value(WORKFLOW_ID_KEY, bindMarker())
+                .value(TASK_IN_PROG_STATUS_KEY, bindMarker())
+                .getQueryString();
+    }
 }
