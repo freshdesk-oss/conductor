@@ -898,18 +898,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     @Override
     public long getInProgressTaskCount(String taskDefName) {
-        /*try {
-            recordCassandraDaoRequests("getInProgressTaskCount", "n/a", taskDefName);
-            ResultSet resultSet = session.execute(selectCountFromTaskInProgressStatement.bind(taskDefName));
-            return resultSet.all().size();
-        } catch (DriverException e) {
-            Monitors.error(CLASS_NAME, "getInProgressTaskCount");
-            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
-            String errorMsg =
-                    String.format("Failed to retrieve task-in-progress coount from taskDefName: %s", taskDefName);
-            LOGGER.error(errorMsg, e);
-            throw new TransientException(errorMsg);
-        }*/
         return 0L;
     }
 
