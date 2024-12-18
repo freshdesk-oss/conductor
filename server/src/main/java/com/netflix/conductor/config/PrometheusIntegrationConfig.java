@@ -2,22 +2,18 @@ package com.netflix.conductor.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 
-import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.Spectator;
 import com.netflix.spectator.micrometer.MicrometerRegistry;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.PrometheusRenameFilter;
-import io.prometheus.client.CollectorRegistry;
-import io.micrometer.prometheus.PrometheusConfig;
-import io.micrometer.core.instrument.Clock;
-import io.micrometer.core.instrument.Metrics;
 
 // This class loads all the configurations related to prometheus. 
 @Configuration
+@ConditionalOnProperty(name = "prometheus.integration.enabled", havingValue = "true", matchIfMissing = false)
 public class PrometheusIntegrationConfig
         implements CommandLineRunner {
 
