@@ -102,6 +102,8 @@ public abstract class ScyllaBaseDAO {
                 //Added task_in_progress
                 session.execute(getCreateTaskInProgressTableStatement());
                 //Added workflow_lookup
+                //Added task_in_progress_v2
+                session.execute(getCreateTaskInProgressTableV2Statement());
                 session.execute(getCreateWorkflowLookupTableStatement());
                 session.execute(getCreateEventHandlersTableStatement());
                 session.execute(getCreateEventExecutionsTableStatement());
@@ -207,6 +209,19 @@ public abstract class ScyllaBaseDAO {
                 .ifNotExists()
                 .addPartitionKey(TASK_DEF_NAME_KEY, DataType.text())
                 .addClusteringColumn(TASK_ID_KEY, DataType.uuid())
+                .addColumn(WORKFLOW_ID_KEY, DataType.uuid())
+                .addColumn(TASK_IN_PROG_STATUS_KEY, DataType.cboolean())
+                .getQueryString();
+    }
+
+    /**
+     * @return cql statement to create task_in_progress table for tasks stats identification
+     */
+    private String getCreateTaskInProgressTableV2Statement() {
+        return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_TASK_IN_PROGRESS_V2)
+                .ifNotExists()
+                .addPartitionKey(TASK_DEF_NAME_KEY, DataType.text())
+                .addPartitionKey(TASK_ID_KEY, DataType.uuid())
                 .addColumn(WORKFLOW_ID_KEY, DataType.uuid())
                 .addColumn(TASK_IN_PROG_STATUS_KEY, DataType.cboolean())
                 .getQueryString();
