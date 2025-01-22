@@ -40,6 +40,16 @@ import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.Spectator;
 import com.netflix.spectator.api.patterns.ThreadPoolMonitor;
 
+import com.netflix.conductor.client.automator.TextMapGetterHelper;
+
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapPropagator;
+import io.opentelemetry.context.propagation.TextMapGetter;
+
 /**
  * Manages the threadpool used by the workers for execution and server communication (polling and
  * task update).
@@ -65,6 +75,8 @@ class TaskPollExecutor {
     private static final double LEASE_EXTEND_DURATION_FACTOR = 0.8;
     private ScheduledExecutorService leaseExtendExecutorService;
     Map<String /* ID of the task*/, ScheduledFuture<?>> leaseExtendMap = new HashMap<>();
+
+    private static final Tracer tracer = GlobalOpenTelemetry.getTracer("conductor-client");
 
     TaskPollExecutor(
             EurekaClient eurekaClient,
@@ -105,6 +117,30 @@ class TaskPollExecutor {
                                 .daemon(true)
                                 .uncaughtExceptionHandler(uncaughtExceptionHandler)
                                 .build());
+    }
+
+    private void startTracing(String traceParent, String spanName) {
+        try {
+            Map<String, String> headers = new HashMap<>();
+            headers.put("traceparent", traceParent);
+            TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+            Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
+            Span span = tracer.spanBuilder(spanName).setParent(context).startSpan();
+            Scope scope = span.makeCurrent();
+        } catch (Exception ex) {
+            LOGGER.error("Exception while startTracing", ex);
+        }
+    }
+
+    private void endTracing() {
+        try {
+            Span span = Span.current();
+            if (span != null) {
+                span.end();
+            }
+        } catch (Exception ex) {
+            LOGGER.error("Exception while endTracing", ex);
+        }
     }
 
     void pollAndExecute(Worker worker) {
@@ -243,12 +279,14 @@ class TaskPollExecutor {
                 worker.getClass().getSimpleName(),
                 worker.getIdentity());
         try {
+            startTracing((String) task.getInputData().get("traceParent"), "execute-task_" + task.getTaskDefName());
             executeTask(worker, task);
         } catch (Throwable t) {
             task.setStatus(Task.Status.FAILED);
             TaskResult result = new TaskResult(task);
             handleException(t, result, worker, task);
         } finally {
+            endTracing();
             pollingSemaphore.complete(1);
         }
         return task;

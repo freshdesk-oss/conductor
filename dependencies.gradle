@@ -58,4 +58,7 @@ ext {
     revTestContainer = '1.19.1'
     revScylla = '3.11.5.0'
     revHibernateValidator = '6.2.5.Final'
+    revOpentelemetryExtensionAnnotations = '1.18.0'
+    revOpentelemetryApi = '1.35.0'
+    revSpringBootStarterAop = '3.2.11'
 }
