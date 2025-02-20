@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
     Basic-Checks:
-        runs-on: [fs-shared]
+        runs-on: [fw-inc-shared]
         steps:
             - name: Checkout code
               uses: actions/checkout@v3.5.0
