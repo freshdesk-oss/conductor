@@ -1,0 +1,129 @@
+name: CI
+on: 
+    pull_request:
+      types: [opened, reopened, edited, ready_for_review, unlocked, synchronize]
+env:
+    GITHUB_TOKEN: ${{ secrets.GIT_SECRET }}
+    FR_TOKEN: ${{ secrets.FR_SECRET }}
+    TITLE: ${{ github.event.pull_request.title }}
+    TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+    BASE_BRANCH: ${{ github.event.pull_request.head.ref }}
+    OWNER: ${{ github.repository_owner }}
+    REPO: ${{ github.event.repository.name }}
+    PR_NO: ${{ github.event.pull_request.number }}
+    LATEST_COMMIT: ${{ github.event.pull_request.head.sha }}
+
+concurrency:
+  group: basic-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+    Basic-Checks:
+        runs-on: [fs-shared]
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3.5.0
+              with: 
+                ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+            - name: Base-branch-must-be-prestaging
+              run: |
+                if [[ $TARGET_BRANCH != 'prestaging' ]]; then
+                    echo -e "\n\n****************************************************************\n\n"
+                    echo "Base Branch must be Prestaging for DOD."            
+                    echo -e "\n\n****************************************************************\n\n"
+                    exit 1
+                fi
+
+            - name: Close PR if the base branch is a restricted branch
+              run: |
+                RESTRICTED_BRANCHES=("prestaging")
+                echo "Base branch of the pull request: $BASE_BRANCH"
+                if [[ " ${RESTRICTED_BRANCHES[@]} " =~ " ${BASE_BRANCH} " ]]; then
+                  echo "Closing pull request #$PR_NUMBER as it targets a restricted base branch."
+                  curl --location --request PATCH 'https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}' \
+                    --header "Authorization: Bearer $GITHUB_TOKEN" \
+                    --header "Accept: application/vnd.github.v3+json" \
+                    --header "Content-Type: application/json" \
+                    --data '{
+                        "state": "closed"
+                    }'
+                    echo "Pull request #$PR_NUMBER has been closed."
+                else
+                    echo "Base branch is not 'prestaging','staging','master'. No action will be taken."
+                fi
+                      
+                           
+                 
+            - name: Check if FR Ticket is present in PR Title
+              if: always()
+              id: fr_ticket_id
+              run: |
+                title_regex="FS-[[:digit:]]+"
+                if [[ $TITLE =~ $title_regex ]]; then
+                    echo "fr_ticket=$BASH_REMATCH" >> $GITHUB_OUTPUT
+                else
+                    echo -e "\n\n****************************************************************\n\n"
+                    echo "PR doesn't have FR ticket"            
+                    echo -e "\n\n****************************************************************\n\n"
+                    exit 1
+                fi
+
+            - name: Check if FR ticket is valid
+              if: ${{ steps.fr_ticket_id.outputs.fr_ticket }}
+              uses: freshactions/http-request-action@master
+              id: validate_fr_ticket
+              with:
+                url: 'https://freshworks.freshrelease.com/FS/issues/${{ steps.fr_ticket_id.outputs.fr_ticket }}'
+                method: 'GET'
+                customHeaders: '{"Content-Type": "application/json","Authorization":"Token ${{ secrets.FR_SECRET }}" }'
+
+            - name: Fetch-Squad-Branch-Convention
+              if: always()
+              uses: freshdesk/fs_git_workflows_helper/.github/actions/get_s3_file@main
+              with:
+                account_id: 442227716440 # freshservice-staging AWS account ID
+                bucket: fs-automation
+                file_path: fs-ci-data/theme_details.json
+                output_file: squad_mapping.json
+        
+            - name: Squad-Branch-Convention-Check
+              if: always()
+              run: |
+                  read -d _ squad <<< "$BASE_BRANCH"
+                  echo ${squad}
+                  branch_count=$(grep -o "\"branch_convention\": \"$squad\"" squad_mapping.json | wc -l)
+                  if [ $branch_count != 1 ]
+                  then 
+                    echo -e "\n\n****************************************************************\n\n"
+                    echo "Base branch should follow Squad Branch convention."
+                    echo -e "\n\n****************************************************************\n\n"
+                    exit 1
+                  else 
+                    echo -e "\n\n****************************************************************\n\n"
+                    echo "Base branch follows Squad Branch convention."
+                    echo -e "\n\n****************************************************************\n\n"
+                    cat squad_mapping.json
+                    squad_name=$(jq -r --arg bc "$squad" 'to_entries[] | .value.squads | to_entries[] | select(.value.branch_convention == $bc) | .key' squad_mapping.json)
+                    echo "Squad Name: $squad_name"
+                    curl -X POST -H "Authorization: token ${{ env.GITHUB_TOKEN }}" \
+                         -H "Content-Type: application/json" \
+                         -d '{"labels": ["'"$squad_name"'"]}' \
+                         "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels"
+                  fi
+
+            - name: Conflict-Indicators
+              if: always()
+              run: |
+                conflict_files=$(find . -type f -not -path "./vendor/bundle/*" \
+                -not -name "README" -not -name "*.rdoc" \
+                -exec grep -l -x "^<<<<<<< HEAD\\|^=======$\\|^>>>>>>>$" {} + || true)
+                if [[ ! -z "${conflict_files}" ]]; then
+                    conflict_files_arr=$(echo -e "${conflict_files}" | tr -d '[:space:]')
+                    conflict_files_arr=$(IFS=, ; echo "${conflict_files_arr[*]}")
+                    echo -e "\n\n****************************************************************\n\n"
+                    echo "Following files have merge conflict indicators present. Kindly remove those."
+                    echo "${conflict_files[@]}"
+                    echo -e "\n\n****************************************************************\n\n"
+                    exit 1
+                fi
