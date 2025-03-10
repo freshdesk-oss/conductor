@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
     Basic-Checks:
-        runs-on: [ubuntu-latest]
+        runs-on: [fs-shared]
         steps:
             - name: Checkout code
               uses: actions/checkout@v3
