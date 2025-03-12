@@ -12,6 +12,7 @@
  */
 package com.netflix.conductor.core.listener;
 
+import com.netflix.conductor.core.status.EventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,19 +22,39 @@ import com.netflix.conductor.model.WorkflowModel;
 public class WorkflowStatusListenerStub implements WorkflowStatusListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(WorkflowStatusListenerStub.class);
+    private final EventPublisher eventPublisher;
+
+    public WorkflowStatusListenerStub(EventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
 
     @Override
     public void onWorkflowCompleted(WorkflowModel workflow) {
         LOGGER.debug("Workflow {} is completed", workflow.getWorkflowId());
+        eventPublisher.pushWorkflowEvents(workflow);
     }
 
     @Override
     public void onWorkflowTerminated(WorkflowModel workflow) {
         LOGGER.debug("Workflow {} is terminated", workflow.getWorkflowId());
+        eventPublisher.pushWorkflowEvents(workflow);
     }
 
     @Override
     public void onWorkflowFinalized(WorkflowModel workflow) {
         LOGGER.debug("Workflow {} is finalized", workflow.getWorkflowId());
     }
+
+    @Override
+    public void onWorkflowRunning(WorkflowModel workflow) {
+        LOGGER.debug("Workflow {} is running", workflow.getWorkflowId());
+        eventPublisher.pushWorkflowEvents(workflow);
+    }
+
+    @Override
+    public void onWorkflowFailed(WorkflowModel workflow) {
+        LOGGER.debug("Workflow {} is failed", workflow.getWorkflowId());
+        eventPublisher.pushWorkflowEvents(workflow);
+    }
+
 }

@@ -560,7 +560,7 @@ public class WorkflowExecutor {
 
         executionDAOFacade.updateWorkflow(workflow);
         LOGGER.debug("Completed workflow execution for {}", workflow.getWorkflowId());
-        workflowStatusListener.onWorkflowCompletedIfEnabled(workflow);
+        workflowStatusListener.onWorkflowCompleted(workflow);
         Monitors.recordWorkflowCompletion(
                 workflow.getWorkflowName(),
                 workflow.getEndTime() - workflow.getCreateTime(),
@@ -641,7 +641,7 @@ public class WorkflowExecutor {
             String workflowId = workflow.getWorkflowId();
             workflow.setReasonForIncompletion(reason);
             executionDAOFacade.updateWorkflow(workflow);
-            workflowStatusListener.onWorkflowTerminatedIfEnabled(workflow);
+            workflowStatusListener.onWorkflowTerminated(workflow);
             Monitors.recordWorkflowTermination(
                     workflow.getWorkflowName(), workflow.getStatus(), workflow.getOwnerApp());
             LOGGER.info("Workflow {} is terminated because of {}", workflowId, reason);
@@ -933,6 +933,9 @@ public class WorkflowExecutor {
             case IN_PROGRESS:
                 taskStatusListener.onTaskInProgress(task);
                 break;
+            case COMPLETED_WITH_ERRORS:
+                taskStatusListener.onTaskCompletedWithErrors(task);
+                break;
             case SCHEDULED:
                 // no-op, already done in addTaskToQueue
             default:
@@ -1219,6 +1222,7 @@ public class WorkflowExecutor {
                     }
                 }
                 executionDAOFacade.updateTask(task);
+                notifyTaskStatusListener(task);
             }
         }
         if (erroredTasks.isEmpty()) {

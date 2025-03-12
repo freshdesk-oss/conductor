@@ -20,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.stream.Collectors;
 
+import com.netflix.conductor.core.status.EventPublisher;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,12 @@ public class ConductorCoreConfiguration {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConductorCoreConfiguration.class);
 
+    private final EventPublisher eventPublisher;
+
+    public ConductorCoreConfiguration(EventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
+
     @ConditionalOnProperty(
             name = "conductor.workflow-execution-lock.type",
             havingValue = "noop_lock",
@@ -79,7 +86,7 @@ public class ConductorCoreConfiguration {
             matchIfMissing = true)
     @Bean
     public WorkflowStatusListener workflowStatusListener() {
-        return new WorkflowStatusListenerStub();
+        return new WorkflowStatusListenerStub(eventPublisher);
     }
 
     @ConditionalOnProperty(
@@ -88,7 +95,7 @@ public class ConductorCoreConfiguration {
             matchIfMissing = true)
     @Bean
     public TaskStatusListener taskStatusListener() {
-        return new TaskStatusListenerStub();
+        return new TaskStatusListenerStub(eventPublisher);
     }
 
     @Bean
