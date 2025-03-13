@@ -5,10 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.conductor.common.metadata.tasks.TaskType;
 import com.netflix.conductor.core.central.service.CentralProducer;
 import com.netflix.conductor.model.TaskModel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.netflix.conductor.model.WorkflowModel;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import static com.netflix.conductor.core.central.CentralConstants.CONDUCTOR_TASK_EVENT;
@@ -16,13 +15,13 @@ import static com.netflix.conductor.core.central.CentralConstants.CONDUCTOR_WORK
 import static com.netflix.conductor.core.status.JourneyConstants.*;
 
 @Service
-//@ConditionalOnProperty(name = "conductor.status.event.enabled", havingValue = "true")
 public class EventPublisherImpl implements EventPublisher {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(EventPublisherImpl.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final CentralProducer centralProducer;
+
+    @Value("${conductor.status-listener.enabled}")
+    private boolean isStatusListenerEnabled;
 
     public EventPublisherImpl(CentralProducer centralProducer) {
         this.centralProducer = centralProducer;
@@ -30,22 +29,20 @@ public class EventPublisherImpl implements EventPublisher {
 
     @Override
     public void pushWorkflowEvents(WorkflowModel workflow) {
-        if (!JOURNEY_WORKFLOW_STATUS.contains(workflow.getStatus())) {
-            return;
+        if (isStatusListenerEnabled && JOURNEY_WORKFLOW_STATUS.contains(workflow.getStatus())) {
+            WorkflowEvent event =
+                    WorkflowEvent.builder()
+                            .journeyReqId(String.valueOf(workflow.getInput().get(JOURNEY_REQUEST_ID)))
+                            .entityId(getEntityId(workflow))
+                            .entityType(getEntityType(workflow))
+                            .workflowInstanceId(workflow.getWorkflowId())
+                            .status(workflow.getStatus().name())
+                            .statusId(workflow.getStatus().ordinal())
+                            .workflowTerminationReason(workflow.getReasonForIncompletion())
+                            .build();
+
+            publishMessage(String.valueOf(workflow.getInput().get(ACCOUNT_ID)), objectMapper.valueToTree(event), EventType.WORKFLOW);
         }
-
-        WorkflowEvent event =
-                WorkflowEvent.builder()
-                        .journeyReqId(String.valueOf(workflow.getInput().get(JOURNEY_REQUEST_ID)))
-                        .entityId(getEntityId(workflow))
-                        .entityType(getEntityType(workflow))
-                        .workflowInstanceId(workflow.getWorkflowId())
-                        .status(workflow.getStatus().name())
-                        .statusId(workflow.getStatus().ordinal())
-                        .workflowTerminationReason(workflow.getReasonForIncompletion())
-                        .build();
-
-        publishMessage(String.valueOf(workflow.getInput().get(ACCOUNT_ID)), objectMapper.valueToTree(event), EventType.WORKFLOW);
     }
 
     private Long getEntityId(WorkflowModel workflow) {
@@ -53,12 +50,12 @@ public class EventPublisherImpl implements EventPublisher {
     }
 
     private WorkflowType getEntityType(WorkflowModel workflow) {
-        return workflow.hasParent() ? WorkflowType.JOURNEY : WorkflowType.PHASE;
+        return workflow.hasParent() ? WorkflowType.PHASE : WorkflowType.JOURNEY;
     }
 
     @Override
     public void pushTaskEvents(TaskModel task) {
-        if (JOURNEY_TASK_STATUS.contains(task.getStatus()) && !JOURNEY_TASK_TYPE.contains(TaskType.of(task.getTaskType())) && checkTaskReferenceName(task.getReferenceTaskName())) {
+        if (isValidTaskEvent(task)) {
             TaskEvent event =
                     TaskEvent.builder()
                             .journeyReqId(String.valueOf(task.getInputData().get(JOURNEY_REQUEST_ID)))
@@ -72,6 +69,19 @@ public class EventPublisherImpl implements EventPublisher {
         }
     }
 
+    private boolean isValidTaskEvent(TaskModel task) {
+        if(!isStatusListenerEnabled) {
+            return false;
+        }
+        if (!JOURNEY_TASK_STATUS.contains(task.getStatus())) {
+            return false;
+        }
+        if (JOURNEY_TASK_TYPE.contains(TaskType.of(task.getTaskType()))) {
+            return false;
+        }
+        return checkTaskReferenceName(task.getReferenceTaskName());
+    }
+
     private boolean checkTaskReferenceName(String taskReferenceName) {
         for (String referenceName : JOURNEY_TASK_REFERENCE_NAME) {
             if (referenceName.startsWith(taskReferenceName)) {
@@ -83,7 +93,6 @@ public class EventPublisherImpl implements EventPublisher {
 
     private void publishMessage(String accountId, JsonNode event, EventType eventType) {
         centralProducer.publish(accountId, event, getPayloadType(eventType));
-        LOGGER.debug("Publishing event: {}", event);
     }
 
     private String getPayloadType(JourneyConstants.EventType eventType) {
