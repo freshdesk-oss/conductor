@@ -3,7 +3,7 @@ package com.netflix.conductor.core.central.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.conductor.core.central.CentralProperties;
-import com.netflix.conductor.core.central.CentralRetryableException;
+import com.netflix.conductor.core.central.exception.CentralRetryableException;
 import com.netflix.conductor.core.central.client.HttpClient;
 import com.netflix.conductor.core.status.WorkflowEvent;
 import kong.unirest.HttpResponse;

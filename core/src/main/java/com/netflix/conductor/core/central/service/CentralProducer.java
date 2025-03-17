@@ -3,7 +3,8 @@ package com.netflix.conductor.core.central.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.netflix.conductor.core.central.CentralRetryableException;
+import com.netflix.conductor.core.central.exception.CentralException;
+import com.netflix.conductor.core.central.exception.CentralRetryableException;
 import com.netflix.conductor.core.central.client.HttpClient;
 import com.netflix.conductor.core.central.model.CentralData;
 import com.netflix.conductor.core.central.CentralProperties;
@@ -52,27 +53,27 @@ public class CentralProducer {
     }
 
     public void publishCentralMessage(CentralData centralMessage) {
-        SendCentralMessage(centralProperties.getCentralUrl(), centralMessage);
+        sendCentralMessage(centralProperties.getCentralUrl(), centralMessage);
     }
 
-    public String SendCentralMessage(String centralUrl, CentralData centralMessage) {
+    public String sendCentralMessage(String centralUrl, CentralData centralMessage) {
         return retryTemplate.execute(context -> {
             HttpResponse<String> response = null;
             try {
                 response = httpClient.post(centralUrl, getHeaders(), objectMapper.writeValueAsString(centralMessage));
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+            } catch (JsonProcessingException ex) {
+                throw new CentralException("Error occurred while sending central message. Exception: ", ex);
             }
             if (response == null) {
-                throw new RuntimeException("Central response is null");
+                throw new CentralException("Central response is null");
             }
             int statusCategory = getStatus(response.getStatus());
             if (statusCategory == 2) {
                 return response.getBody();
             } else if (statusCategory == 5) {
-                throw new CentralRetryableException("Error in central publisher");
+                throw new CentralRetryableException("Error occurred while sending central message. response: " + response.getBody());
             }
-            throw new RuntimeException("Something went wrong");
+            throw new CentralException("Something went wrong. message: " + response.getBody());
         });
     }
 
