@@ -56,6 +56,14 @@ public class CentralProducer {
         sendCentralMessage(centralProperties.getCentralUrl(), centralMessage);
     }
 
+    /***
+     * This method sends the central message to the central service.
+     * Retry is configured only in case of 5xx error from the central service.
+     * In case of 4xx error, the exception is thrown.
+     * @param centralUrl
+     * @param centralMessage
+     * @return
+     */
     public String sendCentralMessage(String centralUrl, CentralData centralMessage) {
         return retryTemplate.execute(context -> {
             HttpResponse<String> response = null;

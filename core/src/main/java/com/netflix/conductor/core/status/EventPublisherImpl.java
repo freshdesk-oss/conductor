@@ -20,6 +20,9 @@ public class EventPublisherImpl implements EventPublisher {
 
     private final CentralProducer centralProducer;
 
+    /***
+     * This is an env variable to enable/disable the status listener
+     */
     @Value("${conductor.status-listener.enabled}")
     private boolean isStatusListenerEnabled;
 
@@ -27,6 +30,12 @@ public class EventPublisherImpl implements EventPublisher {
         this.centralProducer = centralProducer;
     }
 
+    /***
+     * This method pushes the workflow events to the central service.
+     * If the status listener is enabled and the workflow status is RUNNING, COMPLETED, FAILED, TERMINATED
+     * then the workflow event is published to the central service.
+     * @param workflow
+     */
     @Override
     public void pushWorkflowEvents(WorkflowModel workflow) {
         if (isStatusListenerEnabled && JOURNEY_WORKFLOW_STATUS.contains(workflow.getStatus())) {
@@ -49,6 +58,13 @@ public class EventPublisherImpl implements EventPublisher {
         return workflow.hasParent() ? Long.valueOf(String.valueOf(workflow.getInput().get(JOURNEY_CONFIG_ID))) : Long.valueOf(String.valueOf(workflow.getInput().get(NODE_ID)));
     }
 
+    /***
+     * This method returns the entity type of the workflow
+     * If the workflow has a parent, then that is a sub-workflow so the entity type is PHASE
+     * If the workflow does not have a parent, then that is a main workflow so the entity type is JOURNEY
+     * @param workflow
+     * @return
+     */
     private WorkflowType getEntityType(WorkflowModel workflow) {
         return workflow.hasParent() ? WorkflowType.PHASE : WorkflowType.JOURNEY;
     }
@@ -69,6 +85,15 @@ public class EventPublisherImpl implements EventPublisher {
         }
     }
 
+    /***
+     * This method checks if the task status update event needs to be published or not
+     * Status - CANCELED, COMPLETED_WITH_ERRORS, FAILED, FAILED_WITH_TERMINAL_ERROR
+     * Only these four task status events should be published.
+     * TaskType - FORK_JOIN, SWITCH, JOIN, SUB_WORKFLOW
+     * These task types should not be published.
+     * @param task
+     * @return
+     */
     private boolean isValidTaskEvent(TaskModel task) {
         if(!isStatusListenerEnabled) {
             return false;
@@ -82,6 +107,12 @@ public class EventPublisherImpl implements EventPublisher {
         return checkTaskReferenceName(task.getReferenceTaskName());
     }
 
+    /***
+     * This method checks if the task reference name starts with wTimer, wCleanup, wDecision
+     * If it starts with any of these names, then we can ignore this task status update event
+     * @param taskReferenceName
+     * @return
+     */
     private boolean checkTaskReferenceName(String taskReferenceName) {
         for (String referenceName : JOURNEY_TASK_REFERENCE_NAME) {
             if (taskReferenceName.startsWith(referenceName)) {
