@@ -10,8 +10,8 @@ import com.netflix.conductor.model.WorkflowModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import static com.netflix.conductor.core.central.CentralConstants.CONDUCTOR_TASK_EVENT;
-import static com.netflix.conductor.core.central.CentralConstants.CONDUCTOR_WORKFLOW_EVENT;
+import static com.netflix.conductor.core.central.CentralConstants.JOURNEY_CONDUCTOR_TASK_EVENT;
+import static com.netflix.conductor.core.central.CentralConstants.JOURNEY_CONDUCTOR_WORKFLOW_EVENT;
 import static com.netflix.conductor.core.status.JourneyConstants.*;
 
 @Service
@@ -84,11 +84,11 @@ public class EventPublisherImpl implements EventPublisher {
 
     private boolean checkTaskReferenceName(String taskReferenceName) {
         for (String referenceName : JOURNEY_TASK_REFERENCE_NAME) {
-            if (referenceName.startsWith(taskReferenceName)) {
-                return true;
+            if (taskReferenceName.startsWith(referenceName)) {
+                return false;
             }
         }
-        return false;
+        return true;
     }
 
     private void publishMessage(String accountId, JsonNode event, EventType eventType) {
@@ -96,7 +96,7 @@ public class EventPublisherImpl implements EventPublisher {
     }
 
     private String getPayloadType(JourneyConstants.EventType eventType) {
-        return eventType == JourneyConstants.EventType.WORKFLOW ? CONDUCTOR_WORKFLOW_EVENT : CONDUCTOR_TASK_EVENT;
+        return eventType == JourneyConstants.EventType.WORKFLOW ? JOURNEY_CONDUCTOR_WORKFLOW_EVENT : JOURNEY_CONDUCTOR_TASK_EVENT;
     }
 
 

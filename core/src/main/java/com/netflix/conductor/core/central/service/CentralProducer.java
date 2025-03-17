@@ -4,10 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.conductor.core.central.CentralRetryableException;
+import com.netflix.conductor.core.central.client.HttpClient;
 import com.netflix.conductor.core.central.model.CentralData;
 import com.netflix.conductor.core.central.CentralProperties;
 import kong.unirest.HttpResponse;
-import kong.unirest.Unirest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
@@ -23,12 +23,17 @@ import static com.netflix.conductor.core.central.CentralConstants.*;
 public class CentralProducer {
     private final CentralProperties centralProperties;
     private final RetryTemplate retryTemplate;
+    private final HttpClient httpClient;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    public CentralProducer(CentralProperties centralProperties, @Qualifier("centralRetryTemplate") RetryTemplate retryTemplate) {
+    public CentralProducer(
+            CentralProperties centralProperties,
+            @Qualifier("centralRetryTemplate") RetryTemplate retryTemplate,
+            HttpClient httpClient) {
         this.centralProperties = centralProperties;
         this.retryTemplate = retryTemplate;
+        this.httpClient = httpClient;
     }
 
     public void publish(String accountId, JsonNode event, String payloadType) {
@@ -54,7 +59,7 @@ public class CentralProducer {
         return retryTemplate.execute(context -> {
             HttpResponse<String> response = null;
             try {
-                response = Unirest.post(centralUrl).headers(getHeaders()).body(objectMapper.writeValueAsString(centralMessage)).asString();
+                response = httpClient.post(centralUrl, getHeaders(), objectMapper.writeValueAsString(centralMessage));
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
