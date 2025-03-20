@@ -1,7 +1,7 @@
 package com.netflix.conductor.core.central;
 
 import com.netflix.conductor.core.central.exception.CentralRetryableException;
-import org.springframework.beans.factory.annotation.Value;
+import com.netflix.conductor.core.central.model.RetryProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.backoff.ExponentialBackOffPolicy;
@@ -13,28 +13,25 @@ import java.util.Map;
 
 @Configuration
 public class RetryConfig {
-    @Value("${central.api.retry.initialInterval}")
-    private long initialInterval;
-    @Value("${central.api.retry.multiplier}")
-    private double multiplier;
-    @Value("${central.api.retry.maxAttempts}")
-    private int maxAttempts;
-    @Value("${central.api.retry.maxInterval}")
-    private long maxInterval;
+    private final RetryProperties retryProperties;
+
+    public RetryConfig(RetryProperties retryProperties) {
+        this.retryProperties = retryProperties;
+    }
 
     @Bean
     public RetryTemplate centralRetryTemplate() {
         final RetryTemplate retryTemplate = new RetryTemplate();
 
         ExponentialBackOffPolicy backOffPolicy = new ExponentialBackOffPolicy();
-        backOffPolicy.setInitialInterval(initialInterval); // Initial delay
-        backOffPolicy.setMultiplier(multiplier);// Exponential multiplier for backoff (1, 2, 4 seconds, etc.)
-        backOffPolicy.setMaxInterval(maxInterval); // Max delay
+        backOffPolicy.setInitialInterval(retryProperties.getInitialInterval()); // Initial delay
+        backOffPolicy.setMultiplier(retryProperties.getMultiplier());// Exponential multiplier for backoff (1, 2, 4 seconds, etc.)
+        backOffPolicy.setMaxInterval(retryProperties.getMaxInterval()); // Max delay
 
         Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
         retryableExceptions.put(CentralRetryableException.class, true);
 
-        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(maxAttempts, retryableExceptions);
+        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(retryProperties.getMaxAttempts(), retryableExceptions);
 
         retryTemplate.setBackOffPolicy(backOffPolicy);
         retryTemplate.setRetryPolicy(retryPolicy);

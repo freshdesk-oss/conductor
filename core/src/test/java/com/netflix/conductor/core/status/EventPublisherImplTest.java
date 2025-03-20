@@ -16,9 +16,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,14 +31,19 @@ class EventPublisherImplTest {
 
     @Mock
     private CentralProducer centralProducer;
+    @Mock
+    private EventFilterService eventFilterService;
 
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(eventPublisher, "isStatusListenerEnabled", true);
+        ReflectionTestUtils.setField(eventPublisher, "moduleType", "journey");
     }
 
     @Test
     void testPushWorkflowEvents_WhenStatusListenerEnabled_ShouldPublishMessage() {
+        when(eventFilterService.shouldPublishEvent(anyString(), any(), anyString())).thenReturn(true);
+
         WorkflowModel workflow = new WorkflowModel();
         workflow.setWorkflowId("workflow-123");
         workflow.setStatus(WorkflowModel.Status.COMPLETED);
@@ -48,23 +55,27 @@ class EventPublisherImplTest {
         workflow.setInput(input);
 
         eventPublisher.pushWorkflowEvents(workflow);
-
         verify(centralProducer, times(1)).publish(eq("100"), any(JsonNode.class), eq("journey_conductor_workflow_event"));
     }
 
     @Test
-    void testPushWorkflowEvents_WhenStatusListenerDisabled_ShouldNotPublishMessage() {
-        ReflectionTestUtils.setField(eventPublisher, "isStatusListenerEnabled", false);
-        WorkflowModel workflow = new WorkflowModel();
-        workflow.setWorkflowId("workflow-123");
-
-        eventPublisher.pushWorkflowEvents(workflow);
-
+    void testPushWorkflowEvents_WhenStatusListenerEnabled_ShouldNotPublishMessage() {
+        when(eventFilterService.shouldPublishEvent(anyString(), any(), anyString())).thenReturn(false);
+        eventPublisher.pushWorkflowEvents(new WorkflowModel());
         verify(centralProducer, never()).publish(any(), any(), any());
     }
 
     @Test
-    void testPushTaskEvents_ValidTask_ShouldPublishMessage() {
+    void testPushWorkflowEvents_WhenStatusListenerDisabled() {
+        ReflectionTestUtils.setField(eventPublisher, "isStatusListenerEnabled", false);
+        eventPublisher.pushWorkflowEvents(new WorkflowModel());
+        verify(centralProducer, never()).publish(any(), any(), any());
+    }
+
+    @Test
+    void testPushTaskEvents_WhenStatusListenerEnabled_ShouldPublishMessage() {
+        when(eventFilterService.shouldPublishEvent(anyString(), any(), anyString())).thenReturn(true);
+
         TaskModel task = new TaskModel();
         task.setTaskId("task-123");
         task.setStatus(TaskModel.Status.CANCELED);
@@ -78,46 +89,20 @@ class EventPublisherImplTest {
         task.setInputData(inputData);
 
         eventPublisher.pushTaskEvents(task);
-
         verify(centralProducer, times(1)).publish(eq("100"), any(JsonNode.class), eq("journey_conductor_task_event"));
     }
 
     @Test
-    void testPushTaskEvents_InvalidTask_ShouldNotPublishMessage_1() {
+    void testPushTaskEvents_WhenStatusListenerEnabled_ShouldNotPublishMessage() {
+        when(eventFilterService.shouldPublishEvent(anyString(), any(), anyString())).thenReturn(false);
+        eventPublisher.pushTaskEvents(new TaskModel());
+        verify(centralProducer, never()).publish(any(), any(), any());
+    }
+
+    @Test
+    void testPushTaskEvents_WhenStatusListenerDisabled() {
         ReflectionTestUtils.setField(eventPublisher, "isStatusListenerEnabled", false);
         eventPublisher.pushTaskEvents(new TaskModel());
-
-        verify(centralProducer, never()).publish(any(), any(), any());
-    }
-
-    @Test
-    void testPushTaskEvents_InvalidTask_ShouldNotPublishMessage_2() {
-        TaskModel task = new TaskModel();
-        task.setStatus(TaskModel.Status.IN_PROGRESS);
-        eventPublisher.pushTaskEvents(task);
-
-        verify(centralProducer, never()).publish(any(), any(), any());
-    }
-
-    @Test
-    void testPushTaskEvents_InvalidTask_ShouldNotPublishMessage_3() {
-        TaskModel task = new TaskModel();
-        task.setStatus(TaskModel.Status.CANCELED);
-        task.setTaskType("SWITCH");
-        eventPublisher.pushTaskEvents(task);
-
-        verify(centralProducer, never()).publish(any(), any(), any());
-    }
-
-    @Test
-    void testPushTaskEvents_InvalidTask_ShouldNotPublishMessage_4() {
-        TaskModel task = new TaskModel();
-        task.setTaskId("task-123");
-        task.setStatus(TaskModel.Status.CANCELED);
-        task.setTaskType("SIMPLE");
-        task.setReferenceTaskName("wTimer_123");
-        eventPublisher.pushTaskEvents(task);
-
         verify(centralProducer, never()).publish(any(), any(), any());
     }
 }

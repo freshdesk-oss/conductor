@@ -2,7 +2,7 @@ package com.netflix.conductor.core.central.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.netflix.conductor.core.central.CentralProperties;
+import com.netflix.conductor.core.central.model.CentralProperties;
 import com.netflix.conductor.core.central.exception.CentralRetryableException;
 import com.netflix.conductor.core.central.client.HttpClient;
 import com.netflix.conductor.core.status.WorkflowEvent;
@@ -49,8 +49,8 @@ class CentralProducerTest {
         when(centralProperties.getPod()).thenReturn("poduseast");
         when(centralProperties.getRegion()).thenReturn("us-east-1");
         when(centralProperties.getService()).thenReturn("freshservice-v2-dev");
-        when(centralProperties.getCentralUrl()).thenReturn("http://mock-central.url");
-        when(centralProperties.getCentralToken()).thenReturn("token-123");
+        when(centralProperties.getUrl()).thenReturn("http://mock-central.url");
+        when(centralProperties.getToken()).thenReturn("token-123");
 
         when(retryTemplate.execute(any(),any(),any())).thenAnswer(invocation -> {
             RetryCallback retry = invocation.getArgument(0);
@@ -72,8 +72,8 @@ class CentralProducerTest {
         when(centralProperties.getPod()).thenReturn("poduseast");
         when(centralProperties.getRegion()).thenReturn("us-east-1");
         when(centralProperties.getService()).thenReturn("freshservice-v2-dev");
-        when(centralProperties.getCentralUrl()).thenReturn("http://mock-central.url");
-        when(centralProperties.getCentralToken()).thenReturn("token-123");
+        when(centralProperties.getUrl()).thenReturn("http://mock-central.url");
+        when(centralProperties.getToken()).thenReturn("token-123");
 
         when(retryTemplate.execute(any(),any(),any())).thenAnswer(invocation -> {
             RetryCallback retry = invocation.getArgument(0);
@@ -92,8 +92,8 @@ class CentralProducerTest {
         when(centralProperties.getPod()).thenReturn("poduseast");
         when(centralProperties.getRegion()).thenReturn("us-east-1");
         when(centralProperties.getService()).thenReturn("freshservice-v2-dev");
-        when(centralProperties.getCentralUrl()).thenReturn("http://mock-central.url");
-        when(centralProperties.getCentralToken()).thenReturn("token-123");
+        when(centralProperties.getUrl()).thenReturn("http://mock-central.url");
+        when(centralProperties.getToken()).thenReturn("token-123");
 
         when(retryTemplate.execute(any(),any(),any())).thenAnswer(invocation -> {
             RetryCallback retry = invocation.getArgument(0);
@@ -113,8 +113,8 @@ class CentralProducerTest {
         when(centralProperties.getPod()).thenReturn("poduseast");
         when(centralProperties.getRegion()).thenReturn("us-east-1");
         when(centralProperties.getService()).thenReturn("freshservice-v2-dev");
-        when(centralProperties.getCentralUrl()).thenReturn("http://mock-central.url");
-        when(centralProperties.getCentralToken()).thenReturn("token-123");
+        when(centralProperties.getUrl()).thenReturn("http://mock-central.url");
+        when(centralProperties.getToken()).thenReturn("token-123");
 
         when(retryTemplate.execute(any(),any(),any())).thenAnswer(invocation -> {
             RetryCallback retry = invocation.getArgument(0);

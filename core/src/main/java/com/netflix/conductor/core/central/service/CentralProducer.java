@@ -7,8 +7,10 @@ import com.netflix.conductor.core.central.exception.CentralException;
 import com.netflix.conductor.core.central.exception.CentralRetryableException;
 import com.netflix.conductor.core.central.client.HttpClient;
 import com.netflix.conductor.core.central.model.CentralData;
-import com.netflix.conductor.core.central.CentralProperties;
+import com.netflix.conductor.core.central.model.CentralProperties;
 import kong.unirest.HttpResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import static com.netflix.conductor.core.central.CentralConstants.*;
 
 @Service
 public class CentralProducer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CentralProducer.class);
     private final CentralProperties centralProperties;
     private final RetryTemplate retryTemplate;
     private final HttpClient httpClient;
@@ -37,6 +40,12 @@ public class CentralProducer {
         this.httpClient = httpClient;
     }
 
+    /***
+     * This method forms the central payload with the necessary event properties and payload types.
+     * @param accountId
+     * @param event
+     * @param payloadType
+     */
     public void publish(String accountId, JsonNode event, String payloadType) {
         CentralData centralData =
                 CentralData.builder()
@@ -49,11 +58,7 @@ public class CentralProducer {
                         .payloadVersion(PAYLOAD_VERSION)
                         .build();
 
-        publishCentralMessage(centralData);
-    }
-
-    public void publishCentralMessage(CentralData centralMessage) {
-        sendCentralMessage(centralProperties.getCentralUrl(), centralMessage);
+        sendCentralMessage(centralProperties.getUrl(), centralData);
     }
 
     /***
@@ -65,30 +70,36 @@ public class CentralProducer {
      * @return
      */
     public String sendCentralMessage(String centralUrl, CentralData centralMessage) {
-        return retryTemplate.execute(context -> {
-            HttpResponse<String> response = null;
-            try {
-                response = httpClient.post(centralUrl, getHeaders(), objectMapper.writeValueAsString(centralMessage));
-            } catch (JsonProcessingException ex) {
-                throw new CentralException("Error occurred while sending central message. Exception: ", ex);
-            }
-            if (response == null) {
-                throw new CentralException("Central response is null");
-            }
-            int statusCategory = getStatus(response.getStatus());
-            if (statusCategory == 2) {
-                return response.getBody();
-            } else if (statusCategory == 5) {
-                throw new CentralRetryableException("Error occurred while sending central message. response: " + response.getBody());
-            }
-            throw new CentralException("Something went wrong. message: " + response.getBody());
-        });
+        long startTime = System.currentTimeMillis();
+        try {
+            return retryTemplate.execute(context -> {
+                HttpResponse<String> response = null;
+                try {
+                    response = httpClient.post(centralUrl, getHeaders(), objectMapper.writeValueAsString(centralMessage));
+                } catch (JsonProcessingException ex) {
+                    throw new CentralException("Error occurred while sending central message. Exception: ", ex);
+                }
+                if (response == null) {
+                    throw new CentralException("Central response is null");
+                }
+                int statusCategory = getStatus(response.getStatus());
+                if (statusCategory == 2) {
+                    return response.getBody();
+                } else if (statusCategory == 5) {
+                    throw new CentralRetryableException("Server error occurred while sending central message. response: " + response.getBody());
+                }
+                throw new CentralException("Something went wrong. message: " + response.getBody());
+            });
+        } finally {
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            LOGGER.info("Completed request to central service after {} ms", elapsedTime);
+        }
     }
 
     private Map<String, String> getHeaders() {
         Map<String, String> headers = new HashMap<>();
         headers.put(CONTENT_TYPE, CONTENT_TYPE_JSON);
-        headers.put(SERVICE, centralProperties.getCentralToken());
+        headers.put(SERVICE, centralProperties.getToken());
         headers.put(X_REQUEST_ID, UUID.randomUUID().toString());
         return headers;
     }

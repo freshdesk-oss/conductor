@@ -2,7 +2,6 @@ package com.netflix.conductor.core.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.netflix.conductor.common.metadata.tasks.TaskType;
 import com.netflix.conductor.core.central.service.CentralProducer;
 import com.netflix.conductor.model.TaskModel;
 
@@ -18,6 +17,7 @@ import static com.netflix.conductor.core.status.JourneyConstants.*;
 public class EventPublisherImpl implements EventPublisher {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    private final EventFilterService eventFilterService;
     private final CentralProducer centralProducer;
 
     /***
@@ -26,7 +26,14 @@ public class EventPublisherImpl implements EventPublisher {
     @Value("${conductor.status-listener.enabled}")
     private boolean isStatusListenerEnabled;
 
-    public EventPublisherImpl(CentralProducer centralProducer) {
+    /***
+     * This is an env variable to get the event filter rule config based for the module
+     */
+    @Value("${conductor.status-listener.module.type}")
+    private String moduleType;
+
+    public EventPublisherImpl(EventFilterService eventFilterService, CentralProducer centralProducer) {
+        this.eventFilterService = eventFilterService;
         this.centralProducer = centralProducer;
     }
 
@@ -38,7 +45,7 @@ public class EventPublisherImpl implements EventPublisher {
      */
     @Override
     public void pushWorkflowEvents(WorkflowModel workflow) {
-        if (isStatusListenerEnabled && JOURNEY_WORKFLOW_STATUS.contains(workflow.getStatus())) {
+        if (isStatusListenerEnabled && eventFilterService.shouldPublishEvent(WORKFLOW, workflow, moduleType)) {
             WorkflowEvent event =
                     WorkflowEvent.builder()
                             .journeyReqId(String.valueOf(workflow.getInput().get(JOURNEY_REQUEST_ID)))
@@ -69,9 +76,13 @@ public class EventPublisherImpl implements EventPublisher {
         return workflow.hasParent() ? WorkflowType.PHASE : WorkflowType.JOURNEY;
     }
 
+    /***
+     * This method evaluates whether the event needs to be published and push the event payload.
+     * @param task
+     */
     @Override
     public void pushTaskEvents(TaskModel task) {
-        if (isValidTaskEvent(task)) {
+        if (isStatusListenerEnabled && eventFilterService.shouldPublishEvent(TASK, task, moduleType)) {
             TaskEvent event =
                     TaskEvent.builder()
                             .journeyReqId(String.valueOf(task.getInputData().get(JOURNEY_REQUEST_ID)))
@@ -85,43 +96,6 @@ public class EventPublisherImpl implements EventPublisher {
         }
     }
 
-    /***
-     * This method checks if the task status update event needs to be published or not
-     * Status - CANCELED, COMPLETED_WITH_ERRORS, FAILED, FAILED_WITH_TERMINAL_ERROR
-     * Only these four task status events should be published.
-     * TaskType - FORK_JOIN, SWITCH, JOIN, SUB_WORKFLOW
-     * These task types should not be published.
-     * @param task
-     * @return
-     */
-    private boolean isValidTaskEvent(TaskModel task) {
-        if(!isStatusListenerEnabled) {
-            return false;
-        }
-        if (!JOURNEY_TASK_STATUS.contains(task.getStatus())) {
-            return false;
-        }
-        if (JOURNEY_TASK_TYPE.contains(TaskType.of(task.getTaskType()))) {
-            return false;
-        }
-        return checkTaskReferenceName(task.getReferenceTaskName());
-    }
-
-    /***
-     * This method checks if the task reference name starts with wTimer, wCleanup, wDecision
-     * If it starts with any of these names, then we can ignore this task status update event
-     * @param taskReferenceName
-     * @return
-     */
-    private boolean checkTaskReferenceName(String taskReferenceName) {
-        for (String referenceName : JOURNEY_TASK_REFERENCE_NAME) {
-            if (taskReferenceName.startsWith(referenceName)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private void publishMessage(String accountId, JsonNode event, EventType eventType) {
         centralProducer.publish(accountId, event, getPayloadType(eventType));
     }
@@ -129,6 +103,4 @@ public class EventPublisherImpl implements EventPublisher {
     private String getPayloadType(JourneyConstants.EventType eventType) {
         return eventType == JourneyConstants.EventType.WORKFLOW ? JOURNEY_CONDUCTOR_WORKFLOW_EVENT : JOURNEY_CONDUCTOR_TASK_EVENT;
     }
-
-
 }
