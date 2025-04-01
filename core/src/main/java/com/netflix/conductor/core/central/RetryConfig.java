@@ -26,7 +26,6 @@ public class RetryConfig {
         ExponentialBackOffPolicy backOffPolicy = new ExponentialBackOffPolicy();
         backOffPolicy.setInitialInterval(retryProperties.getInitialInterval()); // Initial delay
         backOffPolicy.setMultiplier(retryProperties.getMultiplier());// Exponential multiplier for backoff (1, 2, 4 seconds, etc.)
-        backOffPolicy.setMaxInterval(retryProperties.getMaxInterval()); // Max delay
 
         Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
         retryableExceptions.put(CentralRetryableException.class, true);

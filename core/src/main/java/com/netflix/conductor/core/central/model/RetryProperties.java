@@ -15,6 +15,4 @@ public class RetryProperties {
     private double multiplier;
 
     private int maxAttempts;
-
-    private long maxInterval;
 }
