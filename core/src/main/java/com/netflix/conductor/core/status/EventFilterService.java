@@ -26,7 +26,7 @@ public class EventFilterService {
      *    - the status should be completed/failed/terminated/running to publish the event
      * For task:
      *    - the task status should be cancelled/failed/timeout/failed_with_terminate
-     *    - the task type should not be fork_join/switch/join/sub_workflow
+     *    - the task type should not be fork_join/switch/join/sub_workflow/wait
      *    - the task reference name should not start with wTimer/wCleanup/wDecision
      * Sample Rule:
      *   - field: "status"

@@ -21,12 +21,6 @@ public class EventPublisherImpl implements EventPublisher {
     private final CentralProducer centralProducer;
 
     /***
-     * This is an env variable to enable/disable the status listener
-     */
-    @Value("${conductor.status-listener.enabled}")
-    private boolean isStatusListenerEnabled;
-
-    /***
      * This is an env variable to get the event filter rule config based for the module
      */
     @Value("${conductor.status-listener.module.type}")
@@ -45,7 +39,7 @@ public class EventPublisherImpl implements EventPublisher {
      */
     @Override
     public void pushWorkflowEvents(WorkflowModel workflow) {
-        if (isStatusListenerEnabled && eventFilterService.shouldPublishEvent(WORKFLOW, workflow, moduleType)) {
+        if (eventFilterService.shouldPublishEvent(WORKFLOW, workflow, moduleType)) {
             WorkflowEvent event =
                     WorkflowEvent.builder()
                             .journeyReqId(String.valueOf(workflow.getInput().get(JOURNEY_REQUEST_ID)))
@@ -82,7 +76,7 @@ public class EventPublisherImpl implements EventPublisher {
      */
     @Override
     public void pushTaskEvents(TaskModel task) {
-        if (isStatusListenerEnabled && eventFilterService.shouldPublishEvent(TASK, task, moduleType)) {
+        if (eventFilterService.shouldPublishEvent(TASK, task, moduleType)) {
             TaskEvent event =
                     TaskEvent.builder()
                             .journeyReqId(String.valueOf(task.getInputData().get(JOURNEY_REQUEST_ID)))

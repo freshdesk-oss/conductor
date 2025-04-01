@@ -19,6 +19,7 @@ import static com.netflix.conductor.model.TaskModel.Status.FAILED_WITH_TERMINAL_
 import static com.netflix.conductor.model.TaskModel.Status.IN_PROGRESS;
 import static com.netflix.conductor.model.TaskModel.Status.SCHEDULED;
 import static com.netflix.conductor.model.TaskModel.Status.SKIPPED;
+import static com.netflix.conductor.model.TaskModel.Status.COMPLETED_WITH_ERRORS;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -918,6 +919,9 @@ public class WorkflowExecutor {
     }
 
     private void notifyTaskStatusListener(TaskModel task) {
+        if (!maxRetryReached(task)) {
+            return;
+        }
         switch (task.getStatus()) {
             case COMPLETED:
                 taskStatusListener.onTaskCompleted(task);
@@ -945,6 +949,15 @@ public class WorkflowExecutor {
             default:
                 break;
         }
+    }
+
+    // To verify the current retry is the last attempt for failed and completed_with_error status
+    private boolean maxRetryReached(TaskModel task) {
+        if (!FAILED.equals(task.getStatus()) && !COMPLETED_WITH_ERRORS.equals(task.getStatus())) {
+            return true;
+        }
+        TaskDef taskDefinition = task.getTaskDefinition().orElse(null);
+        return taskDefinition != null && task.getRetryCount() == taskDefinition.getRetryCount();
     }
 
     private void extendLease(TaskResult taskResult) {
@@ -1120,7 +1133,11 @@ public class WorkflowExecutor {
             }
 
             if (!outcome.tasksToBeUpdated.isEmpty() || !tasksToBeScheduled.isEmpty()) {
-                executionDAOFacade.updateTasks(tasksToBeUpdated);
+                for (TaskModel task : tasksToBeUpdated) {
+                    executionDAOFacade.updateTask(task);
+                    // all the retried tasks will process in this flow
+                    notifyTaskStatusListener(task);
+                }
             }
 
             if (stateChanged) {
