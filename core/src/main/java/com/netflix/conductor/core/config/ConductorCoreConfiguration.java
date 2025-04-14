@@ -20,7 +20,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.stream.Collectors;
 
-import com.netflix.conductor.core.listener.*;
 import com.netflix.conductor.core.status.EventPublisher;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.slf4j.Logger;
@@ -37,6 +36,10 @@ import com.netflix.conductor.core.events.EventQueueProvider;
 import com.netflix.conductor.core.exception.TransientException;
 import com.netflix.conductor.core.execution.mapper.TaskMapper;
 import com.netflix.conductor.core.execution.tasks.WorkflowSystemTask;
+import com.netflix.conductor.core.listener.TaskStatusListener;
+import com.netflix.conductor.core.listener.TaskStatusListenerStub;
+import com.netflix.conductor.core.listener.WorkflowStatusListener;
+import com.netflix.conductor.core.listener.WorkflowStatusListenerStub;
 import com.netflix.conductor.core.storage.DummyPayloadStorage;
 import com.netflix.conductor.core.sync.Lock;
 import com.netflix.conductor.core.sync.noop.NoopLock;
@@ -78,37 +81,21 @@ public class ConductorCoreConfiguration {
     }
 
     @ConditionalOnProperty(
-            name = "conductor.status-listener.enabled",
-            havingValue = "false",
+            name = "conductor.workflow-status-listener.type",
+            havingValue = "stub",
             matchIfMissing = true)
     @Bean
     public WorkflowStatusListener workflowStatusListener() {
-        return new WorkflowStatusListenerStub();
+        return new WorkflowStatusListenerStub(eventPublisher);
     }
 
     @ConditionalOnProperty(
-            name = "conductor.status-listener.enabled",
-            havingValue = "true")
-    @Bean
-    public WorkflowStatusListener journeyWorkflowStatusListener() {
-        return new JourneyWorkflowStatusListenerStub(eventPublisher);
-    }
-
-    @ConditionalOnProperty(
-            name = "conductor.status-listener.enabled",
-            havingValue = "false",
+            name = "conductor.task-status-listener.type",
+            havingValue = "stub",
             matchIfMissing = true)
     @Bean
     public TaskStatusListener taskStatusListener() {
-        return new TaskStatusListenerStub();
-    }
-
-    @ConditionalOnProperty(
-            name = "conductor.status-listener.enabled",
-            havingValue = "true")
-    @Bean
-    public TaskStatusListener journeyTaskStatusListener() {
-        return new JourneyTaskStatusListenerStub(eventPublisher);
+        return new TaskStatusListenerStub(eventPublisher);
     }
 
     @Bean
