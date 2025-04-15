@@ -1,9 +1,9 @@
 package com.netflix.conductor.core.status;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.netflix.conductor.common.metadata.tasks.TaskDef;
+import com.netflix.conductor.common.metadata.workflow.WorkflowTask;
+import com.netflix.conductor.model.TaskModel;
+import com.netflix.conductor.model.WorkflowModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,8 +12,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class EventPublisherTest {
@@ -24,8 +28,6 @@ class EventPublisherTest {
     @Mock
     private EventFilterConfig eventFilterConfig;
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(eventPublisher, "isStatusListenerEnabled", true);
@@ -33,32 +35,32 @@ class EventPublisherTest {
     }
 
     @Test
-    void testSendCentralMessageSuccess() throws JsonProcessingException {
-        ReflectionTestUtils.setField(eventPublisher, "url", "http://staging-central.freshedge.net/collector");
-        ReflectionTestUtils.setField(eventPublisher, "token", "565b0f58441d2f113a7ceaae2ea5744c75de667f72272c55ec5123dfee206a5b5f598b9e9af7935f9e27bbe1d6ee566a");
+    void testPushWorkflowEvents() {
+        when(eventFilterConfig.shouldPublishEvent(anyString(), any(), anyString())).thenReturn(true);
+        WorkflowModel workflow = new WorkflowModel();
+        workflow.setWorkflowId("100");
+        workflow.setStatus(WorkflowModel.Status.COMPLETED);
+        workflow.setInput(Map.of("accountId", 10));
 
-        ObjectNode payload = objectMapper.createObjectNode();
-        payload.put("parent_workflow_id", "");
-        payload.put("workflow_id", "workflow-123");
-        payload.put("status", "COMPLETED");
-        payload.put("reason_for_incompletion", "");
-
-        String response = eventPublisher.sendCentralMessage("100", "journey_conductor_workflow_event", payload);
-        JsonNode jsonNode = objectMapper.readTree(response);
-
-        assertEquals("freshservice-central-journey-conductor-event-v2", jsonNode.get("topic").asText());
+        assertDoesNotThrow(() -> eventPublisher.pushWorkflowEvents(workflow));
     }
 
     @Test
-    void testSendCentralMessageFailure() {
-        ObjectNode payload = objectMapper.createObjectNode();
-        payload.put("parent_workflow_id", "");
-        payload.put("workflow_id", "workflow-123");
-        payload.put("status", "COMPLETED");
-        payload.put("reason_for_incompletion", "");
+    void testPushTaskEvents() {
+        when(eventFilterConfig.shouldPublishEvent(anyString(), any(), anyString())).thenReturn(true);
+        TaskModel task = new TaskModel();
+        task.setTaskId("100");
+        task.setStatus(TaskModel.Status.FAILED);
+        task.setRetryCount(1);
+        WorkflowTask workflowTask = new WorkflowTask();
+        workflowTask.setName("dataArrangement");
+        workflowTask.setTaskReferenceName("dataArrangement_1");
+        TaskDef taskDef = new TaskDef();
+        taskDef.setName("dataArrangement");
+        taskDef.setRetryCount(1);
+        workflowTask.setTaskDefinition(taskDef);
+        task.setWorkflowTask(workflowTask);
 
-        String response = eventPublisher.sendCentralMessage("100", "journey_conductor_workflow_event", payload);
-
-        assertNull(response);
+        assertDoesNotThrow(() -> eventPublisher.pushTaskEvents(task));
     }
 }

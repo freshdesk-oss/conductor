@@ -114,7 +114,7 @@ public class EventPublisher {
         return taskDefinition != null && task.getRetryCount() == taskDefinition.getRetryCount();
     }
 
-    public String sendCentralMessage(String accountId, String payloadType, ObjectNode payload) {
+    private void sendCentralMessage(String accountId, String payloadType, ObjectNode payload) {
         ObjectNode centralMessage = objectMapper.createObjectNode();
         centralMessage.put("account_id", accountId);
         centralMessage.set("payload", payload);
@@ -122,7 +122,7 @@ public class EventPublisher {
         centralMessage.put("payload_version", PAYLOAD_VERSION);
 
         try {
-            return retryTemplate.execute(context -> {
+            retryTemplate.execute(context -> {
                 HttpClient client = HttpClient.newHttpClient();
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(url))
@@ -131,19 +131,16 @@ public class EventPublisher {
                         .build();
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-                int statusCategory = getStatus(response.statusCode());
-                if (statusCategory == 2) {
-                    return response.body(); // Success
-                } else if (statusCategory == 5) {
+                int responseStatus = getStatus(response.statusCode());
+                if (responseStatus == 5) {
                     throw new RuntimeException("Server error: " + response.body()); // Triggers retry
-                } else {
+                } else if (responseStatus == 4) {
                     LOGGER.error("Non-retryable error. Status: {}, Body: {}", response.statusCode(), response.body());
-                    return null; // Non-retryable case
                 }
+                return null;
             });
         } catch (Exception ex) {
-            LOGGER.error("Unexpected error while sending central message: {}", ex.getMessage(), ex);
-            return null;
+            LOGGER.error("Unexpected error while sending central message: {}", ex.getMessage());
         }
     }
 

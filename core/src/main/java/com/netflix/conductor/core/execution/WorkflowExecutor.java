@@ -642,11 +642,7 @@ public class WorkflowExecutor {
             String workflowId = workflow.getWorkflowId();
             workflow.setReasonForIncompletion(reason);
             executionDAOFacade.updateWorkflow(workflow);
-            if (WorkflowModel.Status.FAILED.equals(workflow.getStatus())) {
-                workflowStatusListener.onWorkflowFailed(workflow);
-            } else {
-                workflowStatusListener.onWorkflowTerminated(workflow);
-            }
+            workflowStatusListener.onWorkflowTerminated(workflow);
             Monitors.recordWorkflowTermination(
                     workflow.getWorkflowName(), workflow.getStatus(), workflow.getOwnerApp());
             LOGGER.info("Workflow {} is terminated because of {}", workflowId, reason);

@@ -51,11 +51,4 @@ public class WorkflowStatusListenerStub implements WorkflowStatusListener {
         LOGGER.debug("Workflow {} is running", workflow.getWorkflowId());
         eventPublisher.pushWorkflowEvents(workflow);
     }
-
-    @Override
-    public void onWorkflowFailed(WorkflowModel workflow) {
-        LOGGER.debug("Workflow {} is failed", workflow.getWorkflowId());
-        eventPublisher.pushWorkflowEvents(workflow);
-    }
-
 }

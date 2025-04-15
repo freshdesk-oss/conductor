@@ -42,6 +42,4 @@ public interface WorkflowStatusListener {
     default void onWorkflowFinalized(WorkflowModel workflow) {}
 
     default void onWorkflowRunning(WorkflowModel workflow) {}
-
-    default void onWorkflowFailed(WorkflowModel workflow) {}
 }
