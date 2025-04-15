@@ -49,8 +49,6 @@ dependencies {
     implementation "jakarta.xml.bind:jakarta.xml.bind-api:${revJAXB}"
     implementation "jakarta.activation:jakarta.activation-api:${revActivation}"
 
-    implementation "com.konghq:unirest-java:${revUnirest}"
-
     // Only add it as a test dependency. The actual jaxb runtime provider is provided when building the server.
     testImplementation "org.glassfish.jaxb:jaxb-runtime:${revJAXB}"
 

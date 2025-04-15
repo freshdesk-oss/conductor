@@ -2,12 +2,10 @@ package com.netflix.conductor.core.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.netflix.conductor.metrics.Monitors;
+import com.netflix.conductor.common.metadata.tasks.TaskDef;
 import com.netflix.conductor.model.TaskModel;
 
 import com.netflix.conductor.model.WorkflowModel;
-import kong.unirest.HttpResponse;
-import kong.unirest.Unirest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,9 +14,16 @@ import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.netflix.conductor.model.TaskModel.Status.COMPLETED_WITH_ERRORS;
+import static com.netflix.conductor.model.TaskModel.Status.FAILED;
 
 
 @Service
@@ -90,7 +95,7 @@ public class EventPublisher {
      * @param task
      */
     public void pushTaskEvents(TaskModel task) {
-        if (isStatusListenerEnabled && eventFilterConfig.shouldPublishEvent("task", task, moduleType)) {
+        if (isStatusListenerEnabled && maxRetryReached(task) && eventFilterConfig.shouldPublishEvent("task", task, moduleType)) {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.set("input_params", objectMapper.valueToTree(task.getInputData()));
             payload.put("task_id", task.getTaskId());
@@ -100,9 +105,16 @@ public class EventPublisher {
         }
     }
 
-    public String sendCentralMessage(String accountId, String payloadType, ObjectNode payload) {
-        long startTime = System.currentTimeMillis();
+    // To verify the current retry is the last attempt for failed and completed_with_error task events
+    private boolean maxRetryReached(TaskModel task) {
+        if (!FAILED.equals(task.getStatus()) && !COMPLETED_WITH_ERRORS.equals(task.getStatus())) {
+            return true;
+        }
+        TaskDef taskDefinition = task.getTaskDefinition().orElse(null);
+        return taskDefinition != null && task.getRetryCount() == taskDefinition.getRetryCount();
+    }
 
+    public String sendCentralMessage(String accountId, String payloadType, ObjectNode payload) {
         ObjectNode centralMessage = objectMapper.createObjectNode();
         centralMessage.put("account_id", accountId);
         centralMessage.set("payload", payload);
@@ -111,33 +123,36 @@ public class EventPublisher {
 
         try {
             return retryTemplate.execute(context -> {
-                HttpResponse<String> response = Unirest.post(url).headers(getHeaders()).body(centralMessage.toString()).asString();
-                int statusCategory = getStatus(response.getStatus());
+                HttpClient client = HttpClient.newHttpClient();
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .headers(getHeaders())
+                        .POST(HttpRequest.BodyPublishers.ofString(centralMessage.toString()))
+                        .build();
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+                int statusCategory = getStatus(response.statusCode());
                 if (statusCategory == 2) {
-                    return response.getBody(); // Success
+                    return response.body(); // Success
                 } else if (statusCategory == 5) {
-                    throw new RuntimeException("Server error: " + response.getBody()); // Triggers retry
+                    throw new RuntimeException("Server error: " + response.body()); // Triggers retry
                 } else {
-                    LOGGER.error("Non-retryable error. Status: {}, Body: {}", response.getStatus(), response.getBody());
+                    LOGGER.error("Non-retryable error. Status: {}, Body: {}", response.statusCode(), response.body());
                     return null; // Non-retryable case
                 }
             });
-        } catch (RuntimeException ex) {
-            LOGGER.error("Failure after retries: {}", ex.getMessage(), ex);
-            return null; // Prevent exception from processing
-        } finally {
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            Monitors.recordStatusListenerEventTime(elapsedTime);
-            LOGGER.info("Completed request to central service after {} ms", elapsedTime);
+        } catch (Exception ex) {
+            LOGGER.error("Unexpected error while sending central message: {}", ex.getMessage(), ex);
+            return null;
         }
     }
 
-    private Map<String, String> getHeaders() {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("content-type", "application/json");
-        headers.put("service", token);
-        headers.put("x-request-id", UUID.randomUUID().toString());
-        return headers;
+    private String[] getHeaders() {
+        return new String[] {
+                "content-type", "application/json",
+                "service", token,
+                "x-request-id", UUID.randomUUID().toString()
+        };
     }
 
     private int getStatus(int status) {

@@ -919,9 +919,6 @@ public class WorkflowExecutor {
     }
 
     private void notifyTaskStatusListener(TaskModel task) {
-        if (!maxRetryReached(task)) {
-            return;
-        }
         switch (task.getStatus()) {
             case COMPLETED:
                 taskStatusListener.onTaskCompleted(task);
@@ -949,15 +946,6 @@ public class WorkflowExecutor {
             default:
                 break;
         }
-    }
-
-    // To verify the current retry is the last attempt for failed and completed_with_error status
-    private boolean maxRetryReached(TaskModel task) {
-        if (!FAILED.equals(task.getStatus()) && !COMPLETED_WITH_ERRORS.equals(task.getStatus())) {
-            return true;
-        }
-        TaskDef taskDefinition = task.getTaskDefinition().orElse(null);
-        return taskDefinition != null && task.getRetryCount() == taskDefinition.getRetryCount();
     }
 
     private void extendLease(TaskResult taskResult) {

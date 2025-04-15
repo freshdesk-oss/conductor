@@ -61,5 +61,4 @@ ext {
     revOpentelemetryExtensionAnnotations = '1.18.0'
     revOpentelemetryApi = '1.35.0'
     revSpringBootStarterAop = '3.2.11'
-    revUnirest = '3.11.12'
 }
