@@ -111,21 +111,16 @@ public class EventPublisher {
 
         try {
             return retryTemplate.execute(context -> {
-                try {
-                    HttpResponse<String> response = Unirest.post(url).headers(getHeaders()).body(centralMessage.toString()).asString();
-                    int statusCategory = getStatus(response.getStatus());
-                    if (statusCategory == 2) {
-                        return response.getBody(); // Success
-                    } else if (statusCategory == 5) {
-                        throw new RuntimeException("Server error: " + response.getBody()); // Triggers retry
-                    } else {
-                        LOGGER.error("Non-retryable error. Status: {}, Body: {}", response.getStatus(), response.getBody());
-                        return null; // Non-retryable case
-                    }
-                } catch (Exception ex) {
-                    LOGGER.error("Unexpected error while sending central message: {}", ex.getMessage(), ex);
+                HttpResponse<String> response = Unirest.post(url).headers(getHeaders()).body(centralMessage.toString()).asString();
+                int statusCategory = getStatus(response.getStatus());
+                if (statusCategory == 2) {
+                    return response.getBody(); // Success
+                } else if (statusCategory == 5) {
+                    throw new RuntimeException("Server error: " + response.getBody()); // Triggers retry
+                } else {
+                    LOGGER.error("Non-retryable error. Status: {}, Body: {}", response.getStatus(), response.getBody());
+                    return null; // Non-retryable case
                 }
-                return null;
             });
         } catch (RuntimeException ex) {
             LOGGER.error("Failure after retries: {}", ex.getMessage(), ex);

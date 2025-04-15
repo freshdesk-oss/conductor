@@ -17,8 +17,6 @@ dependencies {
     compileOnly 'org.springframework.boot:spring-boot-starter'
     compileOnly 'org.springframework.boot:spring-boot-starter-validation'
     compileOnly 'org.springframework.retry:spring-retry'
-    compileOnly "org.projectlombok:lombok:${revLombok}"
-    annotationProcessor "org.projectlombok:lombok:${revLombok}"
 
     implementation "com.fasterxml.jackson.core:jackson-annotations"
     implementation "com.fasterxml.jackson.core:jackson-databind"
@@ -51,9 +49,7 @@ dependencies {
     implementation "jakarta.xml.bind:jakarta.xml.bind-api:${revJAXB}"
     implementation "jakarta.activation:jakarta.activation-api:${revActivation}"
 
-    implementation "org.springframework.retry:spring-retry"
     implementation "com.konghq:unirest-java:${revUnirest}"
-    implementation "com.googlecode.json-simple:json-simple:${revJson}"
 
     // Only add it as a test dependency. The actual jaxb runtime provider is provided when building the server.
     testImplementation "org.glassfish.jaxb:jaxb-runtime:${revJAXB}"

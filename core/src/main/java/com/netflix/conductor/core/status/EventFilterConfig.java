@@ -1,6 +1,5 @@
 package com.netflix.conductor.core.status;
 
-import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -8,7 +7,6 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
-@Data
 @Component
 @ConfigurationProperties(prefix = "event-filter")
 public class EventFilterConfig {
@@ -16,23 +14,66 @@ public class EventFilterConfig {
     // Map to hold module level configurations (e.g., journey, alert)
     private Map<String, ModuleConfig> modules;
 
-    @Data
+    public Map<String, ModuleConfig> getModules() {
+        return modules;
+    }
+    public void setModules(Map<String, ModuleConfig> modules) {
+        this.modules = modules;
+    }
+
     public static class ModuleConfig {
         // Map to hold entity level configurations (e.g., workflow, task)
         private Map<String, EntityRules> entities;
+
+        public Map<String, EntityRules> getEntities() {
+            return entities;
+        }
+        public void setEntities(Map<String, EntityRules> entities) {
+            this.entities = entities;
+        }
     }
 
-    @Data
     public static class EntityRules {
         private List<Rule> rules;
+
+        public List<Rule> getRules() {
+            return rules;
+        }
+        public void setRules(List<Rule> rules) {
+            this.rules = rules;
+        }
     }
 
-    @Data
     public static class Rule {
         private String field; // "status", "taskType" etc..,
         private String caseType; // "includes" or "excludes"
         private String operator; // "contains", "startsWith"
         private List<String> values; // "completed", "running" etc..,
+
+        public String getField() {
+            return field;
+        }
+        public void setField(String field) {
+            this.field = field;
+        }
+        public String getCaseType() {
+            return caseType;
+        }
+        public void setCaseType(String caseType) {
+            this.caseType = caseType;
+        }
+        public String getOperator() {
+            return operator;
+        }
+        public void setOperator(String operator) {
+            this.operator = operator;
+        }
+        public List<String> getValues() {
+            return values;
+        }
+        public void setValues(List<String> values) {
+            this.values = values;
+        }
     }
 
     public EntityRules getRulesForEntityType(String entity, String moduleType) {
