@@ -3,6 +3,7 @@ package com.netflix.conductor.core.status;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.netflix.conductor.common.metadata.tasks.TaskDef;
+import com.netflix.conductor.core.exception.TransientException;
 import com.netflix.conductor.model.TaskModel;
 
 import com.netflix.conductor.model.WorkflowModel;
@@ -47,13 +48,20 @@ public class EventPublisher {
     private static final Double DEFAULT_MULTIPLIER = 2.0;
     private static final Integer DEFAULT_MAX_ATTEMPTS = 3;
     private static final String PAYLOAD_VERSION = "1.0";
+    private static final int HTTP_STATUS_SERVER_ERROR_5XX = 5;
+    private static final int HTTP_STATUS_CLIENT_ERROR_4XX = 4;
 
     public EventPublisher(EventFilterConfig eventFilterConfig) {
         this.eventFilterConfig = eventFilterConfig;
         this.retryTemplate = centralRetryTemplate();
     }
 
-    public RetryTemplate centralRetryTemplate() {
+    /***
+     * This method creates a retry template with an exponential backoff policy.
+     * TransientException is used to trigger the retry and this will be triggered only for the server error 5xx status code from the central.
+     * @return
+     */
+    private RetryTemplate centralRetryTemplate() {
         RetryTemplate template = new RetryTemplate();
 
         ExponentialBackOffPolicy backOffPolicy = new ExponentialBackOffPolicy();
@@ -61,7 +69,7 @@ public class EventPublisher {
         backOffPolicy.setMultiplier(DEFAULT_MULTIPLIER);// Exponential multiplier for backoff (1, 2, 4 seconds, etc.)
 
         Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
-        retryableExceptions.put(RuntimeException.class, true);
+        retryableExceptions.put(TransientException.class, true);
 
         SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(DEFAULT_MAX_ATTEMPTS, retryableExceptions);
 
@@ -78,7 +86,10 @@ public class EventPublisher {
      * @param workflow
      */
     public void pushWorkflowEvents(WorkflowModel workflow) {
-        if (isStatusListenerEnabled && eventFilterConfig.shouldPublishEvent("workflow", workflow, moduleType)) {
+        if (!isStatusListenerEnabled) {
+            return;
+        }
+        if (eventFilterConfig.shouldPublishEvent("workflow", workflow, moduleType)) {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.set("input_params", objectMapper.valueToTree(workflow.getInput()));
             payload.put("parent_workflow_id", workflow.getParentWorkflowId());
@@ -87,25 +98,38 @@ public class EventPublisher {
             payload.put("reason_for_incompletion", workflow.getReasonForIncompletion());
 
             sendCentralMessage(String.valueOf(workflow.getInput().get("accountId")), "journey_conductor_workflow_event", payload);
+        } else {
+            LOGGER.info("Skipping workflow event for workflow id: {} status: {}", workflow.getWorkflowId(), workflow.getStatus());
         }
     }
 
     /***
-     * This method evaluates whether the event needs to be published and push the event payload.
+     * This method pushes the workflow events to the central service.
+     * If the status listener is enabled and the current retry should be the last retry for the failed and completed_with_error task
+     * and also if it passes the event filter conditions then the task event is published to the central service.
      * @param task
      */
     public void pushTaskEvents(TaskModel task) {
-        if (isStatusListenerEnabled && maxRetryReached(task) && eventFilterConfig.shouldPublishEvent("task", task, moduleType)) {
+        if (!isStatusListenerEnabled) {
+            return;
+        }
+        if (maxRetryReached(task) && eventFilterConfig.shouldPublishEvent("task", task, moduleType)) {
             ObjectNode payload = objectMapper.createObjectNode();
             payload.set("input_params", objectMapper.valueToTree(task.getInputData()));
             payload.put("task_id", task.getTaskId());
             payload.put("status", task.getStatus().name());
 
             sendCentralMessage(String.valueOf(task.getInputData().get("accountId")), "journey_conductor_task_event", payload);
+        } else {
+            LOGGER.info("Skipping task event for task id: {} status: {} current retry count: {}", task.getTaskId(), task.getStatus(), task.getRetryCount());
         }
     }
 
-    // To verify the current retry is the last attempt for failed and completed_with_error task events
+    /***
+     * This method checks if the current retry should be the last retry for the failed and completed_with_error task
+     * @param task
+     * @return true if the current retry should be the last retry for the failed and completed_with_error task
+     */
     private boolean maxRetryReached(TaskModel task) {
         if (!FAILED.equals(task.getStatus()) && !COMPLETED_WITH_ERRORS.equals(task.getStatus())) {
             return true;
@@ -114,6 +138,13 @@ public class EventPublisher {
         return taskDefinition != null && task.getRetryCount() == taskDefinition.getRetryCount();
     }
 
+    /***
+     * This method pushes the workflow and task events to the central collector api.
+     * Retry is configured only for the server error 5xx status code, in case of client error 4xx status code the error is logged.
+     * @param accountId
+     * @param payloadType
+     * @param payload
+     */
     private void sendCentralMessage(String accountId, String payloadType, ObjectNode payload) {
         ObjectNode centralMessage = objectMapper.createObjectNode();
         centralMessage.put("account_id", accountId);
@@ -132,15 +163,15 @@ public class EventPublisher {
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
                 int responseStatus = getStatus(response.statusCode());
-                if (responseStatus == 5) {
-                    throw new RuntimeException("Server error: " + response.body()); // Triggers retry
-                } else if (responseStatus == 4) {
-                    LOGGER.error("Non-retryable error. Status: {}, Body: {}", response.statusCode(), response.body());
+                if (responseStatus == HTTP_STATUS_SERVER_ERROR_5XX) {
+                    throw new TransientException("Server error: " + response.body()); // Triggers retry
+                } else if (responseStatus == HTTP_STATUS_CLIENT_ERROR_4XX) {
+                    LOGGER.error("Non-retryable error while sending central message. Payload: {}, Response: {}", payload, response.body());
                 }
                 return null;
             });
         } catch (Exception ex) {
-            LOGGER.error("Unexpected error while sending central message: {}", ex.getMessage());
+            LOGGER.error("Unexpected error while sending central message. Payload: {}, Error: {}", payload, ex.getMessage());
         }
     }
 

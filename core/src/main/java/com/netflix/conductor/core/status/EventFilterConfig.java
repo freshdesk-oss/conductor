@@ -1,5 +1,7 @@
 package com.netflix.conductor.core.status;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -10,6 +12,7 @@ import java.util.Map;
 @Component
 @ConfigurationProperties(prefix = "event-filter")
 public class EventFilterConfig {
+    private static final Logger LOGGER = LoggerFactory.getLogger(EventFilterConfig.class);
 
     // Map to hold module level configurations (e.g., journey, alert)
     private Map<String, ModuleConfig> modules;
@@ -76,7 +79,7 @@ public class EventFilterConfig {
         }
     }
 
-    public EntityRules getRulesForEntityType(String entity, String moduleType) {
+    private EntityRules getRulesForEntityType(String entity, String moduleType) {
         ModuleConfig filterConfig = modules.get(moduleType);
         Map<String, EntityRules> moduleMap = filterConfig.getEntities();
         return (moduleMap != null) ? moduleMap.get(entity) : null;
@@ -143,6 +146,7 @@ public class EventFilterConfig {
             Method method = entity.getClass().getMethod("get" + capitalize(fieldName));
             return method.invoke(entity);
         } catch (Exception e) {
+            LOGGER.error("Error occurred while fetching the value for the field: {}", fieldName);
             return null;
         }
     }
