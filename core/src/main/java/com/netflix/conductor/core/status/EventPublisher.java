@@ -91,7 +91,7 @@ public class EventPublisher {
         }
         if (eventFilterConfig.shouldPublishEvent("workflow", workflow, moduleType)) {
             ObjectNode payload = objectMapper.createObjectNode();
-            payload.set("input_params", objectMapper.valueToTree(workflow.getInput()));
+            payload.set("input_params", objectMapper.valueToTree(workflow.getWorkflowDefinition().getInputTemplate()));
             payload.put("parent_workflow_id", workflow.getParentWorkflowId());
             payload.put("workflow_id", workflow.getWorkflowId());
             payload.put("status", workflow.getStatus().name());
@@ -118,6 +118,7 @@ public class EventPublisher {
             payload.set("input_params", objectMapper.valueToTree(task.getInputData()));
             payload.put("task_id", task.getTaskId());
             payload.put("status", task.getStatus().name());
+            payload.put("reason_for_incompletion", task.getReasonForIncompletion());
 
             sendCentralMessage(String.valueOf(task.getInputData().get("accountId")), "journey_conductor_task_event", payload);
         } else {
