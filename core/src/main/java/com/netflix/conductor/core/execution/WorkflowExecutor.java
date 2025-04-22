@@ -1046,13 +1046,21 @@ public class WorkflowExecutor {
     public WorkflowModel decide(String workflowId) {
         StopWatch watch = new StopWatch();
         watch.start();
+        LOGGER.info("[DECIDE_FLOW] ENTRY: workflowId={} thread={} time={}",
+                workflowId, Thread.currentThread().getName(), System.currentTimeMillis());
         if (!executionLockService.acquireLock(workflowId)) {
+            LOGGER.info("[DECIDE_FLOW] workflowId={} thread={} time={}",
+                    workflowId, Thread.currentThread().getName(), System.currentTimeMillis());
             return null;
         }
+        LOGGER.info("[DECIDE_FLOW] LOCK ACQUIRED: workflowId={} thread={} time={}",
+                workflowId, Thread.currentThread().getName(), System.currentTimeMillis());
         try {
 
             WorkflowModel workflow = executionDAOFacade.getWorkflowModel(workflowId, true);
             if (workflow == null) {
+                LOGGER.info("[DECIDE_FLOW] workflowId={} thread={}",
+                        workflowId, Thread.currentThread().getName());
                 // This can happen if the workflowId is incorrect
                 return null;
             }
@@ -1060,6 +1068,8 @@ public class WorkflowExecutor {
 
         } finally {
             executionLockService.releaseLock(workflowId);
+            LOGGER.info("[DECIDE_FLOW] workflowId={} thread={} time={}",
+                    workflowId, Thread.currentThread().getName(), System.currentTimeMillis());
             watch.stop();
             Monitors.recordWorkflowDecisionTime(watch.getTime());
         }
@@ -1072,10 +1082,15 @@ public class WorkflowExecutor {
      *     No locking is required or lock is acquired externally
      */
     public WorkflowModel decide(WorkflowModel workflow) {
+        LOGGER.info("[DECIDE_FLOW] INNER ENTRY: workflowId={} thread={} time={}",
+                workflow.getWorkflowId(), Thread.currentThread().getName(), System.currentTimeMillis());
+
         if (workflow.getStatus().isTerminal()) {
             if (!workflow.getStatus().isSuccessful()) {
                 cancelNonTerminalTasks(workflow);
             }
+            LOGGER.info("[DECIDE_FLOW] INNER EARLY EXIT (Terminal): workflowId={} thread={} time={}",
+                    workflow.getWorkflowId(), Thread.currentThread().getName(), System.currentTimeMillis());
             return workflow;
         }
 
@@ -1087,6 +1102,8 @@ public class WorkflowExecutor {
             DeciderService.DeciderOutcome outcome = deciderService.decide(workflow);
             if (outcome.isComplete) {
                 endExecution(workflow, outcome.terminateTask);
+                LOGGER.info("[DECIDE_FLOW] INNER EXIT (Completed): workflowId={} thread={} time={}",
+                        workflow.getWorkflowId(), Thread.currentThread().getName(), System.currentTimeMillis());
                 return workflow;
             }
 
@@ -1124,14 +1141,18 @@ public class WorkflowExecutor {
                 executionDAOFacade.updateWorkflow(workflow);
             }
 
+            LOGGER.info("[DECIDE_FLOW] INNER EXIT: workflowId={} thread={} time={}",
+                    workflow.getWorkflowId(), Thread.currentThread().getName(), System.currentTimeMillis());
             return workflow;
 
         } catch (TerminateWorkflowException twe) {
-            LOGGER.info("Execution terminated of workflow: {}", workflow, twe);
+            LOGGER.info("[DECIDE_FLOW] INNER EXIT (Terminated): workflowId={} thread={} reason={}",
+                    workflow.getWorkflowId(), Thread.currentThread().getName(), twe.getMessage());
             terminate(workflow, twe);
             return workflow;
         } catch (RuntimeException e) {
-            LOGGER.error("Error deciding workflow: {}", workflow.getWorkflowId(), e);
+            LOGGER.error("[DECIDE_FLOW] INNER EXCEPTION: workflowId={} thread={}",
+                    workflow.getWorkflowId(), Thread.currentThread().getName(), e);
             throw e;
         }
     }
