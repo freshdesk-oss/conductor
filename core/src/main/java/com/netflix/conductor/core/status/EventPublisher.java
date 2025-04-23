@@ -48,6 +48,7 @@ public class EventPublisher {
     private static final Double DEFAULT_MULTIPLIER = 2.0;
     private static final Integer DEFAULT_MAX_ATTEMPTS = 3;
     private static final String PAYLOAD_VERSION = "1.0";
+    private static final int HTTP_STATUS_SUCCESS = 2;
     private static final int HTTP_STATUS_SERVER_ERROR_5XX = 5;
     private static final int HTTP_STATUS_CLIENT_ERROR_4XX = 4;
 
@@ -164,7 +165,9 @@ public class EventPublisher {
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
                 int responseStatus = getStatus(response.statusCode());
-                if (responseStatus == HTTP_STATUS_SERVER_ERROR_5XX) {
+                if (responseStatus == HTTP_STATUS_SUCCESS) {
+                    LOGGER.info("Successfully sent central message. Payload: {}", payload);
+                } else if (responseStatus == HTTP_STATUS_SERVER_ERROR_5XX) {
                     throw new TransientException("Server error: " + response.body()); // Triggers retry
                 } else if (responseStatus == HTTP_STATUS_CLIENT_ERROR_4XX) {
                     LOGGER.error("Non-retryable error while sending central message. Payload: {}, Response: {}", payload, response.body());
