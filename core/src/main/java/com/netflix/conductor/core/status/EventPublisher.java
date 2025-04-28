@@ -186,8 +186,7 @@ public class EventPublisher {
     private String[] getHeaders() {
         return new String[] {
                 "content-type", "application/json",
-                "service", token,
-                "x-request-id", UUID.randomUUID().toString()
+                "service", token
         };
     }
 
