@@ -150,6 +150,9 @@ public class EventPublisher {
      * @param payload
      */
     private void sendCentralMessage(String accountId, String payloadType, ObjectNode payload) {
+        if (accountId == null || accountId.isEmpty()) {
+            return;
+        }
         ObjectNode centralMessage = objectMapper.createObjectNode();
         centralMessage.put("account_id", accountId);
         centralMessage.set("payload", payload);
