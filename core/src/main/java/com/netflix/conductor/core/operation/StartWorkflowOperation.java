@@ -126,6 +126,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
 
         try {
             createAndEvaluate(workflow);
+            LOGGER.info("Workflow-Event-123 Started Workflow: {}", workflowId);
             workflowStatusListener.onWorkflowRunning(workflow);
             Monitors.recordWorkflowStartSuccess(
                     workflow.getWorkflowName(),

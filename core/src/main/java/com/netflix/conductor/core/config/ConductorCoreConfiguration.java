@@ -86,6 +86,7 @@ public class ConductorCoreConfiguration {
             matchIfMissing = true)
     @Bean
     public WorkflowStatusListener workflowStatusListener() {
+        LOGGER.info("Workflow-Event-123 Workflow listener is stubbed");
         return new WorkflowStatusListenerStub(eventPublisher);
     }
 
@@ -95,6 +96,7 @@ public class ConductorCoreConfiguration {
             matchIfMissing = true)
     @Bean
     public TaskStatusListener taskStatusListener() {
+        LOGGER.info("Workflow-Event-123 Task listener is stubbed");
         return new TaskStatusListenerStub(eventPublisher);
     }
 
