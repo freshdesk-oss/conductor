@@ -93,7 +93,7 @@ public class EventPublisher {
         }
         if (eventFilterConfig.shouldPublishEvent("workflow", workflow, moduleType)) {
             ObjectNode payload = objectMapper.createObjectNode();
-            payload.set("input_params", objectMapper.valueToTree(workflow.getWorkflowDefinition().getInputTemplate()));
+            payload.set("input_params", objectMapper.valueToTree(workflow.getInput()));
             payload.put("parent_workflow_id", workflow.getParentWorkflowId());
             payload.put("workflow_id", workflow.getWorkflowId());
             payload.put("status", workflow.getStatus().name());

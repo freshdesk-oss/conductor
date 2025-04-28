@@ -81,7 +81,7 @@ public class ConductorCoreConfiguration {
     }
 
     @ConditionalOnProperty(
-            name = "conductor.workflow-status-listener.type",
+            name = "conductor.workflow-status-listener.type.check",
             havingValue = "stub",
             matchIfMissing = true)
     @Bean
