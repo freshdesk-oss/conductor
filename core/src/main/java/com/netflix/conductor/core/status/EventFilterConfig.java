@@ -107,7 +107,9 @@ public class EventFilterConfig {
      */
     public boolean shouldPublishEvent(String eventType, Object model, String moduleType) {
         EventFilterConfig.EntityRules entityRules = getRulesForEntityType(eventType, moduleType);
-        return validateEntityRule(model, entityRules);
+        boolean result = validateEntityRule(model, entityRules);
+        LOGGER.info("Workflow-Event-123 Event validation for model: {}, result: {}", model, result);
+        return result;
     }
 
     private boolean validateEntityRule(Object entity, EventFilterConfig.EntityRules entityRules) {

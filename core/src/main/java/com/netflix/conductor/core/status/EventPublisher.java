@@ -87,11 +87,11 @@ public class EventPublisher {
      * @param workflow
      */
     public void pushWorkflowEvents(WorkflowModel workflow) {
+        LOGGER.info("Workflow-Event-123 Received workflow event for workflow: {}, isStatusListenerEnabled: {}", workflow, isStatusListenerEnabled);
         if (!isStatusListenerEnabled) {
             return;
         }
         if (eventFilterConfig.shouldPublishEvent("workflow", workflow, moduleType)) {
-            LOGGER.info("Received workflow event for workflow: {}", workflow);
             ObjectNode payload = objectMapper.createObjectNode();
             payload.set("input_params", objectMapper.valueToTree(workflow.getWorkflowDefinition().getInputTemplate()));
             payload.put("parent_workflow_id", workflow.getParentWorkflowId());
@@ -112,11 +112,11 @@ public class EventPublisher {
      * @param task
      */
     public void pushTaskEvents(TaskModel task) {
+        LOGGER.info("Workflow-Event-123 Received task event for task: {}, isStatusListenerEnabled: {}", task, isStatusListenerEnabled);
         if (!isStatusListenerEnabled) {
             return;
         }
         if (maxRetryReached(task) && eventFilterConfig.shouldPublishEvent("task", task, moduleType)) {
-            LOGGER.info("Received task event for task: {}", task);
             ObjectNode payload = objectMapper.createObjectNode();
             payload.set("input_params", objectMapper.valueToTree(task.getInputData()));
             payload.put("task_id", task.getTaskId());
@@ -155,7 +155,7 @@ public class EventPublisher {
         centralMessage.set("payload", payload);
         centralMessage.put("payload_type", payloadType);
         centralMessage.put("payload_version", PAYLOAD_VERSION);
-        LOGGER.info("Trying to publish message for url: {}", url);
+        LOGGER.info("Workflow-Event-123 Trying to publish message for url: {}", url);
 
         try {
             retryTemplate.execute(context -> {
@@ -166,7 +166,7 @@ public class EventPublisher {
                         .POST(HttpRequest.BodyPublishers.ofString(centralMessage.toString()))
                         .build();
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                LOGGER.info("Received response from central: {}", response.body());
+                LOGGER.info("Workflow-Event-123 Received response from central: {}", response.body());
 
                 int responseStatus = getStatus(response.statusCode());
                 if (responseStatus == HTTP_STATUS_SUCCESS) {
