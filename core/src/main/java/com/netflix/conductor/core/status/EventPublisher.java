@@ -21,7 +21,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 import static com.netflix.conductor.model.TaskModel.Status.COMPLETED_WITH_ERRORS;
 import static com.netflix.conductor.model.TaskModel.Status.FAILED;
@@ -92,7 +91,7 @@ public class EventPublisher {
         }
         if (eventFilterConfig.shouldPublishEvent("workflow", workflow, moduleType)) {
             ObjectNode payload = objectMapper.createObjectNode();
-            payload.set("input_params", objectMapper.valueToTree(workflow.getWorkflowDefinition().getInputTemplate()));
+            payload.set("input_params", objectMapper.valueToTree(workflow.getInput()));
             payload.put("parent_workflow_id", workflow.getParentWorkflowId());
             payload.put("workflow_id", workflow.getWorkflowId());
             payload.put("status", workflow.getStatus().name());
@@ -182,8 +181,7 @@ public class EventPublisher {
     private String[] getHeaders() {
         return new String[] {
                 "content-type", "application/json",
-                "service", token,
-                "x-request-id", UUID.randomUUID().toString()
+                "service", token
         };
     }
 
