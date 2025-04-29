@@ -21,6 +21,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.netflix.conductor.model.TaskModel.Status.COMPLETED_WITH_ERRORS;
 import static com.netflix.conductor.model.TaskModel.Status.FAILED;
@@ -97,7 +98,12 @@ public class EventPublisher {
             payload.put("status", workflow.getStatus().name());
             payload.put("reason_for_incompletion", workflow.getReasonForIncompletion());
 
-            sendCentralMessage(String.valueOf(workflow.getInput().get("accountId")), "journey_conductor_workflow_event", payload);
+            Object accountId = workflow.getInput().get("accountId");
+            if (Objects.nonNull(accountId)) {
+                sendCentralMessage(String.valueOf(accountId), "journey_conductor_workflow_event", payload);
+            } else {
+                LOGGER.error("Account ID is missing in the workflow input. Workflow ID: {}", workflow.getWorkflowId());
+            }
         } else {
             LOGGER.info("Skipping workflow event for workflow id: {} status: {}", workflow.getWorkflowId(), workflow.getStatus());
         }
@@ -120,7 +126,12 @@ public class EventPublisher {
             payload.put("status", task.getStatus().name());
             payload.put("reason_for_incompletion", task.getReasonForIncompletion());
 
-            sendCentralMessage(String.valueOf(task.getInputData().get("accountId")), "journey_conductor_task_event", payload);
+            Object accountId = task.getInputData().get("accountId");
+            if (Objects.nonNull(accountId)) {
+                sendCentralMessage(String.valueOf(accountId), "journey_conductor_task_event", payload);
+            } else {
+                LOGGER.error("Account ID is missing in the task input. Task ID: {}", task.getTaskId());
+            }
         } else {
             LOGGER.info("Skipping task event for task id: {} status: {} current retry count: {}", task.getTaskId(), task.getStatus(), task.getRetryCount());
         }
@@ -147,10 +158,6 @@ public class EventPublisher {
      * @param payload
      */
     private void sendCentralMessage(String accountId, String payloadType, ObjectNode payload) {
-        if (accountId == null || accountId.isEmpty()) {
-            return;
-        }
-
         ObjectNode centralMessage = objectMapper.createObjectNode();
         centralMessage.put("account_id", accountId);
         centralMessage.set("payload", payload);
