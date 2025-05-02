@@ -17,7 +17,7 @@ event-filter:
             - field: taskType
               caseType: excludes
               operator: contains
-              values: FORK_JOIN,SWITCH,JOIN,WAIT
+              values: FORK_JOIN,SWITCH,JOIN,WAIT,SUB_WORKFLOW
             - field: referenceTaskName
               caseType: excludes
               operator: startsWith
