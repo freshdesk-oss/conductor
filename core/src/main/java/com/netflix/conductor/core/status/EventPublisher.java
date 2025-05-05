@@ -176,7 +176,7 @@ public class EventPublisher {
 
                 int responseStatus = getStatus(response.statusCode());
                 if (responseStatus == HTTP_STATUS_SUCCESS) {
-                    LOGGER.info("Successfully sent central message. Payload: {}", payload);
+                    LOGGER.info("Successfully sent central message. Payload: {}, AccountId: {}", payload, accountId);
                 } else if (responseStatus == HTTP_STATUS_SERVER_ERROR_5XX) {
                     throw new TransientException("Server error: " + response.body()); // Triggers retry
                 } else if (responseStatus == HTTP_STATUS_CLIENT_ERROR_4XX) {
