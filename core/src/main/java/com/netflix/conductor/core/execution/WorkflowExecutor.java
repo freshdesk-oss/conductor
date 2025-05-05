@@ -560,7 +560,7 @@ public class WorkflowExecutor {
                                 .collect(Collectors.toSet()));
 
         executionDAOFacade.updateWorkflow(workflow);
-        LOGGER.debug("Completed workflow execution for {}", workflow.getWorkflowId());
+        LOGGER.info("Completed workflow execution for {}, listener: {}", workflow.getWorkflowId(), workflowStatusListener.getClass().getSimpleName());
         workflowStatusListener.onWorkflowCompleted(workflow);
         Monitors.recordWorkflowCompletion(
                 workflow.getWorkflowName(),
@@ -642,6 +642,7 @@ public class WorkflowExecutor {
             String workflowId = workflow.getWorkflowId();
             workflow.setReasonForIncompletion(reason);
             executionDAOFacade.updateWorkflow(workflow);
+            LOGGER.info("Terminated workflow execution for {}, listener: {}", workflow.getWorkflowId(), workflowStatusListener.getClass().getSimpleName());
             workflowStatusListener.onWorkflowTerminated(workflow);
             Monitors.recordWorkflowTermination(
                     workflow.getWorkflowName(), workflow.getStatus(), workflow.getOwnerApp());
