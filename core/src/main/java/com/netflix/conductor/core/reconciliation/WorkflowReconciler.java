@@ -94,6 +94,7 @@ public class WorkflowReconciler extends LifecycleAwareComponent {
 
     private void recordQueueDepth() {
         int currentQueueSize = queueDAO.getSize(DECIDER_QUEUE);
+        LOGGER.info("[SWEEPER] Decider queue size: {}", currentQueueSize);
         Monitors.recordGauge(DECIDER_QUEUE, currentQueueSize);
     }
 }
