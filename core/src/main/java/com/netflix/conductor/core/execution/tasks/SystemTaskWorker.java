@@ -21,7 +21,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import com.netflix.conductor.client.automator.TextMapGetterHelper;
 import com.netflix.conductor.common.metadata.tasks.Task;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Context;
