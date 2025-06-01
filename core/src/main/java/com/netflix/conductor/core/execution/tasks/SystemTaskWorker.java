@@ -12,13 +12,20 @@
  */
 package com.netflix.conductor.core.execution.tasks;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.netflix.conductor.client.automator.TextMapGetterHelper;
+import com.netflix.conductor.common.metadata.tasks.Task;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.propagation.TextMapPropagator;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +41,10 @@ import com.netflix.conductor.core.utils.SemaphoreUtil;
 import com.netflix.conductor.dao.QueueDAO;
 import com.netflix.conductor.metrics.Monitors;
 import com.netflix.conductor.service.ExecutionService;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 
 /** The worker that polls and executes an async system task. */
 @Component
@@ -44,6 +55,8 @@ import com.netflix.conductor.service.ExecutionService;
 public class SystemTaskWorker extends LifecycleAwareComponent {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SystemTaskWorker.class);
+
+    private static final Tracer tracer = GlobalOpenTelemetry.getTracer("conductor-server-system-task");
 
     private final long pollInterval;
     private final QueueDAO queueDAO;
@@ -131,9 +144,18 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
                         executionService.ackTaskReceived(taskId);
 
                         CompletableFuture<Void> taskCompletableFuture =
-                                CompletableFuture.runAsync(
-                                        () -> asyncSystemTaskExecutor.execute(systemTask, taskId),
-                                        executorService);
+                                CompletableFuture.runAsync(() -> {
+                                    Span span = startSystemTaskSpan(taskId, systemTask.getTaskType());
+                                    try (Scope scope = span.makeCurrent()) {
+                                        asyncSystemTaskExecutor.execute(systemTask, taskId);
+                                    } catch (Exception e) {
+                                        span.recordException(e);
+                                        span.setStatus(StatusCode.ERROR, e.getMessage());
+                                        throw e;
+                                    } finally {
+                                        span.end();
+                                    }
+                                }, executorService);
 
                         // release permit after processing is complete
                         taskCompletableFuture.whenComplete(
@@ -153,6 +175,19 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
             Monitors.recordTaskPollError(taskName, e.getClass().getSimpleName());
             LOGGER.error("Error polling system task in queue:{}", queueName, e);
         }
+    }
+
+    private Span startSystemTaskSpan(String taskId, String taskType) {
+        Task task = executionService.getTask(taskId);
+        String traceParent = (task != null)
+                ? (String) task.getInputData().get("traceParent")
+                : null;
+        Map<String, String> headers = new HashMap<>();
+        headers.put("traceparent", traceParent);
+        TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+        Context parentContext = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
+        return tracer.spanBuilder("system-task-execute_" + taskType)
+                .setParent(parentContext).startSpan();
     }
 
     @VisibleForTesting
