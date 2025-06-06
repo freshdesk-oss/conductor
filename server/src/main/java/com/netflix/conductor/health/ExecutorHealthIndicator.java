@@ -39,13 +39,19 @@ public class ExecutorHealthIndicator extends AbstractHealthIndicator {
         boolean isHealthy = true;
         for (Map.Entry<String, ExecutorService> entry : executors.entrySet()) {
             ExecutorService executor = entry.getValue();
+            String executorName = entry.getKey();
             try {
-                if (isExecutorUnhealthy(executor)) {
+                boolean isUnhealthy = isExecutorUnhealthy(executor);
+                String status = isUnhealthy ? "UNHEALTHY" : "HEALTHY";
+                LOGGER.info("Executor '{}' status: {}", executorName, status);
+                
+                if (isUnhealthy) {
                     isHealthy = false;
                     break;
                 }    
             } catch (Exception e) {
-                LOGGER.error("Error checking health for ExecutorService bean '{}'", entry.getKey(), e);
+                LOGGER.error("Error checking health for ExecutorService bean '{}'", executorName, e);
+                LOGGER.info("Executor '{}' status: ERROR", executorName);
                 isHealthy = false;
                 break;
             }
