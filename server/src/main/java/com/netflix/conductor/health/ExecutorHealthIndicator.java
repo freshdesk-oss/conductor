@@ -64,9 +64,9 @@ public class ExecutorHealthIndicator extends AbstractHealthIndicator {
     }
 
     /**
-     * Check if an executor is healthy
+     * Check if an executor is unhealthy
      */
     private boolean isExecutorUnhealthy(ExecutorService executor) {
-        return !executor.isShutdown();
+        return executor.isShutdown();
     }
 }
