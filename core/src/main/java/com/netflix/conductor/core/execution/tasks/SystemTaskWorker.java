@@ -12,7 +12,9 @@
  */
 package com.netflix.conductor.core.execution.tasks;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -162,6 +164,26 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
         }
         return queueExecutionConfigMap.computeIfAbsent(
                 taskQueue, __ -> this.createExecutionConfig());
+    }
+    
+    /**
+     * Get all ExecutorService instances managed by this SystemTaskWorker
+     * for health monitoring purposes
+     */
+    public Map<String, ExecutorService> getAllExecutorServices() {
+        Map<String, ExecutorService> executors = new HashMap<>();
+        
+        // Add default executor
+        if (defaultExecutionConfig != null) {
+            executors.put("systemTaskWorker-default", defaultExecutionConfig.getExecutorService());
+        }
+        
+        // Add queue-specific executors
+        queueExecutionConfigMap.forEach((queueName, config) -> {
+            executors.put("systemTaskWorker-" + queueName, config.getExecutorService());
+        });
+        
+        return executors;
     }
 
     private ExecutionConfig createExecutionConfig() {
