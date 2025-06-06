@@ -1,7 +1,8 @@
 package com.netflix.conductor.health;
 
+import org.springframework.boot.actuate.health.AbstractHealthIndicator;
 import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
@@ -32,9 +33,8 @@ public class ExecutorHealthIndicator extends AbstractHealthIndicator {
         Map<String, ExecutorService> executors = applicationContext.getBeansOfType(ExecutorService.class);
         if (executors.isEmpty()) {
             LOGGER.warn("No ExecutorService beans found for health monitoring");
-            return Health.down()
-                    .withDetail("status", "No ExecutorService beans found")
-                    .build();
+            builder.down().withDetail("status", "No ExecutorService beans found");
+            return;
         }
         boolean isHealthy = true;
         for (Map.Entry<String, ExecutorService> entry : executors.entrySet()) {
@@ -45,9 +45,9 @@ public class ExecutorHealthIndicator extends AbstractHealthIndicator {
                     break;
                 }    
             } catch (Exception e) {
+                LOGGER.error("Error checking health for ExecutorService bean '{}'", entry.getKey(), e);
                 isHealthy = false;
                 break;
-                LOGGER.error("Error checking health for ExecutorService bean '{}'", entry.getKey(), e);
             }
         }
         if (isHealthy) {
