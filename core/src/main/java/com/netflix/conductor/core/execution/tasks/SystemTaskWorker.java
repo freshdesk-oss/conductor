@@ -82,19 +82,7 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
     }
 
     public void startPolling(WorkflowSystemTask systemTask, String queueName) {
-        // Check if we're already polling this queue to avoid duplicates
-        if (pollingExecutors.containsKey(queueName)) {
-            LOGGER.debug("Already polling queue: {}, skipping duplicate", queueName);
-            return;
-        }
-        
-        ScheduledExecutorService pollingExecutor = Executors.newSingleThreadScheduledExecutor(
-            r -> {
-                Thread t = new Thread(r, "system-task-poller-" + queueName);
-                t.setDaemon(true);
-                return t;
-            });
-            
+        ScheduledExecutorService pollingExecutor = Executors.newSingleThreadScheduledExecutor();
         pollingExecutor.scheduleWithFixedDelay(
                 () -> this.pollAndExecute(systemTask, queueName),
                 1000,
@@ -104,7 +92,7 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
         // Track this executor for monitoring
         pollingExecutors.put(queueName, pollingExecutor);
         
-        LOGGER.info("Started listening for task: {} in queue: {} with dedicated polling executor", systemTask, queueName);
+        LOGGER.debug("Started listening for task: {} in queue: {}", systemTask, queueName);
     }
 
     void pollAndExecute(WorkflowSystemTask systemTask, String queueName) {
@@ -218,25 +206,5 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
         int threadCount = properties.getIsolatedSystemTaskWorkerThreadCount();
         String threadNameFormat = "isolated-system-task-worker-%d";
         return new ExecutionConfig(threadCount, threadNameFormat);
-    }
-    
-    @Override
-    public void doStop() {
-        // Shutdown all polling executors gracefully
-        pollingExecutors.values().forEach(executor -> {
-            try {
-                executor.shutdown();
-                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    LOGGER.warn("Polling executor did not terminate gracefully, forcing shutdown");
-                    executor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                LOGGER.warn("Interrupted while shutting down polling executor", e);
-                executor.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        });
-        pollingExecutors.clear();
-        LOGGER.info("SystemTaskWorker stopped and all polling executors shutdown");
     }
 }
