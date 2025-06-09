@@ -46,12 +46,17 @@ public class ExecutorHealthIndicator extends AbstractHealthIndicator {
             }
         });
         
-        // 3. Get SystemTaskWorker executors
+        // 3. Get SystemTaskWorker executors (active + available)
         try {
             Map<String, SystemTaskWorker> systemTaskWorkers = applicationContext.getBeansOfType(SystemTaskWorker.class);
             systemTaskWorkers.forEach((name, worker) -> {
                 Map<String, ExecutorService> workerExecutors = worker.getAllExecutorServices();
                 allExecutors.putAll(workerExecutors);
+                
+                // Log info about isolated system task capabilities
+                if (workerExecutors.size() == 1 && workerExecutors.containsKey("systemTaskWorker-default")) {
+                    LOGGER.debug("SystemTaskWorker: Only default executor found. Isolated task executors are created dynamically when isolated queues are used.");
+                }
             });
         } catch (Exception e) {
             LOGGER.warn("Error accessing SystemTaskWorker executors", e);
@@ -63,6 +68,9 @@ public class ExecutorHealthIndicator extends AbstractHealthIndicator {
             return;
         }
         
+        LOGGER.info("Found {} ExecutorService instances for health monitoring: {}", 
+                   allExecutors.size(), allExecutors.keySet());
+        
         boolean isHealthy = true;
         for (Map.Entry<String, ExecutorService> entry : allExecutors.entrySet()) {
             ExecutorService executor = entry.getValue();
@@ -70,7 +78,8 @@ public class ExecutorHealthIndicator extends AbstractHealthIndicator {
             try {
                 boolean isUnhealthy = isExecutorUnhealthy(executor);
                 String status = isUnhealthy ? "UNHEALTHY" : "HEALTHY";
-                LOGGER.info("Executor '{}' status: {}", executorName, status);
+                String executorType = getExecutorType(executor);
+                LOGGER.info("Executor '{}' [{}] status: {}", executorName, executorType, status);
                 
                 if (isUnhealthy) {
                     isHealthy = false;
@@ -96,5 +105,22 @@ public class ExecutorHealthIndicator extends AbstractHealthIndicator {
     private boolean isExecutorUnhealthy(ExecutorService executor) {
         return executor.isShutdown();
     }
-
+    
+    /**
+     * Get the type/description of the executor for logging purposes
+     */
+    private String getExecutorType(ExecutorService executor) {
+        String className = executor.getClass().getSimpleName();
+        if (className.contains("ThreadPoolExecutor")) {
+            return "ThreadPool";
+        } else if (className.contains("ScheduledThreadPoolExecutor")) {
+            return "ScheduledThreadPool";
+        } else if (className.contains("ForkJoinPool")) {
+            return "ForkJoinPool";
+        } else if (className.contains("FinalizableDelegatedExecutorService")) {
+            return "SingleThreadScheduled";
+        } else {
+            return className;
+        }
+    }
 }
