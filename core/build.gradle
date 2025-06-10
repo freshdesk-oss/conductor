@@ -20,6 +20,7 @@ dependencies {
 
     implementation "io.opentelemetry:opentelemetry-extension-annotations:${revOpentelemetryExtensionAnnotations}"
     implementation "io.opentelemetry:opentelemetry-api:${revOpentelemetryApi}"
+    implementation "io.opentelemetry:opentelemetry-context:${revOpentelemetryApi}"
     implementation "org.springframework.boot:spring-boot-starter-aop:${revSpringBootStarterAop}"
 
     implementation "com.fasterxml.jackson.core:jackson-annotations"
