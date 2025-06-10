@@ -121,12 +121,15 @@ class TaskPollExecutor {
 
     private void startTracing(String traceParent, String spanName) {
         try {
+            LOGGER.info("TaskPollExecutor.startTracing: spanName='{}', incoming traceParent='{}'", spanName, traceParent);
             Map<String, String> headers = new HashMap<>();
             headers.put("traceparent", traceParent);
             TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
             Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
+            LOGGER.info("TaskPollExecutor.startTracing: extracted parent Context={}", context);
             Span span = tracer.spanBuilder(spanName).setParent(context).startSpan();
             Scope scope = span.makeCurrent();
+            LOGGER.info("TaskPollExecutor.startTracing: started span {} and made current", span.getSpanContext());
         } catch (Exception ex) {
             LOGGER.error("Exception while startTracing", ex);
         }

@@ -12,6 +12,7 @@
  */
 package com.netflix.conductor.core.execution.tasks;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -178,15 +179,22 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
 
     private Span startSystemTaskSpan(String taskId, String taskType) {
         Task task = executionService.getTask(taskId);
-        String traceParent = (task != null)
-                ? (String) task.getInputData().get("traceParent")
+        Map<String,Object> inputData = (task != null) ? task.getInputData() : Collections.emptyMap();
+        LOGGER.info("SystemTaskWorker: taskId={} inputData={}", taskId, inputData);
+        String traceParent = inputData != null
+                ? (String) inputData.get("traceParent")
                 : null;
+        LOGGER.info("SystemTaskWorker: extracted traceParent='{}' for taskId={}", traceParent, taskId);
         Map<String, String> headers = new HashMap<>();
-        headers.put("traceparent", traceParent);
+        if (traceParent != null) {
+            headers.put("traceparent", traceParent);
+        }
         TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
         Context parentContext = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
-        return tracer.spanBuilder("system-task-execute_" + taskType)
+        Span span = tracer.spanBuilder("system-task-execute_" + taskType)
                 .setParent(parentContext).startSpan();
+        LOGGER.info("SystemTaskWorker: started span {} with parentContext={}", span.getSpanContext(), parentContext);
+        return span;
     }
 
     @VisibleForTesting
