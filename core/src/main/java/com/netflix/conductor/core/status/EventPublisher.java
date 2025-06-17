@@ -41,8 +41,6 @@ public class EventPublisher {
 
     @Value("${conductor.status-listener.enabled}")
     private boolean isStatusListenerEnabled;
-    @Value("${conductor.status-listener.module.type}")
-    private String moduleType;
 
     private static final Long DEFAULT_INITIAL_INTERVAL = 500L;
     private static final Double DEFAULT_MULTIPLIER = 2.0;
@@ -86,7 +84,7 @@ public class EventPublisher {
      * then the workflow event is published to the central service.
      * @param workflow
      */
-    public void pushWorkflowEvents(WorkflowModel workflow) {
+    public void pushWorkflowEvents(WorkflowModel workflow, String moduleType) {
         if (!isStatusListenerEnabled) {
             return;
         }
@@ -100,9 +98,11 @@ public class EventPublisher {
 
             Object accountId = workflow.getInput().get("accountId");
             if (Objects.nonNull(accountId)) {
-                sendCentralMessage(String.valueOf(accountId), "journey_conductor_workflow_event", payload);
+                String payloadType = moduleType + "_conductor_workflow_event";
+                sendCentralMessage(String.valueOf(accountId), payloadType, payload);
             } else {
-                LOGGER.error("Account ID is missing in the workflow input. Workflow ID: {}", workflow.getWorkflowId());
+                LOGGER.error("Account ID is missing in the workflow input. Workflow ID: {} Module {}",
+                        workflow.getWorkflowId(), moduleType);
             }
         } else {
             LOGGER.info("Skipping workflow event for workflow id: {} status: {}", workflow.getWorkflowId(), workflow.getStatus());
@@ -115,7 +115,7 @@ public class EventPublisher {
      * and also if it passes the event filter conditions then the task event is published to the central service.
      * @param task
      */
-    public void pushTaskEvents(TaskModel task) {
+    public void pushTaskEvents(TaskModel task, String moduleType) {
         if (!isStatusListenerEnabled) {
             return;
         }
@@ -128,7 +128,8 @@ public class EventPublisher {
 
             Object accountId = task.getInputData().get("accountId");
             if (Objects.nonNull(accountId)) {
-                sendCentralMessage(String.valueOf(accountId), "journey_conductor_task_event", payload);
+                String payloadType = moduleType + "_conductor_task_event";
+                sendCentralMessage(String.valueOf(accountId), payloadType, payload);
             } else {
                 LOGGER.error("Account ID is missing in the task input. Task ID: {}", task.getTaskId());
             }

@@ -31,24 +31,24 @@ public class WorkflowStatusListenerStub implements WorkflowStatusListener {
     @Override
     public void onWorkflowCompleted(WorkflowModel workflow) {
         LOGGER.info("Workflow {} is completed", workflow.getWorkflowId());
-        eventPublisher.pushWorkflowEvents(workflow);
+        eventPublisher.pushWorkflowEvents(workflow, ModuleResolver.from(workflow));
     }
 
     @Override
     public void onWorkflowTerminated(WorkflowModel workflow) {
         LOGGER.info("Workflow {} is terminated", workflow.getWorkflowId());
-        eventPublisher.pushWorkflowEvents(workflow);
+        eventPublisher.pushWorkflowEvents(workflow, ModuleResolver.from(workflow));
     }
 
     @Override
     public void onWorkflowFinalized(WorkflowModel workflow) {
         LOGGER.info("Workflow {} is finalized", workflow.getWorkflowId());
-        eventPublisher.pushWorkflowEvents(workflow);
+        eventPublisher.pushWorkflowEvents(workflow, ModuleResolver.from(workflow));
     }
 
     @Override
     public void onWorkflowRunning(WorkflowModel workflow) {
         LOGGER.info("Workflow {} is running", workflow.getWorkflowId());
-        eventPublisher.pushWorkflowEvents(workflow);
+        eventPublisher.pushWorkflowEvents(workflow, ModuleResolver.from(workflow));
     }
 }

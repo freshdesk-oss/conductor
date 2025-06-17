@@ -22,3 +22,17 @@ event-filter:
               caseType: excludes
               operator: startsWith
               values: wTimer,wCleanup,wDecision
+    alerts:
+      entities:
+        workflow:
+          rules:
+            - field: status
+              caseType: includes
+              operator: contains
+              values: COMPLETED,FAILED,TERMINATED
+        task:
+          rules:
+            - field: status
+              caseType: includes
+              operator: contains
+              values: FAILED,COMPLETED_WITH_ERRORS
