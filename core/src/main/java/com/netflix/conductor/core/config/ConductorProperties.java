@@ -46,7 +46,7 @@ public class ConductorProperties {
     private int sweeperThreadCount = Runtime.getRuntime().availableProcessors() * 2;
 
     /** The timeout (in milliseconds) for the polling of workflows to be swept. */
-    private Duration sweeperWorkflowPollTimeout = Duration.ofMillis(1000);
+    private Duration sweeperWorkflowPollTimeout = Duration.ofMillis(2000);
 
     /** The number of threads to configure the threadpool in the event processor. */
     private int eventProcessorThreadCount = 2;

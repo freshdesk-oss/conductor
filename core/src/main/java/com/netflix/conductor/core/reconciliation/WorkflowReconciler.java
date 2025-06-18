@@ -66,8 +66,12 @@ public class WorkflowReconciler extends LifecycleAwareComponent {
             if (!isRunning()) {
                 LOGGER.debug("Component stopped, skip workflow sweep");
             } else {
+                LOGGER.info(" ==> Decider QUEUE Size Before Popping  : {} , for the threadCount : {} , with timeout : {} ms",
+                        queueDAO.getSize(DECIDER_QUEUE),sweeperThreadCount,sweeperWorkflowPollTimeout);
                 List<String> workflowIds =
                         queueDAO.pop(DECIDER_QUEUE, sweeperThreadCount, sweeperWorkflowPollTimeout);
+                LOGGER.info(" ==> Number of WFs popped out : {}",workflowIds != null ? workflowIds.size() : 0);
+                LOGGER.info(" ==> Decider QUEUE Size After Popping : {}", queueDAO.getSize(DECIDER_QUEUE));
                 if (workflowIds != null) {
                     // wait for all workflow ids to be "swept"
                     CompletableFuture.allOf(
