@@ -19,10 +19,13 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
 import com.netflix.conductor.dao.QueueDAO;
+import com.netflix.conductor.metrics.Monitors;
 import com.netflix.conductor.redis.config.AnyRedisCondition;
 import com.netflix.dyno.queues.DynoQueue;
 import com.netflix.dyno.queues.Message;
@@ -33,6 +36,8 @@ import com.netflix.dyno.queues.redis.RedisQueues;
 public class DynoQueueDAO implements QueueDAO {
 
     private final RedisQueues queues;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DynoQueueDAO.class);
 
     public DynoQueueDAO(RedisQueues queues) {
         this.queues = queues;
@@ -45,7 +50,8 @@ public class DynoQueueDAO implements QueueDAO {
 
     @Override
     public void push(String queueName, String id, int priority, long offsetTimeInSecond) {
-        Message msg = new Message(id, null);
+        String payload = String.valueOf(System.currentTimeMillis());
+        Message msg = new Message(id, payload);
         msg.setTimeout(offsetTimeInSecond, TimeUnit.SECONDS);
         if (priority >= 0 && priority <= 99) {
             msg.setPriority(priority);
@@ -82,7 +88,8 @@ public class DynoQueueDAO implements QueueDAO {
         if (queue.get(id) != null) {
             return false;
         }
-        Message msg = new Message(id, null);
+        String payload = String.valueOf(System.currentTimeMillis());
+        Message msg = new Message(id, payload);
         if (priority >= 0 && priority <= 99) {
             msg.setPriority(priority);
         }
@@ -111,7 +118,35 @@ public class DynoQueueDAO implements QueueDAO {
 
     @Override
     public void remove(String queueName, String messageId) {
-        queues.get(queueName).remove(messageId);
+        DynoQueue queue = queues.get(queueName);
+        Message message = queue.get(messageId);
+
+        LOGGER.info("Removing From Queue: {}, messageId: {}", queueName, messageId);
+        long startTime = System.currentTimeMillis();
+        if (message != null && message.getPayload() != null) {
+            try {
+                startTime = Long.parseLong(message.getPayload());
+            } catch (NumberFormatException e) {
+                // If payload is not a valid timestamp, use current time as fallback
+                LOGGER.warn(
+                        "Payload for messageId: {} in queue: {} is not a valid timestamp. Using current time.",
+                        messageId,
+                        queueName);
+                startTime = System.currentTimeMillis();
+            }
+        }
+            queue.remove(messageId);
+            long endTime = System.currentTimeMillis();
+            long totalTimeInQueue = endTime - startTime;
+            LOGGER.info(
+                    "Removing message with id: {} from queue: {}, time in queue: {} ms",
+                    messageId,
+                    queueName,
+                    totalTimeInQueue);
+            Monitors.recordDaoRequests("DynoQueueDAO", "remove", "queue", queueName);
+            // Record the total time the message spent in the queue
+            Monitors.recordQueueTTl(totalTimeInQueue,"queue_name",queueName,"workflowId",messageId);
+
     }
 
     @Override

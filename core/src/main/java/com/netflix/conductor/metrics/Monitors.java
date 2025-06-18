@@ -195,6 +195,10 @@ public class Monitors {
         getTimer(classQualifier, "workflow_decision").record(duration, TimeUnit.MILLISECONDS);
     }
 
+    public static void recordQueueTTl(long duration,String... additionalTags) {
+        getTimer(classQualifier, "queue_ttl",additionalTags).record(duration, TimeUnit.MILLISECONDS);
+    }
+
     public static void recordTaskPollError(String taskType, String exception) {
         recordTaskPollError(taskType, NO_DOMAIN, exception);
     }
