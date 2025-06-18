@@ -270,6 +270,11 @@ public class RedisProperties {
 
     public String getQueuePrefix() {
         String prefix = getQueueNamespacePrefix() + "." + conductorProperties.getStack();
+
+        if(conductorProperties.getStackPrefix() != null) {
+            prefix = prefix + "." + conductorProperties.getStackPrefix();
+        }
+
         if (getKeyspaceDomain() != null) {
             prefix = prefix + "." + getKeyspaceDomain();
         }

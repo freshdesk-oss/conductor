@@ -35,6 +35,8 @@ public class ConductorProperties {
     /** The id with the app has been registered. */
     private String appId = "conductor";
 
+    private String stackPrefix = null;
+
     /** The maximum number of threads to be allocated to the executor service threadpool. */
     private int executorServiceMaxThreadCount = 50;
 
@@ -221,6 +223,14 @@ public class ConductorProperties {
         this.stack = stack;
     }
 
+    public String getStackPrefix() {
+        return stackPrefix;
+    }
+
+    public void setStackPrefix(String stackPrefix) {
+        this.stackPrefix = stackPrefix;
+    }
+    
     public String getAppId() {
         return appId;
     }
