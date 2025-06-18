@@ -120,20 +120,22 @@ public class DynoQueueDAO implements QueueDAO {
     public void remove(String queueName, String messageId) {
         DynoQueue queue = queues.get(queueName);
         Message message = queue.get(messageId);
-        
+
+        LOGGER.info("Removing From Queue: {}, messageId: {}", queueName, messageId);
         long startTime = System.currentTimeMillis();
         if (message != null && message.getPayload() != null) {
             try {
                 startTime = Long.parseLong(message.getPayload());
             } catch (NumberFormatException e) {
                 // If payload is not a valid timestamp, use current time as fallback
+                LOGGER.warn(
+                        "Payload for messageId: {} in queue: {} is not a valid timestamp. Using current time.",
+                        messageId,
+                        queueName);
                 startTime = System.currentTimeMillis();
             }
         }
-        
-        try {
             queue.remove(messageId);
-        } finally {
             long endTime = System.currentTimeMillis();
             long totalTimeInQueue = endTime - startTime;
             LOGGER.info(
@@ -143,8 +145,8 @@ public class DynoQueueDAO implements QueueDAO {
                     totalTimeInQueue);
             Monitors.recordDaoRequests("DynoQueueDAO", "remove", "queue", queueName);
             // Record the total time the message spent in the queue
-            Monitors.recordQueueTTl(totalTimeInQueue,queueName,messageId);
-        }
+            Monitors.recordQueueTTl(totalTimeInQueue,"queue_name",queueName,"workflowId",messageId);
+
     }
 
     @Override
