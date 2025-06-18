@@ -638,7 +638,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             List<TaskModel> tasks = workflow.getTasks();
             workflow.setTasks(new LinkedList<>());
             String payload = toJson(workflow);
-            Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
+            Long correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0L : Long.parseLong(workflow.getCorrelationId());
             LOGGER.info(
                     "Correlation ID for workflow {} is {}",
                     workflow.getWorkflowId(),
@@ -792,7 +792,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         String shardId = lookupShardIdFromWorkflowId(workflowId);
-        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+        Long correlationId = Objects.isNull(shardId) ? 0L : Long.parseLong(shardId);
 
         return getWorkflowModel(workflowId, includeTasks, workflowUUID, correlationId);
     }
