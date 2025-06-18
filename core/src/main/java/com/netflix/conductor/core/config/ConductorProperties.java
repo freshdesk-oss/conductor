@@ -35,6 +35,8 @@ public class ConductorProperties {
     /** The id with the app has been registered. */
     private String appId = "conductor";
 
+    private int sweeperThreadMultiplier = 2;
+
     /** The maximum number of threads to be allocated to the executor service threadpool. */
     private int executorServiceMaxThreadCount = 50;
 
@@ -43,7 +45,7 @@ public class ConductorProperties {
     private Duration workflowOffsetTimeout = Duration.ofSeconds(300);
 
     /** The number of threads to use to do background sweep on active workflows. */
-    private int sweeperThreadCount = Runtime.getRuntime().availableProcessors() * 2;
+    private int sweeperThreadCount = Runtime.getRuntime().availableProcessors() * sweeperThreadMultiplier;
 
     /** The timeout (in milliseconds) for the polling of workflows to be swept. */
     private Duration sweeperWorkflowPollTimeout = Duration.ofMillis(2000);
