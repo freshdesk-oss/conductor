@@ -45,7 +45,7 @@ public class ConductorProperties {
     private Duration workflowOffsetTimeout = Duration.ofSeconds(300);
 
     /** The number of threads to use to do background sweep on active workflows. */
-    private int sweeperThreadCount = Runtime.getRuntime().availableProcessors() * 8;
+    private int sweeperThreadCount = Runtime.getRuntime().availableProcessors() * sweeperThreadMultiplier;
 
     /** The timeout (in milliseconds) for the polling of workflows to be swept. */
     private Duration sweeperWorkflowPollTimeout = Duration.ofMillis(2000);
@@ -521,6 +521,15 @@ public class ConductorProperties {
 
     public void setTaskExecLogSizeLimit(int taskExecLogSizeLimit) {
         this.taskExecLogSizeLimit = taskExecLogSizeLimit;
+    }
+
+
+    public int getSweeperThreadMultiplier() {
+        return sweeperThreadMultiplier;
+    }
+
+    public void setSweeperThreadMultiplier(int sweeperThreadMultiplier) {
+        this.sweeperThreadMultiplier = sweeperThreadMultiplier;
     }
 
     /**

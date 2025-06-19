@@ -54,8 +54,8 @@ public class WorkflowReconciler extends LifecycleAwareComponent {
         this.sweeperWorkflowPollTimeout =
                 (int) properties.getSweeperWorkflowPollTimeout().toMillis();
         LOGGER.info(
-                "WorkflowReconciler initialized with {} sweeper threads",
-                properties.getSweeperThreadCount());
+                "WorkflowReconciler initialized with {} sweeper threads as the multiple factor  {}",
+                properties.getSweeperThreadCount(),properties.getSweeperThreadMultiplier());
     }
 
     @Scheduled(
