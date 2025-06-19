@@ -47,8 +47,8 @@ dependencies {
     implementation 'io.micrometer:micrometer-registry-prometheus:1.11.0'
     implementation "com.netflix.spectator:spectator-reg-micrometer:${revSpectator}"
 
-    implementation "io.opentelemetry:opentelemetry-extension-annotations:1.18.0"
-    implementation "io.opentelemetry:opentelemetry-api:1.35.0"
+    implementation "io.opentelemetry:opentelemetry-extension-annotations:${revOpentelemetryExtensionAnnotations}"
+    implementation "io.opentelemetry:opentelemetry-api:${revOpentelemetryApi}"
 
     implementation "org.springdoc:springdoc-openapi-ui:${revOpenapi}"
 

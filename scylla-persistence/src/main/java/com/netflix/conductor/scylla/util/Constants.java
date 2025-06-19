@@ -27,6 +27,7 @@ public interface Constants {
     String TABLE_EVENT_EXECUTIONS = "event_executions";
 
     String TABLE_TASK_IN_PROGRESS = "task_in_progress";
+    String TABLE_TASK_IN_PROGRESS_V2 = "task_in_progress_v2";
 
     String WORKFLOW_ID_KEY = "workflow_id";
     String SHARD_ID_KEY = "shard_id";
