@@ -589,4 +589,9 @@ public class Monitors {
     public static void recordTaskExecLogSize(int val) {
         gauge(classQualifier, "task_exec_log_size", val);
     }
+
+    public static void recordQueueTTl(long duration,String... additionalTags) {
+        getTimer(classQualifier, "queue_ttl",additionalTags).record(duration, TimeUnit.MILLISECONDS);
+    }
+
 }

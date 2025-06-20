@@ -19,10 +19,13 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
 import com.netflix.conductor.dao.QueueDAO;
+import com.netflix.conductor.metrics.Monitors;
 import com.netflix.conductor.redis.config.AnyRedisCondition;
 import com.netflix.dyno.queues.DynoQueue;
 import com.netflix.dyno.queues.Message;
@@ -33,6 +36,8 @@ import com.netflix.dyno.queues.redis.RedisQueues;
 public class DynoQueueDAO implements QueueDAO {
 
     private final RedisQueues queues;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DynoQueueDAO.class);
 
     public DynoQueueDAO(RedisQueues queues) {
         this.queues = queues;
@@ -46,6 +51,7 @@ public class DynoQueueDAO implements QueueDAO {
     @Override
     public void push(String queueName, String id, int priority, long offsetTimeInSecond) {
         Message msg = new Message(id, null);
+        msg.setPayload(System.currentTimeMillis()+"");
         msg.setTimeout(offsetTimeInSecond, TimeUnit.SECONDS);
         if (priority >= 0 && priority <= 99) {
             msg.setPriority(priority);
@@ -61,6 +67,7 @@ public class DynoQueueDAO implements QueueDAO {
                         .map(
                                 msg -> {
                                     Message m = new Message(msg.getId(), msg.getPayload());
+                                    m.setPayload(System.currentTimeMillis()+"");
                                     if (msg.getPriority() > 0) {
                                         m.setPriority(msg.getPriority());
                                     }
@@ -87,6 +94,7 @@ public class DynoQueueDAO implements QueueDAO {
             msg.setPriority(priority);
         }
         msg.setTimeout(offsetTimeInSecond, TimeUnit.SECONDS);
+        msg.setPayload(System.currentTimeMillis()+"");
         queue.push(Collections.singletonList(msg));
         return true;
     }
@@ -111,7 +119,25 @@ public class DynoQueueDAO implements QueueDAO {
 
     @Override
     public void remove(String queueName, String messageId) {
-        queues.get(queueName).remove(messageId);
+        DynoQueue queue = queues.get(queueName);
+        
+        // Get the message to calculate time spent in queue
+        Message message = queue.get(messageId);
+        if (message != null && message.getPayload() != null) {
+            try {
+                long startTime = Long.parseLong(message.getPayload());
+                long currentTime = System.currentTimeMillis();
+                long timeSpentInQueue = currentTime - startTime;
+                
+                // Log the time spent in queue (you can modify this to store/return the value as needed)
+                LOGGER.info("WfId: " + messageId + " spent " + timeSpentInQueue + "ms (" + 
+                                 (timeSpentInQueue / 1000.0) + "s) in queue: " + queueName);
+            } catch (NumberFormatException e) {
+                LOGGER.error("Failed to parse start time for message: " + messageId);
+            }
+        }
+        
+        queue.remove(messageId);
     }
 
     @Override
@@ -121,7 +147,28 @@ public class DynoQueueDAO implements QueueDAO {
 
     @Override
     public boolean ack(String queueName, String messageId) {
-        return queues.get(queueName).ack(messageId);
+        DynoQueue queue = queues.get(queueName);
+        
+        // Get the message to calculate time spent in queue before acking
+        Message message = queue.get(messageId);
+        if (message != null && message.getPayload() != null) {
+            try {
+                long startTime = Long.parseLong(message.getPayload());
+                long currentTime = System.currentTimeMillis();
+                long timeSpentInQueue = currentTime - startTime;
+                
+                // Log the time spent in queue
+                LOGGER.info("WfId: " + messageId + " spent " + timeSpentInQueue + "ms (" + 
+                           (timeSpentInQueue / 1000.0) + "s) in queue: " + queueName + " (ACK)");
+            // Record metrics for time spent in queue
+            Monitors.recordQueueTTl(timeSpentInQueue,"queueName",queueName,"messageId",messageId);
+                
+            } catch (NumberFormatException e) {
+                LOGGER.error("Failed to parse start time for message: " + messageId + " during ACK");
+            }
+        }
+        
+        return queue.ack(messageId);
     }
 
     @Override
