@@ -248,10 +248,7 @@ public class ConductorProperties {
     }
 
     public int getSweeperThreadCount() {
-        if (sweeperThreadCount <= 0) {
-            return Runtime.getRuntime().availableProcessors() * getSweeperThreadMultiplier();
-        }
-        return sweeperThreadCount;
+        return Runtime.getRuntime().availableProcessors() * getSweeperThreadMultiplier();
     }
 
     public void setSweeperThreadCount(int sweeperThreadCount) {
