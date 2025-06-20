@@ -132,6 +132,9 @@ public class DynoQueueDAO implements QueueDAO {
                 // Log the time spent in queue (you can modify this to store/return the value as needed)
                 LOGGER.info("WfId: " + messageId + " spent " + timeSpentInQueue + "ms (" + 
                                  (timeSpentInQueue / 1000.0) + "s) in queue: " + queueName);
+                
+                // Record metrics for time spent in queue
+                Monitors.recordQueueTTl(timeSpentInQueue,"queueName",queueName,"messageId",messageId);
             } catch (NumberFormatException e) {
                 LOGGER.error("Failed to parse start time for message: " + messageId);
             }
