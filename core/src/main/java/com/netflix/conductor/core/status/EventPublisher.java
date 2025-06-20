@@ -100,7 +100,7 @@ public class EventPublisher {
 
             Object accountId = workflow.getInput().get("accountId");
             if (Objects.nonNull(accountId)) {
-                sendCentralMessage(String.valueOf(accountId), "journey_conductor_workflow_lt_event", payload);
+                sendCentralMessage(String.valueOf(accountId), "journey_conductor_workflow_event", payload);
             } else {
                 LOGGER.error("Account ID is missing in the workflow input. Workflow ID: {}", workflow.getWorkflowId());
             }
@@ -128,7 +128,7 @@ public class EventPublisher {
 
             Object accountId = task.getInputData().get("accountId");
             if (Objects.nonNull(accountId)) {
-                sendCentralMessage(String.valueOf(accountId), "journey_conductor_task_lt_event", payload);
+                sendCentralMessage(String.valueOf(accountId), "journey_conductor_task_event", payload);
             } else {
                 LOGGER.error("Account ID is missing in the task input. Task ID: {}", task.getTaskId());
             }
