@@ -40,7 +40,7 @@ public class ConductorProperties {
 
     /** The timeout duration to set when a workflow is pushed to the decider queue. */
     @DurationUnit(ChronoUnit.SECONDS)
-    private Duration workflowOffsetTimeout = Duration.ofSeconds(300);
+    private Duration workflowOffsetTimeout = Duration.ofSeconds(30);
 
     /** The number of threads to use to do background sweep on active workflows. */
     private int sweeperThreadCount;
