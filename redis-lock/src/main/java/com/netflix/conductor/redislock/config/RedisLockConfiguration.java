@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 
 import com.netflix.conductor.core.sync.Lock;
@@ -29,10 +30,18 @@ import com.netflix.conductor.redislock.lock.RedisLock;
 
 @Configuration
 @EnableConfigurationProperties(RedisLockProperties.class)
-@ConditionalOnProperty(name = "conductor.workflow-scylla-execution-lock.enabled", havingValue = "true")
+@Conditional(AnyLockCondition.class)
 public class RedisLockConfiguration {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisLockConfiguration.class);
+
+    @ConditionalOnProperty(
+            name = "conductor.workflow-execution-lock.type",
+            havingValue = "redis")
+    @Bean
+    public Lock provideLock(Redisson redisson, RedisLockProperties properties) {
+        return new RedisLock(redisson, properties);
+    }
 
     @Bean
     public Redisson getRedisson(RedisLockProperties properties) {
@@ -100,6 +109,7 @@ public class RedisLockConfiguration {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "conductor.workflow-scylla-execution-lock.enabled", havingValue = "true")
     public Lock provideRedisLock(Redisson redisson, RedisLockProperties properties) {
         return new RedisLock(redisson, properties);
     }
