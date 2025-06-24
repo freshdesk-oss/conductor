@@ -65,8 +65,8 @@ public class AsyncSystemTaskExecutor {
         if (task == null) {
             LOGGER.error("TaskId: {} could not be found while executing {}", taskId, systemTask);
             try {
-                LOGGER.debug(
-                        "Cleaning up dead task from queue message: taskQueue={}, taskId={}",
+                LOGGER.info(
+                        "AsyncSystemTaskExecutor : Cleaning up dead task from queue message: taskQueue={}, taskId={}",
                         systemTask.getTaskType(),
                         taskId);
                 queueDAO.remove(systemTask.getTaskType(), taskId);
@@ -79,7 +79,7 @@ public class AsyncSystemTaskExecutor {
             return;
         }
 
-        LOGGER.debug("Task: {} fetched from execution DAO for taskId: {}", task, taskId);
+        LOGGER.info("AsyncSystemTaskExecutor : Task: {} fetched from execution DAO for taskId: {}", task, taskId);
         String queueName = QueueUtils.getQueueName(task);
         if (task.getStatus().isTerminal()) {
             // Tune the SystemTaskWorkerCoordinator's queues - if the queue size is very big this
@@ -134,8 +134,8 @@ public class AsyncSystemTaskExecutor {
                 return;
             }
 
-            LOGGER.debug(
-                    "Executing {}/{} in {} state",
+            LOGGER.info(
+                    "AsyncSystemTaskExecutor : Executing {}/{} in {} state",
                     task.getTaskType(),
                     task.getTaskId(),
                     task.getStatus());
@@ -162,7 +162,7 @@ public class AsyncSystemTaskExecutor {
                 task.setEndTime(System.currentTimeMillis());
                 queueDAO.remove(queueName, task.getTaskId());
                 hasTaskExecutionCompleted = true;
-                LOGGER.debug("{} removed from queue: {}", task, queueName);
+                LOGGER.info("AsyncSystemTaskExecutor : {} removed from queue: {}", task, queueName);
             } else {
                 task.setCallbackAfterSeconds(systemTaskCallbackTime);
                 systemTask
@@ -175,11 +175,11 @@ public class AsyncSystemTaskExecutor {
                         task.getTaskId(),
                         task.getWorkflowPriority(),
                         task.getCallbackAfterSeconds());
-                LOGGER.debug("{} postponed in queue: {}", task, queueName);
+                LOGGER.info("AsyncSystemTaskExecutor : {} postponed in queue: {}", task, queueName);
             }
 
-            LOGGER.debug(
-                    "Finished execution of {}/{}-{}",
+            LOGGER.info(
+                    "AsyncSystemTaskExecutor : Finished execution of {}/{}-{}",
                     systemTask,
                     task.getTaskId(),
                     task.getStatus());

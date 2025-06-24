@@ -100,8 +100,8 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
 
     void pollAndExecute(WorkflowSystemTask systemTask, String queueName) {
         if (!isRunning()) {
-            LOGGER.debug(
-                    "{} stopped. Not polling for task: {}", getClass().getSimpleName(), systemTask);
+            LOGGER.info(
+                    "SystemTaskWorker: {} stopped. Not polling for task: {}", getClass().getSimpleName(), systemTask);
             return;
         }
 
@@ -119,12 +119,12 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
                 return;
             }
 
-            LOGGER.debug("Polling queue: {} with {} slots acquired", queueName, messagesToAcquire);
+            LOGGER.info("SystemTaskWorker: Polling queue: {} with {} slots acquired", queueName, messagesToAcquire);
 
             List<String> polledTaskIds = queueDAO.pop(queueName, messagesToAcquire, 200);
 
             Monitors.recordTaskPoll(queueName);
-            LOGGER.debug("Polling queue:{}, got {} tasks", queueName, polledTaskIds.size());
+            LOGGER.info("SystemTaskWorker: Polling queue:{}, got {} tasks", queueName, polledTaskIds.size());
 
             if (polledTaskIds.size() > 0) {
                 // Immediately release unused slots when number of messages acquired is less than
@@ -135,8 +135,8 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
 
                 for (String taskId : polledTaskIds) {
                     if (StringUtils.isNotBlank(taskId)) {
-                        LOGGER.debug(
-                                "Task: {} from queue: {} being sent to the workflow executor",
+                        LOGGER.info(
+                                "SystemTaskWorker: Task: {} from queue: {} being sent to the workflow executor",
                                 taskId,
                                 queueName);
                         Monitors.recordTaskPollCount(queueName, 1);
