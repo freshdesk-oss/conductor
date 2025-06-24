@@ -35,15 +35,17 @@ public class ConductorProperties {
     /** The id with the app has been registered. */
     private String appId = "conductor";
 
+    private int sweeperThreadMultiplier = 2;
+
     /** The maximum number of threads to be allocated to the executor service threadpool. */
     private int executorServiceMaxThreadCount = 50;
 
     /** The timeout duration to set when a workflow is pushed to the decider queue. */
     @DurationUnit(ChronoUnit.SECONDS)
-    private Duration workflowOffsetTimeout = Duration.ofSeconds(30);
+    private Duration workflowOffsetTimeout = Duration.ofSeconds(300);
 
     /** The number of threads to use to do background sweep on active workflows. */
-    private int sweeperThreadCount = Runtime.getRuntime().availableProcessors() * 2;
+    private int sweeperThreadCount;
 
     /** The timeout (in milliseconds) for the polling of workflows to be swept. */
     private Duration sweeperWorkflowPollTimeout = Duration.ofMillis(2000);
@@ -246,7 +248,7 @@ public class ConductorProperties {
     }
 
     public int getSweeperThreadCount() {
-        return sweeperThreadCount;
+        return Runtime.getRuntime().availableProcessors() * getSweeperThreadMultiplier();
     }
 
     public void setSweeperThreadCount(int sweeperThreadCount) {
@@ -519,6 +521,15 @@ public class ConductorProperties {
 
     public void setTaskExecLogSizeLimit(int taskExecLogSizeLimit) {
         this.taskExecLogSizeLimit = taskExecLogSizeLimit;
+    }
+
+
+    public int getSweeperThreadMultiplier() {
+        return sweeperThreadMultiplier;
+    }
+
+    public void setSweeperThreadMultiplier(int sweeperThreadMultiplier) {
+        this.sweeperThreadMultiplier = sweeperThreadMultiplier;
     }
 
     /**

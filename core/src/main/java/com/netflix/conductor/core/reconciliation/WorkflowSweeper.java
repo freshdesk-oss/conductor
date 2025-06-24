@@ -97,6 +97,8 @@ public class WorkflowSweeper {
             Monitors.error(CLASS_NAME, "sweep");
             LOGGER.error("Error running sweep for " + workflowId, e);
         }
+
+        LOGGER.info("[SWEEPER] Using workflowOffsetTimeout (base): {} seconds", properties.getWorkflowOffsetTimeout().getSeconds());
         long workflowOffsetTimeout =
                 workflowOffsetWithJitter(properties.getWorkflowOffsetTimeout().getSeconds());
         if (workflow != null) {
