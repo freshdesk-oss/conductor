@@ -109,7 +109,7 @@ public class RedisLockConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "conductor.workflow-scylla-execution-lock.enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(name = "conductor.workflow-scylla-execution-lock.enabled", havingValue = "true")
     public Lock provideRedisLock(Redisson redisson, RedisLockProperties properties) {
         return new RedisLock(redisson, properties);
     }
