@@ -1,0 +1,24 @@
+event-filter:
+  modules:
+    journey:
+      entities:
+        workflow:
+          rules:
+            - field: status
+              caseType: includes
+              operator: contains
+              values: COMPLETED,TERMINATED,FAILED,RUNNING
+        task:
+          rules:
+            - field: status
+              caseType: includes
+              operator: contains
+              values: CANCELED,COMPLETED_WITH_ERRORS,FAILED,FAILED_WITH_TERMINAL_ERROR
+            - field: taskType
+              caseType: excludes
+              operator: contains
+              values: FORK_JOIN,SWITCH,JOIN,WAIT,SUB_WORKFLOW
+            - field: referenceTaskName
+              caseType: excludes
+              operator: startsWith
+              values: wTimer,wCleanup,wDecision

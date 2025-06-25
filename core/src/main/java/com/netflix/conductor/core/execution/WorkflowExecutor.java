@@ -19,6 +19,7 @@ import static com.netflix.conductor.model.TaskModel.Status.FAILED_WITH_TERMINAL_
 import static com.netflix.conductor.model.TaskModel.Status.IN_PROGRESS;
 import static com.netflix.conductor.model.TaskModel.Status.SCHEDULED;
 import static com.netflix.conductor.model.TaskModel.Status.SKIPPED;
+import static com.netflix.conductor.model.TaskModel.Status.COMPLETED_WITH_ERRORS;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -560,7 +561,7 @@ public class WorkflowExecutor {
 
         executionDAOFacade.updateWorkflow(workflow);
         LOGGER.debug("Completed workflow execution for {}", workflow.getWorkflowId());
-        workflowStatusListener.onWorkflowCompletedIfEnabled(workflow);
+        workflowStatusListener.onWorkflowCompleted(workflow);
         Monitors.recordWorkflowCompletion(
                 workflow.getWorkflowName(),
                 workflow.getEndTime() - workflow.getCreateTime(),
@@ -641,7 +642,7 @@ public class WorkflowExecutor {
             String workflowId = workflow.getWorkflowId();
             workflow.setReasonForIncompletion(reason);
             executionDAOFacade.updateWorkflow(workflow);
-            workflowStatusListener.onWorkflowTerminatedIfEnabled(workflow);
+            workflowStatusListener.onWorkflowTerminated(workflow);
             Monitors.recordWorkflowTermination(
                     workflow.getWorkflowName(), workflow.getStatus(), workflow.getOwnerApp());
             LOGGER.info("Workflow {} is terminated because of {}", workflowId, reason);
@@ -933,6 +934,9 @@ public class WorkflowExecutor {
             case IN_PROGRESS:
                 taskStatusListener.onTaskInProgress(task);
                 break;
+            case COMPLETED_WITH_ERRORS:
+                taskStatusListener.onTaskCompletedWithErrors(task);
+                break;
             case SCHEDULED:
                 // no-op, already done in addTaskToQueue
             default:
@@ -1130,7 +1134,11 @@ public class WorkflowExecutor {
             }
 
             if (!outcome.tasksToBeUpdated.isEmpty() || !tasksToBeScheduled.isEmpty()) {
-                executionDAOFacade.updateTasks(tasksToBeUpdated);
+                for (TaskModel task : tasksToBeUpdated) {
+                    executionDAOFacade.updateTask(task);
+                    // all the retried tasks will process in this flow
+                    notifyTaskStatusListener(task);
+                }
             }
 
             if (stateChanged) {
@@ -1240,6 +1248,7 @@ public class WorkflowExecutor {
                     }
                 }
                 executionDAOFacade.updateTask(task);
+                notifyTaskStatusListener(task);
             }
         }
         if (erroredTasks.isEmpty()) {
