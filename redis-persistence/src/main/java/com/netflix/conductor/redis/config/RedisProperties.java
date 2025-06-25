@@ -15,6 +15,8 @@ package com.netflix.conductor.redis.config;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DurationUnit;
@@ -27,6 +29,8 @@ import com.netflix.dyno.connectionpool.impl.RunOnce;
 
 @ConfigurationProperties("conductor.redis")
 public class RedisProperties {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedisProperties.class);
 
     private final ConductorProperties conductorProperties;
 
@@ -270,9 +274,15 @@ public class RedisProperties {
 
     public String getQueuePrefix() {
         String prefix = getQueueNamespacePrefix() + "." + conductorProperties.getStack();
+
+        if(conductorProperties.getStackPrefix() != null) {
+            prefix = prefix + "." + conductorProperties.getStackPrefix();
+        }
+
         if (getKeyspaceDomain() != null) {
             prefix = prefix + "." + getKeyspaceDomain();
         }
+        LOGGER.info("Queue prefix: " + prefix);
         return prefix;
     }
 
