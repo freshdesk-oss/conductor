@@ -121,15 +121,12 @@ class TaskPollExecutor {
 
     private void startTracing(String traceParent, String spanName) {
         try {
-            LOGGER.info("TaskPollExecutor: spanName='{}', incoming traceParent='{}'", spanName, traceParent);
             Map<String, String> headers = new HashMap<>();
             headers.put("traceparent", traceParent);
             TextMapPropagator propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
             Context context = propagator.extract(Context.current(), headers, new TextMapGetterHelper());
-            LOGGER.info("TaskPollExecutor: startTracing: extracted parent Context={}", context);
             Span span = tracer.spanBuilder(spanName).setParent(context).startSpan();
             Scope scope = span.makeCurrent();
-            LOGGER.info("TaskPollExecutor: started span {} and made current", span.getSpanContext());
         } catch (Exception ex) {
             LOGGER.error("Exception while startTracing", ex);
         }
@@ -159,13 +156,13 @@ class TaskPollExecutor {
         if (eurekaClient != null
                 && !eurekaClient.getInstanceRemoteStatus().equals(InstanceStatus.UP)
                 && !discoveryOverride) {
-            LOGGER.info("TaskPollExecutor: Instance is NOT UP in discovery - will not poll");
+            LOGGER.debug("Instance is NOT UP in discovery - will not poll");
             return;
         }
 
         if (worker.paused()) {
             MetricsContainer.incrementTaskPausedCount(worker.getTaskDefName());
-            LOGGER.info("TaskPollExecutor: Worker {} has been paused. Not polling anymore!", worker.getClass());
+            LOGGER.debug("Worker {} has been paused. Not polling anymore!", worker.getClass());
             return;
         }
 
@@ -187,7 +184,7 @@ class TaskPollExecutor {
                                                                     ALL_WORKERS, DOMAIN, null))
                                                     .orElse(taskToDomain.get(taskType)));
 
-            LOGGER.info("TaskPollExecutor: Polling task of type: {} in domain: '{}'", taskType, domain);
+            LOGGER.debug("Polling task of type: {} in domain: '{}'", taskType, domain);
 
             List<Task> tasks =
                     MetricsContainer.getPollTimer(taskType)
@@ -203,8 +200,8 @@ class TaskPollExecutor {
             for (Task task : tasks) {
                 if (Objects.nonNull(task) && StringUtils.isNotBlank(task.getTaskId())) {
                     MetricsContainer.incrementTaskPollCount(taskType, 1);
-                    LOGGER.info(
-                            "TaskPollExecutor: Polled task: {} of type: {} in domain: '{}', from worker: {}",
+                    LOGGER.debug(
+                            "Polled task: {} of type: {} in domain: '{}', from worker: {}",
                             task.getTaskId(),
                             taskType,
                             domain,
@@ -254,7 +251,7 @@ class TaskPollExecutor {
         try {
             executorService.shutdown();
             if (executorService.awaitTermination(timeout, TimeUnit.SECONDS)) {
-                LOGGER.info("TaskPollExecutor: tasks completed, shutting down");
+                LOGGER.debug("tasks completed, shutting down");
             } else {
                 LOGGER.warn(String.format("forcing shutdown after waiting for %s second", timeout));
                 executorService.shutdownNow();
@@ -275,8 +272,8 @@ class TaskPollExecutor {
             };
 
     private Task processTask(Task task, Worker worker, PollingSemaphore pollingSemaphore) {
-        LOGGER.info(
-                "TaskPollExecutor: Executing task: {} of type: {} in worker: {} at {}",
+        LOGGER.debug(
+                "Executing task: {} of type: {} in worker: {} at {}",
                 task.getTaskId(),
                 task.getTaskDefName(),
                 worker.getClass().getSimpleName(),
@@ -300,8 +297,8 @@ class TaskPollExecutor {
         stopwatch.start();
         TaskResult result = null;
         try {
-            LOGGER.info(
-                    "TaskPollExecutor: Executing task: {} in worker: {} at {}",
+            LOGGER.debug(
+                    "Executing task: {} in worker: {} at {}",
                     task.getTaskId(),
                     worker.getClass().getSimpleName(),
                     worker.getIdentity());
@@ -326,8 +323,8 @@ class TaskPollExecutor {
                     .record(stopwatch.getTime(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
         }
 
-        LOGGER.info(
-                "TaskPollExecutor: Task: {} executed by worker: {} at {} with status: {}",
+        LOGGER.debug(
+                "Task: {} executed by worker: {} at {} with status: {}",
                 task.getTaskId(),
                 worker.getClass().getSimpleName(),
                 worker.getIdentity(),
@@ -344,8 +341,8 @@ class TaskPollExecutor {
                     throwable);
             MetricsContainer.incrementTaskExecutionErrorCount(task.getTaskType(), throwable);
         } else {
-            LOGGER.info(
-                    "TaskPollExecutor: Task:{} of type:{} finished processing with status:{}",
+            LOGGER.debug(
+                    "Task:{} of type:{} finished processing with status:{}",
                     task.getTaskId(),
                     task.getTaskDefName(),
                     task.getStatus());

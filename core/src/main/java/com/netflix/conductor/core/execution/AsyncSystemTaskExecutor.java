@@ -12,7 +12,6 @@
  */
 package com.netflix.conductor.core.execution;
 
-import io.opentelemetry.extension.annotations.WithSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -61,7 +60,6 @@ public class AsyncSystemTaskExecutor {
      * @param systemTask The {@link WorkflowSystemTask} to be executed.
      * @param taskId The id of the {@link TaskModel} object.
      */
-    @WithSpan("system-task-execute")
     public void execute(WorkflowSystemTask systemTask, String taskId) {
         TaskModel task = loadTaskQuietly(taskId);
         if (task == null) {

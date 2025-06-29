@@ -12,19 +12,11 @@
  */
 package com.netflix.conductor.core.execution.tasks;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.netflix.conductor.core.execution.WorkflowExecutor;
 import com.netflix.conductor.model.TaskModel;
 import com.netflix.conductor.model.WorkflowModel;
-
-import io.opentelemetry.api.GlobalOpenTelemetry;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.StatusCode;
-import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.context.Scope;
 
 import static com.netflix.conductor.common.metadata.tasks.TaskType.TASK_TYPE_DECISION;
 
@@ -37,9 +29,6 @@ import static com.netflix.conductor.common.metadata.tasks.TaskType.TASK_TYPE_DEC
 @Component(TASK_TYPE_DECISION)
 public class Decision extends WorkflowSystemTask {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Decision.class);
-    private static final Tracer tracer = GlobalOpenTelemetry.getTracer("conductor-server-system-task");
-
     public Decision() {
         super(TASK_TYPE_DECISION);
     }
@@ -47,18 +36,7 @@ public class Decision extends WorkflowSystemTask {
     @Override
     public boolean execute(
             WorkflowModel workflow, TaskModel task, WorkflowExecutor workflowExecutor) {
-        LOGGER.info("Decision.execute called for workflow={} task={}", workflow.getWorkflowId(), task.getTaskId());
-        Span span = tracer.spanBuilder("system-task-execute_DECISION")
-                .setAttribute("taskId", task.getTaskId()).startSpan();
-        try (Scope scope = span.makeCurrent()) {
-            task.setStatus(TaskModel.Status.COMPLETED);
-            return true;
-        } catch (Exception e) {
-            span.recordException(e);
-            span.setStatus(StatusCode.ERROR, e.getMessage());
-            throw e;
-        } finally {
-            span.end();
-        }
+        task.setStatus(TaskModel.Status.COMPLETED);
+        return true;
     }
 }
