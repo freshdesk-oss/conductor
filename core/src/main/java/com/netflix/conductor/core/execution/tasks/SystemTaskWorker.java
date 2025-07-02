@@ -12,14 +12,11 @@
  */
 package com.netflix.conductor.core.execution.tasks;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
@@ -58,9 +55,6 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
 
     ConcurrentHashMap<String, ExecutionConfig> queueExecutionConfigMap = new ConcurrentHashMap<>();
 
-    // Track single-threaded scheduled executors created for polling
-    ConcurrentHashMap<String, ScheduledExecutorService> pollingExecutors = new ConcurrentHashMap<>();
-
     public SystemTaskWorker(
             QueueDAO queueDAO,
             AsyncSystemTaskExecutor asyncSystemTaskExecutor,
@@ -82,17 +76,13 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
     }
 
     public void startPolling(WorkflowSystemTask systemTask, String queueName) {
-        ScheduledExecutorService pollingExecutor = Executors.newSingleThreadScheduledExecutor();
-        pollingExecutor.scheduleWithFixedDelay(
-                () -> this.pollAndExecute(systemTask, queueName),
-                1000,
-                pollInterval,
-                TimeUnit.MILLISECONDS);
-
-        // Track this executor for monitoring
-        pollingExecutors.put(queueName, pollingExecutor);
-
-        LOGGER.debug("Started listening for task: {} in queue: {}", systemTask, queueName);
+        Executors.newSingleThreadScheduledExecutor()
+                .scheduleWithFixedDelay(
+                        () -> this.pollAndExecute(systemTask, queueName),
+                        1000,
+                        pollInterval,
+                        TimeUnit.MILLISECONDS);
+        LOGGER.info("Started listening for task: {} in queue: {}", systemTask, queueName);
     }
 
     void pollAndExecute(WorkflowSystemTask systemTask, String queueName) {
@@ -172,34 +162,6 @@ public class SystemTaskWorker extends LifecycleAwareComponent {
         }
         return queueExecutionConfigMap.computeIfAbsent(
                 taskQueue, __ -> this.createExecutionConfig());
-    }
-
-    /**
-     * Get all ExecutorService instances managed by this SystemTaskWorker
-     * for health monitoring purposes
-     */
-    public Map<String, ExecutorService> getAllExecutorServices() {
-        Map<String, ExecutorService> executors = new HashMap<>();
-
-        // Add default executor
-        if (defaultExecutionConfig != null) {
-            executors.put("systemTaskWorker-default", defaultExecutionConfig.getExecutorService());
-        }
-
-        // Add queue-specific executors (only the ones that have been created)
-        queueExecutionConfigMap.forEach((queueName, config) -> {
-            executors.put("systemTaskWorker-" + queueName, config.getExecutorService());
-        });
-
-        // Add polling executors (single-threaded scheduled executors)
-        pollingExecutors.forEach((queueName, pollingExecutor) -> {
-            executors.put("systemTaskWorker-poller-" + queueName, pollingExecutor);
-        });
-
-        LOGGER.debug("SystemTaskWorker active executors: default + {} isolated queue executors + {} polling executors",
-                    queueExecutionConfigMap.size(), pollingExecutors.size());
-
-        return executors;
     }
 
     private ExecutionConfig createExecutionConfig() {
