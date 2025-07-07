@@ -54,8 +54,8 @@ public class WorkflowReconciler extends LifecycleAwareComponent {
         this.sweeperWorkflowPollTimeout =
                 (int) properties.getSweeperWorkflowPollTimeout().toMillis();
         LOGGER.info(
-                "WorkflowReconciler initialized with {} sweeper threads",
-                properties.getSweeperThreadCount());
+                "WorkflowReconciler initialized with {} sweeper threads , sweeper Poll {}",
+                properties.getSweeperThreadCount(),properties.getSweeperWorkflowPollTimeout());
     }
 
     @Scheduled(
@@ -94,7 +94,6 @@ public class WorkflowReconciler extends LifecycleAwareComponent {
 
     private void recordQueueDepth() {
         int currentQueueSize = queueDAO.getSize(DECIDER_QUEUE);
-        LOGGER.info("[SWEEPER] Decider queue size: {}", currentQueueSize);
         Monitors.recordGauge(DECIDER_QUEUE, currentQueueSize);
     }
 }

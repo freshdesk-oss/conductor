@@ -15,6 +15,7 @@ package com.netflix.conductor.core.operation;
 import java.util.Map;
 import java.util.Optional;
 
+import com.netflix.conductor.core.listener.WorkflowStatusListener;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
     private final ExecutionDAOFacade executionDAOFacade;
     private final ExecutionLockService executionLockService;
     private final ApplicationEventPublisher eventPublisher;
+    private final WorkflowStatusListener workflowStatusListener;
 
     public StartWorkflowOperation(
             MetadataMapperService metadataMapperService,
@@ -54,13 +56,15 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
             ParametersUtils parametersUtils,
             ExecutionDAOFacade executionDAOFacade,
             ExecutionLockService executionLockService,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            WorkflowStatusListener workflowStatusListener) {
         this.metadataMapperService = metadataMapperService;
         this.idGenerator = idGenerator;
         this.parametersUtils = parametersUtils;
         this.executionDAOFacade = executionDAOFacade;
         this.executionLockService = executionLockService;
         this.eventPublisher = eventPublisher;
+        this.workflowStatusListener = workflowStatusListener;
     }
 
     @Override
@@ -132,6 +136,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
 
         try {
             createAndEvaluate(workflow);
+            workflowStatusListener.onWorkflowRunning(workflow);
             Monitors.recordWorkflowStartSuccess(
                     workflow.getWorkflowName(),
                     String.valueOf(workflow.getWorkflowVersion()),
