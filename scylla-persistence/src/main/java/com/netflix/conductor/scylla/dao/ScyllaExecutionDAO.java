@@ -767,8 +767,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     @Override
     public void removeFromPendingWorkflow(String workflowType, String workflowId) {
-        throw new UnsupportedOperationException(
-                "This method is not implemented in ScyllaExecutionDAO. Please use ExecutionDAOFacade instead.");
+        LOGGER.error("This method is not implemented in ScyllaExecutionDAO. Please use ExecutionDAOFacade instead.");
+//        throw new UnsupportedOperationException(
+//                "This method is not implemented in ScyllaExecutionDAO. Please use ExecutionDAOFacade instead.");
     }
 
     @Override
