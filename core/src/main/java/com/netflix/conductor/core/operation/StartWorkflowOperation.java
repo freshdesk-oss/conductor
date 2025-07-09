@@ -15,6 +15,7 @@ package com.netflix.conductor.core.operation;
 import java.util.Map;
 import java.util.Optional;
 
+import com.netflix.conductor.core.listener.WorkflowStatusListener;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
     private final ExecutionDAOFacade executionDAOFacade;
     private final ExecutionLockService executionLockService;
     private final ApplicationEventPublisher eventPublisher;
+    private final WorkflowStatusListener workflowStatusListener;
 
     public StartWorkflowOperation(
             MetadataMapperService metadataMapperService,
@@ -54,17 +56,20 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
             ParametersUtils parametersUtils,
             ExecutionDAOFacade executionDAOFacade,
             ExecutionLockService executionLockService,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            WorkflowStatusListener workflowStatusListener) {
         this.metadataMapperService = metadataMapperService;
         this.idGenerator = idGenerator;
         this.parametersUtils = parametersUtils;
         this.executionDAOFacade = executionDAOFacade;
         this.executionLockService = executionLockService;
         this.eventPublisher = eventPublisher;
+        this.workflowStatusListener = workflowStatusListener;
     }
 
     @Override
     public String execute(StartWorkflowInput input) {
+        LOGGER.info("1234: startWorkflowInput is {}", input);
         return startWorkflow(input);
     }
 
@@ -77,14 +82,20 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
         WorkflowDef workflowDefinition;
 
         if (input.getWorkflowDefinition() == null) {
+            LOGGER.info("1234: input is null");
             workflowDefinition =
                     metadataMapperService.lookupForWorkflowDefinition(
                             input.getName(), input.getVersion());
         } else {
+            LOGGER.info("1234: input is not null");
             workflowDefinition = input.getWorkflowDefinition();
         }
+        LOGGER.info("1234: input is {}", input);
+        LOGGER.info("1234: workflowDefinition is {}", workflowDefinition);
 
         workflowDefinition = metadataMapperService.populateTaskDefinitions(workflowDefinition);
+        LOGGER.info("1234: workflowDefinition after population task definitions is {}", workflowDefinition);
+
 
         // perform validations
         Map<String, Object> workflowInput = input.getWorkflowInput();
@@ -97,6 +108,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
 
         // Persist the Workflow
         WorkflowModel workflow = new WorkflowModel();
+        LOGGER.info("1234: workflow id being set to model is {}", workflowId);
         workflow.setWorkflowId(workflowId);
         workflow.setCorrelationId(input.getCorrelationId());
         workflow.setPriority(input.getPriority() == null ? 0 : input.getPriority());
@@ -111,6 +123,8 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
         workflow.setEvent(input.getEvent());
         workflow.setTaskToDomain(input.getTaskToDomain());
         workflow.setVariables(workflowDefinition.getVariables());
+        LOGGER.info("1234: workflowModel is {}", workflow);
+
 
         if (workflowInput != null && !workflowInput.isEmpty()) {
             Map<String, Object> parsedInput =
@@ -122,6 +136,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
 
         try {
             createAndEvaluate(workflow);
+            workflowStatusListener.onWorkflowRunning(workflow);
             Monitors.recordWorkflowStartSuccess(
                     workflow.getWorkflowName(),
                     String.valueOf(workflow.getWorkflowVersion()),
@@ -130,7 +145,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
         } catch (Exception e) {
             Monitors.recordWorkflowStartError(
                     workflowDefinition.getName(), WorkflowContext.get().getClientApp());
-            LOGGER.error("Unable to start workflow: {}", workflowDefinition.getName(), e);
+            LOGGER.error("1234: Unable to start workflow: {}, ex: ", workflowDefinition.getName(), e);
 
             // It's possible the remove workflow call hits an exception as well, in that case we
             // want to log both errors to help diagnosis.
@@ -148,19 +163,28 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
      * This is to ensure that workflow creation action precedes any other action on a given workflow.
      */
     private void createAndEvaluate(WorkflowModel workflow) {
+        LOGGER.info("1234: inside createAndEvaluate, workflow {}", workflow);
         if (!executionLockService.acquireLock(workflow.getWorkflowId())) {
+            LOGGER.info("1234: not able to acquire lock.");
             throw new TransientException("Error acquiring lock when creating workflow: {}");
         }
+        LOGGER.info("1234: acquired lock on workflow {}", workflow.getWorkflowId());
         try {
             executionDAOFacade.createWorkflow(workflow);
-            LOGGER.debug(
-                    "A new instance of workflow: {} created with id: {}",
+            LOGGER.info(
+                    "1234: A new instance of workflow: {} created with id: {}",
                     workflow.getWorkflowName(),
                     workflow.getWorkflowId());
             executionDAOFacade.populateWorkflowAndTaskPayloadData(workflow);
+            LOGGER.info(
+                    "1234: populateWorkflowAndTaskPayloadData name {} with id: {}",
+                    workflow.getWorkflowName(),
+                    workflow.getWorkflowId());
             eventPublisher.publishEvent(new WorkflowEvaluationEvent(workflow));
+            LOGGER.info("1234: published event for workflow {}", workflow.getWorkflowId());
         } finally {
             executionLockService.releaseLock(workflow.getWorkflowId());
+            LOGGER.info("1234: lock released for workflow {}", workflow.getWorkflowId());
         }
     }
 

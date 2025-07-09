@@ -12,6 +12,7 @@
  */
 package com.netflix.conductor.core.listener;
 
+import com.netflix.conductor.core.status.EventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,49 +22,63 @@ import com.netflix.conductor.model.TaskModel;
 public class TaskStatusListenerStub implements TaskStatusListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TaskStatusListenerStub.class);
+    private final EventPublisher eventPublisher;
+
+    public TaskStatusListenerStub(EventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
 
     @Override
     public void onTaskScheduled(TaskModel task) {
         LOGGER.debug("Task {} is scheduled", task.getTaskId());
+        eventPublisher.pushTaskEvents(task);
     }
 
     @Override
     public void onTaskCanceled(TaskModel task) {
         LOGGER.debug("Task {} is canceled", task.getTaskId());
+        eventPublisher.pushTaskEvents(task);
     }
 
     @Override
     public void onTaskCompleted(TaskModel task) {
         LOGGER.debug("Task {} is completed", task.getTaskId());
+        eventPublisher.pushTaskEvents(task);
     }
 
     @Override
     public void onTaskCompletedWithErrors(TaskModel task) {
         LOGGER.debug("Task {} is completed with errors", task.getTaskId());
+        eventPublisher.pushTaskEvents(task);
     }
 
     @Override
     public void onTaskFailed(TaskModel task) {
         LOGGER.debug("Task {} is failed", task.getTaskId());
+        eventPublisher.pushTaskEvents(task);
     }
 
     @Override
     public void onTaskFailedWithTerminalError(TaskModel task) {
         LOGGER.debug("Task {} is failed with terminal error", task.getTaskId());
+        eventPublisher.pushTaskEvents(task);
     }
 
     @Override
     public void onTaskInProgress(TaskModel task) {
         LOGGER.debug("Task {} is in-progress", task.getTaskId());
+        eventPublisher.pushTaskEvents(task);
     }
 
     @Override
     public void onTaskSkipped(TaskModel task) {
         LOGGER.debug("Task {} is skipped", task.getTaskId());
+        eventPublisher.pushTaskEvents(task);
     }
 
     @Override
     public void onTaskTimedOut(TaskModel task) {
         LOGGER.debug("Task {} is timed out", task.getTaskId());
+        eventPublisher.pushTaskEvents(task);
     }
 }

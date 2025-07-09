@@ -277,7 +277,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         String workflowId = tasks.get(0).getWorkflowInstanceId();
         String corelationId = tasks.get(0).getCorrelationId();
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
-        Integer correlationId = Objects.isNull(corelationId) ? 0 : Integer.parseInt(corelationId);
+        Long correlationId = Objects.isNull(corelationId) ? 0L : Long.parseLong(corelationId);
         try {
             WorkflowMetadata workflowMetadata = getWorkflowMetadata(workflowId,corelationId);
             int totalTasks = workflowMetadata.getTotalTasks() + tasks.size();
@@ -425,7 +425,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public void updateTask(TaskModel task) {
         try {
-            Integer correlationId = Objects.isNull(task.getCorrelationId()) ? 0 : Integer.parseInt(task.getCorrelationId());
+            Long correlationId = Objects.isNull(task.getCorrelationId()) ? 0L : Long.parseLong(task.getCorrelationId());
             String taskPayload = toJson(task);
             recordCassandraDaoRequests("updateTask", task.getTaskType(), task.getWorkflowType());
             recordCassandraDaoPayloadSize(
@@ -577,7 +577,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     private TaskModel getTaskModel(String shardId, String taskId, String workflowId) {
-        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+        Long correlationId = Objects.isNull(shardId) ? 0L : Long.parseLong(shardId);
         if (workflowId == null) {
             return null;
         }
@@ -638,27 +638,31 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             List<TaskModel> tasks = workflow.getTasks();
             workflow.setTasks(new LinkedList<>());
             String payload = toJson(workflow);
-            Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
+            LOGGER.info("1234: payload is {}", payload);
+            Long correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0L : Long.parseLong(workflow.getCorrelationId());
             LOGGER.info(
-                    "Correlation ID for workflow {} is {}",
+                    "1234: Correlation ID for workflow {} is {}",
                     workflow.getWorkflowId(),
                     correlationId);
             recordCassandraDaoRequests("createWorkflow", "n/a", workflow.getWorkflowName());
+            LOGGER.info("1234: recorded CassandraDaoRequests");
             recordCassandraDaoPayloadSize(
                     "createWorkflow", payload.length(), "n/a", workflow.getWorkflowName());
+            LOGGER.info("1234: recorded CassandraDaoPayloadSize");
             session.execute(
                     insertWorkflowStatement.bind(
                             UUID.fromString(workflow.getWorkflowId()), correlationId, "", payload, 0, 1,1));
+            LOGGER.info("1234: executed statements");
 
             workflow.setTasks(tasks);
+            LOGGER.info("1234: tasks were set in workflow {}", workflow.getWorkflowId());
             return workflow.getWorkflowId();
-        } catch (DriverException e) {
+        } catch (Exception e) {
             Monitors.error(CLASS_NAME, "createWorkflow");
-            logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
-            String errorMsg =
-                    String.format("Error creating workflow: %s", workflow.getWorkflowId());
-            LOGGER.error(errorMsg, e);
-            throw new TransientException(errorMsg, e);
+//            String errorMsg =
+//                    String.format("Error creating workflow: %s", workflow.getWorkflowId());
+            LOGGER.error("1234: DriverException occurred for workflow Id {}, ex: ", workflow.getWorkflowId(), e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -666,7 +670,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     public String updateWorkflow(WorkflowModel workflow) {
         try {
             List<TaskModel> tasks = workflow.getTasks();
-            Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
+            Long correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0L : Long.parseLong(workflow.getCorrelationId());
             workflow.setTasks(new LinkedList<>());
 
             WorkflowModel prevWorkflow = getWorkflow(workflow.getCorrelationId(), workflow.getWorkflowId(), false);
@@ -692,7 +696,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         }
     }
 
-    private boolean attemptUpdateWorkflow(WorkflowModel workflow, WorkflowModel prevWorkflow,  String payload, Integer correlationId, Boolean isRetry) {
+    private boolean attemptUpdateWorkflow(WorkflowModel workflow, WorkflowModel prevWorkflow,  String payload, Long correlationId, Boolean isRetry) {
         Integer currentVersion = prevWorkflow.getVersion() == 0 ? null : prevWorkflow.getVersion();
         ResultSet resultSet = session.execute(updateWorkflowStatement.bind(payload, prevWorkflow.getVersion() + 1,
                 UUID.fromString(workflow.getWorkflowId()), correlationId, currentVersion));
@@ -705,7 +709,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
 
-    private void handleConcurrentUpdate(WorkflowModel workflow, List<TaskModel> tasks, String payload, Integer correlationId) {
+    private void handleConcurrentUpdate(WorkflowModel workflow, List<TaskModel> tasks, String payload, Long correlationId) {
         LOGGER.info("Concurrent update detected, update failed for workflow: {} retrying..", workflow.getWorkflowId());
         WorkflowModel retriedWorkflow = getWorkflow(String.valueOf(correlationId), workflow.getWorkflowId());
 
@@ -729,7 +733,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public boolean removeWorkflow(String workflowId) {
         WorkflowModel workflow = getWorkflow(workflowId, true);
-        Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
+        Long correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0L : Long.parseLong(workflow.getCorrelationId());
         boolean removed = false;
         if (workflow != null) {
             try {
@@ -767,8 +771,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     @Override
     public void removeFromPendingWorkflow(String workflowType, String workflowId) {
-        throw new UnsupportedOperationException(
-                "This method is not implemented in ScyllaExecutionDAO. Please use ExecutionDAOFacade instead.");
+        LOGGER.error("This method is not implemented in ScyllaExecutionDAO. Please use ExecutionDAOFacade instead.");
+//        throw new UnsupportedOperationException(
+//                "This method is not implemented in ScyllaExecutionDAO. Please use ExecutionDAOFacade instead.");
     }
 
     @Override
@@ -783,7 +788,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public WorkflowModel getWorkflow(String shardId, String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
-        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+        Long correlationId = Objects.isNull(shardId) ? 0L : Long.parseLong(shardId);
 
         return getWorkflowModel(workflowId, includeTasks, workflowUUID, correlationId);
     }
@@ -792,12 +797,12 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     public WorkflowModel getWorkflow(String workflowId, boolean includeTasks) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         String shardId = lookupShardIdFromWorkflowId(workflowId);
-        Integer correlationId = Objects.isNull(shardId) ? 0 : Integer.parseInt(shardId);
+        Long correlationId = Objects.isNull(shardId) ? 0L : Long.parseLong(shardId);
 
         return getWorkflowModel(workflowId, includeTasks, workflowUUID, correlationId);
     }
 
-    private WorkflowModel getWorkflowModel(String workflowId, boolean includeTasks, UUID workflowUUID, Integer correlationId) {
+    private WorkflowModel getWorkflowModel(String workflowId, boolean includeTasks, UUID workflowUUID, Long correlationId) {
         try {
             WorkflowModel workflow = null;
             ResultSet resultSet;
@@ -1097,7 +1102,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             // get total tasks for this workflow
             WorkflowMetadata workflowMetadata = getWorkflowMetadata(task.getWorkflowInstanceId(),
                     task.getCorrelationId());
-            Integer correlationId = Objects.isNull(task.getCorrelationId()) ? 0 : Integer.parseInt(task.getCorrelationId());
+            Long correlationId = Objects.isNull(task.getCorrelationId()) ? 0L : Long.parseLong(task.getCorrelationId());
             int totalTasks = workflowMetadata.getTotalTasks();
 
             // remove from task_lookup table
@@ -1180,7 +1185,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     @VisibleForTesting
     WorkflowMetadata getWorkflowMetadata(String workflowId, String correlationId) {
-        Integer corelId = Objects.isNull(correlationId) ? 0 : Integer.parseInt(correlationId);
+        Long corelId = Objects.isNull(correlationId) ? 0L : Long.parseLong(correlationId);
         ResultSet resultSet =
                 session.execute(selectTotalStatement.bind(UUID.fromString(workflowId),corelId));
         recordCassandraDaoRequests("getWorkflowMetadata");
@@ -1225,7 +1230,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         try {
             ResultSet resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
             return Optional.ofNullable(resultSet.one())
-                    .map(row -> String.valueOf(row.getInt(SHARD_ID_KEY)))
+                    .map(row -> String.valueOf(row.getLong(SHARD_ID_KEY)))
                     .orElse(null);
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "lookupShardIdFromTaskId");
@@ -1247,7 +1252,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
             return Optional.ofNullable(resultSet.one())
                     .map(row -> {
-                        return String.valueOf(row.getInt(SHARD_ID_KEY));
+                        return String.valueOf(row.getLong(SHARD_ID_KEY));
                     })
                     .orElse(null);
         } catch (DriverException e) {
