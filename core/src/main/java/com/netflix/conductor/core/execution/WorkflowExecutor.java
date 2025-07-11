@@ -1104,6 +1104,7 @@ public class WorkflowExecutor {
 
         try {
             DeciderService.DeciderOutcome outcome = deciderService.decide(workflow);
+            LOGGER.info("1234: decider outcome is {}", outcome);
             if (outcome.isComplete) {
                 endExecution(workflow, outcome.terminateTask);
                 LOGGER.info("[DECIDE_FLOW] INNER EXIT (Completed): workflowId={} thread={} time={}",
@@ -1154,8 +1155,8 @@ public class WorkflowExecutor {
             return workflow;
 
         } catch (TerminateWorkflowException twe) {
-            LOGGER.info("[DECIDE_FLOW] INNER EXIT (Terminated): workflowId={} thread={} reason={}",
-                    workflow.getWorkflowId(), Thread.currentThread().getName(), twe.getMessage());
+            LOGGER.info("[DECIDE_FLOW] INNER EXIT (Terminated): workflowId={} thread={} reason={} ex:",
+                    workflow.getWorkflowId(), Thread.currentThread().getName(), twe.getMessage(), twe);
             terminate(workflow, twe);
             return workflow;
         } catch (RuntimeException e) {

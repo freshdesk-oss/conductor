@@ -189,17 +189,22 @@ public class DeciderService {
                 // If the task has not been updated for "responseTimeoutSeconds" then mark task as
                 // TIMED_OUT
                 if (isResponseTimedOut(taskDefinition.get(), pendingTask)) {
+                    LOGGER.info("1234: response timed out for task definition {}," +
+                            " task {}", taskDefinition.get(), pendingTask);
                     timeoutTask(taskDefinition.get(), pendingTask);
                 }
             }
 
             if (!pendingTask.getStatus().isSuccessful()) {
+                LOGGER.info("1234: pending task not successful, task {}", pendingTask);
                 WorkflowTask workflowTask = pendingTask.getWorkflowTask();
                 if (workflowTask == null) {
                     workflowTask =
                             workflow.getWorkflowDefinition()
                                     .getTaskByRefName(pendingTask.getReferenceTaskName());
                 }
+
+                LOGGER.info("1234: going to retry task {}", pendingTask);
 
                 Optional<TaskModel> retryTask =
                         retry(taskDefinition.orElse(null), workflowTask, pendingTask, workflow);
@@ -752,6 +757,7 @@ public class DeciderService {
 
     @VisibleForTesting
     boolean isResponseTimedOut(TaskDef taskDefinition, TaskModel task) {
+        LOGGER.info("1234: taskDefinition is {}, task is {}", taskDefinition, task);
         if (taskDefinition == null) {
             LOGGER.warn(
                     "missing task type : {}, workflowId= {}",
@@ -772,6 +778,7 @@ public class DeciderService {
         long pendingTime = now - (referenceTime + callbackTime);
         Monitors.recordTaskPendingTime(task.getTaskType(), task.getWorkflowType(), pendingTime);
         long thresholdMS = taskPendingTimeThresholdMins * 60 * 1000;
+        // here
         if (pendingTime > thresholdMS) {
             LOGGER.warn(
                     "Task: {} of type: {} in workflow: {}/{} is in pending state for longer than {} ms",
