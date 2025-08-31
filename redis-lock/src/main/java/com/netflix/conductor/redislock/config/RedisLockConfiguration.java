@@ -58,6 +58,12 @@ public class RedisLockConfiguration {
         }
 
         int connectionTimeout = 10000;
+        LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] type={}, address={}, pass?={}, masterName={}, nettyThreads={}",
+                redisServerType,
+                redisServerAddress,
+                (redisServerPassword != null && !redisServerPassword.isEmpty()),
+                masterName,
+                properties.getNumNettyThreads());
         switch (redisServerType) {
             case SINGLE:
                 LOGGER.info("Setting up Redis Single Server for RedisLockConfiguration");
