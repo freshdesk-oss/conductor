@@ -20,28 +20,42 @@ public class ConductorRedisPropLogger {
 
     @EventListener(ApplicationReadyEvent.class)
     public void loggerResolvedRedisProps() {
-        // QUEUE (Orkes RedisQueueConfiguration)
-        LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] ==== QUEUE_CFG (Orkes queues) ====");
-        loggerKey("conductor.queue.type");
-        // common keys for Orkes redis queues:
-        loggerKey("conductor.redis.hosts");
-        loggerKey("conductor.redis.ssl");
-        loggerKey("conductor.redis.workflowNamespacePrefix");
-        loggerKey("conductor.redis.queueNamespacePrefix");
-        LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] ==================================");
+        try {
+            if (env == null) {
+                LOGGER.warn("[CONDUCTOR_REDIS_UPGRADE] Environment is null; skipping prop dump");
+                return;
+            }
 
-        // LOCK (Netflix RedisLockConfiguration)
-        LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] ==== LOCK_CFG (Execution lock) ====");
-        loggerKey("conductor.workflow-scylla-execution-lock.enabled");
-        loggerKey("conductor.redis-lock.serverType");
-        loggerKey("conductor.redis-lock.serverAddress");
-        loggerKey("conductor.redis-lock.serverPassword");
-        loggerKey("conductor.redis-lock.namespace");
-        LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] ==================================");
+            // QUEUE (Orkes RedisQueueConfiguration)
+            LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] ==== QUEUE_CFG (Orkes queues) ====");
+            loggerKey("conductor.queue.type");
+            // common keys for Orkes redis queues:
+            loggerKey("conductor.redis.hosts");
+            loggerKey("conductor.redis.ssl");
+            loggerKey("conductor.redis.workflowNamespacePrefix");
+            loggerKey("conductor.redis.queueNamespacePrefix");
+            LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] ==================================");
+
+            // LOCK (Netflix RedisLockConfiguration)
+            LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] ==== LOCK_CFG (Execution lock) ====");
+            loggerKey("conductor.workflow-scylla-execution-lock.enabled");
+            loggerKey("conductor.redis-lock.serverType");
+            loggerKey("conductor.redis-lock.serverAddress");
+            loggerKey("conductor.redis-lock.serverPassword");
+            loggerKey("conductor.redis-lock.namespace");
+            LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] ==================================");
+
+        } catch (Throwable t) {
+            LOGGER.warn("[CONDUCTOR_REDIS_UPGRADE] Prop logger failed; continuing startup", t);
+        }
     }
 
     private void loggerKey(String key) {
-        String val = env.getProperty(key);
-        LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] [{}] {}", key, val == null ? "<unset>" : val);
+        try {
+            String val = env.getProperty(key);
+            LOGGER.info("[CONDUCTOR_REDIS_UPGRADE] [{}] {}", key, val == null ? "<unset>" : val);
+        } catch (Throwable t) {
+            LOGGER.warn("[CONDUCTOR_REDIS_UPGRADE] [{}] <error-reading: {}>", key, t.toString());
+        }
     }
 }
