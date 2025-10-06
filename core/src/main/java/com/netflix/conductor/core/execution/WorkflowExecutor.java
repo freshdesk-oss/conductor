@@ -261,8 +261,7 @@ public class WorkflowExecutor {
         try {
             executionDAOFacade.createWorkflow(workflow);
         } catch (Exception e) {
-            Monitors.recordWorkflowStartError(
-                    workflowDef.getName(), WorkflowContext.get().getClientApp());
+            Monitors.recordWorkflowStartError(WorkflowContext.get().getClientApp());
             LOGGER.error("Unable to restart workflow: {}", workflowDef.getName(), e);
             terminateWorkflow(workflowId, "Error when restarting the workflow");
             throw e;
@@ -562,7 +561,6 @@ public class WorkflowExecutor {
         LOGGER.debug("Completed workflow execution for {}", workflow.getWorkflowId());
         workflowStatusListener.onWorkflowCompletedIfEnabled(workflow);
         Monitors.recordWorkflowCompletion(
-                workflow.getWorkflowName(),
                 workflow.getEndTime() - workflow.getCreateTime(),
                 workflow.getOwnerApp());
 
@@ -642,8 +640,7 @@ public class WorkflowExecutor {
             workflow.setReasonForIncompletion(reason);
             executionDAOFacade.updateWorkflow(workflow);
             workflowStatusListener.onWorkflowTerminatedIfEnabled(workflow);
-            Monitors.recordWorkflowTermination(
-                    workflow.getWorkflowName(), workflow.getStatus(), workflow.getOwnerApp());
+            Monitors.recordWorkflowTermination(workflow.getStatus(), workflow.getOwnerApp());
             LOGGER.info("Workflow {} is terminated because of {}", workflowId, reason);
             List<TaskModel> tasks = workflow.getTasks();
             try {
@@ -699,8 +696,7 @@ public class WorkflowExecutor {
                                             + failureWorkflow
                                             + " failed to start.  reason: "
                                             + e.getMessage());
-                    Monitors.recordWorkflowStartError(
-                            failureWorkflow, WorkflowContext.get().getClientApp());
+                    Monitors.recordWorkflowStartError(WorkflowContext.get().getClientApp());
                 }
                 executionDAOFacade.updateWorkflow(workflow);
             }
@@ -758,8 +754,7 @@ public class WorkflowExecutor {
                     task.getStatus(),
                     task.getWorkflowInstanceId(),
                     taskQueueName);
-            Monitors.recordUpdateConflict(
-                    task.getTaskType(), workflowInstance.getWorkflowName(), task.getStatus());
+            Monitors.recordUpdateConflict(task.getTaskType(), task.getStatus());
             return;
         }
 
@@ -771,10 +766,7 @@ public class WorkflowExecutor {
                     workflowInstance,
                     taskResult.getTaskId(),
                     taskQueueName);
-            Monitors.recordUpdateConflict(
-                    task.getTaskType(),
-                    workflowInstance.getWorkflowName(),
-                    workflowInstance.getStatus());
+            Monitors.recordUpdateConflict(task.getTaskType(), workflowInstance.getStatus());
             return;
         }
 
@@ -825,8 +817,7 @@ public class WorkflowExecutor {
                                     "Error removing the message in queue for task: %s for workflow: %s",
                                     task.getTaskId(), workflowId);
                     LOGGER.warn(errorMsg, e);
-                    Monitors.recordTaskQueueOpError(
-                            task.getTaskType(), workflowInstance.getWorkflowName());
+                    Monitors.recordTaskQueueOpError(task.getTaskType());
                 }
                 break;
             case IN_PROGRESS:
@@ -848,8 +839,7 @@ public class WorkflowExecutor {
                                     "Error postponing the message in queue for task: %s for workflow: %s",
                                     task.getTaskId(), workflowId);
                     LOGGER.error(errorMsg, e);
-                    Monitors.recordTaskQueueOpError(
-                            task.getTaskType(), workflowInstance.getWorkflowName());
+                    Monitors.recordTaskQueueOpError(task.getTaskType());
                     throw new TransientException(errorMsg, e);
                 }
                 break;
@@ -868,7 +858,7 @@ public class WorkflowExecutor {
                             "Error updating task: %s for workflow: %s",
                             task.getTaskId(), workflowId);
             LOGGER.error(errorMsg, e);
-            Monitors.recordTaskUpdateError(task.getTaskType(), workflowInstance.getWorkflowName());
+            Monitors.recordTaskUpdateError(task.getTaskType());
             throw new TransientException(errorMsg, e);
         }
 
@@ -962,7 +952,7 @@ public class WorkflowExecutor {
                                 "Error extend lease for Task: %s belonging to Workflow: %s",
                                 task.getTaskId(), task.getWorkflowInstanceId());
                 LOGGER.error(errorMsg, e);
-                Monitors.recordTaskExtendLeaseError(task.getTaskType(), task.getWorkflowType());
+                Monitors.recordTaskExtendLeaseError(task.getTaskType());
                 throw new TransientException(errorMsg, e);
             }
         }
@@ -1519,7 +1509,6 @@ public class WorkflowExecutor {
             // metric to track the distribution of number of tasks within a workflow
             Monitors.recordNumTasksInWorkflow(
                     workflow.getTasks().size() + tasks.size(),
-                    workflow.getWorkflowName(),
                     String.valueOf(workflow.getWorkflowVersion()));
 
             // Save the tasks in the DAO

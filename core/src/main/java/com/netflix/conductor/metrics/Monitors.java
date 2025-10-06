@@ -246,24 +246,20 @@ public class Monitors {
                 StringUtils.defaultIfBlank(ownerApp, "unknown"));
     }
 
-    public static void recordRunningWorkflows(long count, String name, String ownerApp) {
+    public static void recordRunningWorkflows(long count, String ownerApp) {
         gauge(
                 classQualifier,
                 "workflow_running",
                 count,
-                "workflowName",
-                name,
                 "ownerApp",
                 StringUtils.defaultIfBlank(ownerApp, "unknown"));
     }
 
-    public static void recordNumTasksInWorkflow(long count, String name, String version) {
+    public static void recordNumTasksInWorkflow(long count, String version) {
         distributionSummary(
                 classQualifier,
                 "tasks_in_workflow",
                 count,
-                "workflowName",
-                name,
                 "version",
                 version);
     }
@@ -276,123 +272,98 @@ public class Monitors {
         counter(classQualifier, "task_response_timeout", "taskType", taskType);
     }
 
-    public static void recordTaskPendingTime(String taskType, String workflowType, long duration) {
+    public static void recordTaskPendingTime(String taskType, long duration) {
         gauge(
                 classQualifier,
                 "task_pending_time",
                 duration,
-                "workflowName",
-                workflowType,
                 "taskType",
                 taskType);
     }
 
-    public static void recordWorkflowTermination(
-            String workflowType, WorkflowModel.Status status, String ownerApp) {
+    public static void recordWorkflowTermination(WorkflowModel.Status status, String ownerApp) {
         counter(
                 classQualifier,
                 "workflow_failure",
-                "workflowName",
-                workflowType,
                 "status",
                 status.name(),
                 "ownerApp",
                 StringUtils.defaultIfBlank(ownerApp, "unknown"));
     }
 
-    public static void recordWorkflowStartSuccess(
-            String workflowType, String version, String ownerApp) {
+    public static void recordWorkflowStartSuccess(String version, String ownerApp) {
         counter(
                 classQualifier,
                 "workflow_start_success",
-                "workflowName",
-                workflowType,
                 "version",
                 version,
                 "ownerApp",
                 StringUtils.defaultIfBlank(ownerApp, "unknown"));
     }
 
-    public static void recordWorkflowStartError(String workflowType, String ownerApp) {
+    public static void recordWorkflowStartError(String ownerApp) {
         counter(
                 classQualifier,
                 "workflow_start_error",
-                "workflowName",
-                workflowType,
                 "ownerApp",
                 StringUtils.defaultIfBlank(ownerApp, "unknown"));
     }
 
-    public static void recordUpdateConflict(
-            String taskType, String workflowType, WorkflowModel.Status status) {
+    public static void recordUpdateConflict(String taskType, WorkflowModel.Status status) {
         counter(
                 classQualifier,
                 "task_update_conflict",
-                "workflowName",
-                workflowType,
                 "taskType",
                 taskType,
                 "workflowStatus",
                 status.name());
     }
 
-    public static void recordUpdateConflict(
-            String taskType, String workflowType, TaskModel.Status status) {
+    public static void recordUpdateConflict(String taskType, TaskModel.Status status) {
         counter(
                 classQualifier,
                 "task_update_conflict",
-                "workflowName",
-                workflowType,
                 "taskType",
                 taskType,
                 "taskStatus",
                 status.name());
     }
 
-    public static void recordTaskUpdateError(String taskType, String workflowType) {
+    public static void recordTaskUpdateError(String taskType) {
         counter(
                 classQualifier,
                 "task_update_error",
-                "workflowName",
-                workflowType,
                 "taskType",
                 taskType);
     }
 
-    public static void recordTaskExtendLeaseError(String taskType, String workflowType) {
+    public static void recordTaskExtendLeaseError(String taskType) {
         counter(
                 classQualifier,
                 "task_extendLease_error",
-                "workflowName",
-                workflowType,
                 "taskType",
                 taskType);
     }
 
-    public static void recordTaskQueueOpError(String taskType, String workflowType) {
+    public static void recordTaskQueueOpError(String taskType) {
         counter(
                 classQualifier,
                 "task_queue_op_error",
-                "workflowName",
-                workflowType,
                 "taskType",
                 taskType);
     }
 
-    public static void recordWorkflowCompletion(
-            String workflowType, long duration, String ownerApp) {
+    public static void recordWorkflowCompletion(long duration, String ownerApp) {
         getTimer(
                         classQualifier,
                         "workflow_execution",
-                        "workflowName",
-                        workflowType,
                         "ownerApp",
                         StringUtils.defaultIfBlank(ownerApp, "unknown"))
                 .record(duration, TimeUnit.MILLISECONDS);
     }
 
-    public static void recordUnackTime(String workflowType, long duration) {
-        getTimer(classQualifier, "workflow_unack", "workflowName", workflowType)
+    public static void recordUnackTime(long duration) {
+        getTimer(classQualifier, "workflow_unack")
                 .record(duration, TimeUnit.MILLISECONDS);
     }
 
@@ -556,12 +527,10 @@ public class Monitors {
         counter(classQualifier, "acquire_lock_failure", "exceptionType", exceptionClassName);
     }
 
-    public static void recordWorkflowArchived(String workflowType, WorkflowModel.Status status) {
+    public static void recordWorkflowArchived(WorkflowModel.Status status) {
         counter(
                 classQualifier,
                 "workflow_archived",
-                "workflowName",
-                workflowType,
                 "workflowStatus",
                 status.name());
     }
