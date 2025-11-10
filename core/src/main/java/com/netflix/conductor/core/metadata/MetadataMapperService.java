@@ -171,8 +171,7 @@ public class MetadataMapperService {
             LOGGER.error(
                     "Cannot find the task definitions for the following tasks used in workflow: {}",
                     missingTaskDefinitionNames);
-            Monitors.recordWorkflowStartError(
-                    workflowDefinition.getName(), WorkflowContext.get().getClientApp());
+            Monitors.recordWorkflowStartError(WorkflowContext.get().getClientApp());
             throw new IllegalArgumentException(
                     "Cannot find the task definitions for the following tasks used in workflow: "
                             + missingTaskDefinitionNames);
