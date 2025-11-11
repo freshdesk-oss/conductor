@@ -652,7 +652,6 @@ public class DeciderService {
             case ALERT_ONLY:
                 LOGGER.info("{} {}", workflow.getWorkflowId(), reason);
                 Monitors.recordWorkflowTermination(
-                        workflow.getWorkflowName(),
                         WorkflowModel.Status.TIMED_OUT,
                         workflow.getOwnerApp());
                 return;
@@ -770,7 +769,7 @@ public class DeciderService {
         long referenceTime =
                 task.getUpdateTime() > 0 ? task.getUpdateTime() : task.getScheduledTime();
         long pendingTime = now - (referenceTime + callbackTime);
-        Monitors.recordTaskPendingTime(task.getTaskType(), task.getWorkflowType(), pendingTime);
+        Monitors.recordTaskPendingTime(task.getTaskType(), pendingTime);
         long thresholdMS = taskPendingTimeThresholdMins * 60 * 1000;
         if (pendingTime > thresholdMS) {
             LOGGER.warn(

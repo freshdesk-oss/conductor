@@ -123,13 +123,11 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
         try {
             createAndEvaluate(workflow);
             Monitors.recordWorkflowStartSuccess(
-                    workflow.getWorkflowName(),
                     String.valueOf(workflow.getWorkflowVersion()),
                     workflow.getOwnerApp());
             return workflowId;
         } catch (Exception e) {
-            Monitors.recordWorkflowStartError(
-                    workflowDefinition.getName(), WorkflowContext.get().getClientApp());
+            Monitors.recordWorkflowStartError(WorkflowContext.get().getClientApp());
             LOGGER.error("Unable to start workflow: {}", workflowDefinition.getName(), e);
 
             // It's possible the remove workflow call hits an exception as well, in that case we
@@ -176,8 +174,7 @@ public class StartWorkflowOperation implements WorkflowOperation<StartWorkflowIn
         // Check if the input to the workflow is not null
         if (workflowInput == null && StringUtils.isBlank(externalStoragePath)) {
             LOGGER.error("The input for the workflow '{}' cannot be NULL", workflowDef.getName());
-            Monitors.recordWorkflowStartError(
-                    workflowDef.getName(), WorkflowContext.get().getClientApp());
+            Monitors.recordWorkflowStartError(WorkflowContext.get().getClientApp());
 
             throw new IllegalArgumentException("NULL input passed when starting workflow");
         }
