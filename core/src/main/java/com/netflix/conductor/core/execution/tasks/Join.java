@@ -108,7 +108,10 @@ public class Join extends WorkflowSystemTask {
         return Optional.of(Math.min((long) Math.pow(2, index), defaultOffset));
     }
 
+    @Override
     public boolean isAsync() {
-        return true;
+        // JOIN tasks are executed synchronously in the decide flow
+        // They only check in-memory task statuses and don't require async polling
+        return false;
     }
 }
