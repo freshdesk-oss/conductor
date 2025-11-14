@@ -1002,8 +1002,12 @@ public class WorkflowExecutor {
                         .collect(Collectors.toList());
 
         if (forkTasks.stream().anyMatch(fork -> fork.has(taskRefName))) {
-            return joinTasks.stream().anyMatch(join -> join.getJoinOn().contains(taskRefName))
-                    && task.getStatus().isSuccessful();
+            // JOIN is now synchronous and needs decide() to be called for re-evaluation
+            // Don't lazy evaluate - always call decide() when tasks in joinOn complete
+            boolean isInJoin = joinTasks.stream().anyMatch(join -> join.getJoinOn().contains(taskRefName));
+            if (isInJoin) {
+                return false;  // DON'T lazy evaluate - call decide() to re-evaluate JOIN
+            }
         }
 
         return workflowTasks.stream().noneMatch(t -> t.getTaskReferenceName().equals(taskRefName))
@@ -1098,6 +1102,7 @@ public class WorkflowExecutor {
 
             boolean stateChanged = scheduleTask(workflow, tasksToBeScheduled); // start
 
+            // Execute newly scheduled synchronous system tasks
             for (TaskModel task : outcome.tasksToBeScheduled) {
                 executionDAOFacade.populateTaskData(task);
                 if (systemTaskRegistry.isSystemTask(task.getTaskType())
@@ -1108,6 +1113,32 @@ public class WorkflowExecutor {
                             && workflowSystemTask.execute(workflow, task, this)) {
                         tasksToBeUpdated.add(task);
                         stateChanged = true;
+                    }
+                }
+            }
+
+            // Re-evaluate pending synchronous system tasks that are still IN_PROGRESS
+            // This ensures tasks like AWAIT_COMPLETION are checked on every decide() call
+            for (TaskModel task : workflow.getTasks()) {
+                if (systemTaskRegistry.isSystemTask(task.getTaskType())
+                        && task.getStatus() == TaskModel.Status.IN_PROGRESS
+                        && !task.isExecuted()
+                        && !outcome.tasksToBeScheduled.contains(task)) {
+                    WorkflowSystemTask workflowSystemTask =
+                            systemTaskRegistry.get(task.getTaskType());
+                    if (!workflowSystemTask.isAsync()) {
+                        LOGGER.debug(
+                                "Re-evaluating pending sync system task: {}/{}",
+                                task.getTaskType(),
+                                task.getTaskId());
+                        if (workflowSystemTask.execute(workflow, task, this)) {
+                            tasksToBeUpdated.add(task);
+                            stateChanged = true;
+                            LOGGER.debug(
+                                    "Pending sync system task completed: {}/{}",
+                                    task.getTaskType(),
+                                    task.getTaskId());
+                        }
                     }
                 }
             }

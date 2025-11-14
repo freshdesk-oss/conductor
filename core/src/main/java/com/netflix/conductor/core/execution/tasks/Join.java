@@ -110,8 +110,8 @@ public class Join extends WorkflowSystemTask {
 
     @Override
     public boolean isAsync() {
-        // JOIN tasks are executed synchronously in the decide flow
-        // They only check in-memory task statuses and don't require async polling
+        // JOIN executes synchronously for immediate completion when join conditions are met
+        // It is re-evaluated on every decide() call when tasks in joinOn list complete
         return false;
     }
 }
