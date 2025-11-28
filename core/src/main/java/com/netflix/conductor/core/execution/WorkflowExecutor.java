@@ -19,7 +19,6 @@ import static com.netflix.conductor.model.TaskModel.Status.FAILED_WITH_TERMINAL_
 import static com.netflix.conductor.model.TaskModel.Status.IN_PROGRESS;
 import static com.netflix.conductor.model.TaskModel.Status.SCHEDULED;
 import static com.netflix.conductor.model.TaskModel.Status.SKIPPED;
-import static com.netflix.conductor.model.TaskModel.Status.COMPLETED_WITH_ERRORS;
 
 import java.util.ArrayList;
 import java.util.Arrays;
