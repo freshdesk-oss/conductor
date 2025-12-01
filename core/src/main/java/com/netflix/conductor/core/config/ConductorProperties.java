@@ -43,10 +43,7 @@ public class ConductorProperties {
     private Duration workflowOffsetTimeout = Duration.ofSeconds(300);
 
     /** The number of threads to use to do background sweep on active workflows. */
-    private int sweeperThreadCount;
-
-    /** The thread multipler factor for the sweeper thread. */
-    private int sweeperThreadMultiplier = 2;
+    private int sweeperThreadCount = Runtime.getRuntime().availableProcessors() * 2;
 
     /** The timeout (in milliseconds) for the polling of workflows to be swept. */
     private Duration sweeperWorkflowPollTimeout = Duration.ofMillis(2000);
@@ -248,16 +245,8 @@ public class ConductorProperties {
         this.workflowOffsetTimeout = workflowOffsetTimeout;
     }
 
-    public int getSweeperThreadMultiplier() {
-        return sweeperThreadMultiplier;
-    }
-
-    public void setSweeperThreadMultiplier(int sweeperThreadMultiplier) {
-        this.sweeperThreadMultiplier = sweeperThreadMultiplier;
-    }
-
     public int getSweeperThreadCount() {
-        return Runtime.getRuntime().availableProcessors() * getSweeperThreadMultiplier();
+        return sweeperThreadCount;
     }
 
     public void setSweeperThreadCount(int sweeperThreadCount) {
