@@ -1142,6 +1142,12 @@ public class WorkflowExecutor {
                     if (!workflowSystemTask.isAsync()) {
                         // execute() returns true if JOIN condition is met and task status changed to terminal
                         if (workflowSystemTask.execute(workflow, task, this)) {
+                            LOGGER.info(
+                                    "JOIN task completed: taskId={}, taskType={}, status={}, workflowId={}",
+                                    task.getTaskId(),
+                                    task.getTaskType(),
+                                    task.getStatus(),
+                                    workflow.getWorkflowId());
                             tasksToBeUpdated.add(task);
                             stateChanged = true;
                         }
