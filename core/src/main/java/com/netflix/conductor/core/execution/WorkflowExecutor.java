@@ -996,8 +996,12 @@ public class WorkflowExecutor {
                         .collect(Collectors.toList());
 
         if (forkTasks.stream().anyMatch(fork -> fork.has(taskRefName))) {
-            return joinTasks.stream().anyMatch(join -> join.getJoinOn().contains(taskRefName))
-                    && task.getStatus().isSuccessful();
+            // JOIN is now synchronous and needs decide() to be called for re-evaluation
+            // Don't lazy evaluate - always call decide() when tasks in joinOn complete
+            boolean isInJoin = joinTasks.stream().anyMatch(join -> join.getJoinOn().contains(taskRefName));
+            if (isInJoin) {
+                return false;  // DON'T lazy evaluate - call decide() to re-evaluate JOIN
+            }
         }
 
         return workflowTasks.stream().noneMatch(t -> t.getTaskReferenceName().equals(taskRefName))
@@ -1109,6 +1113,7 @@ public class WorkflowExecutor {
 
             boolean stateChanged = scheduleTask(workflow, tasksToBeScheduled); // start
 
+            // Execute newly scheduled synchronous system tasks
             for (TaskModel task : outcome.tasksToBeScheduled) {
                 executionDAOFacade.populateTaskData(task);
                 if (systemTaskRegistry.isSystemTask(task.getTaskType())
@@ -1119,6 +1124,33 @@ public class WorkflowExecutor {
                             && workflowSystemTask.execute(workflow, task, this)) {
                         tasksToBeUpdated.add(task);
                         stateChanged = true;
+                    }
+                }
+            }
+
+            // Re-evaluate pending JOIN tasks that are still IN_PROGRESS
+            // JOIN is now synchronous and needs to be checked on every decide() call
+            // when tasks in its joinOn list complete
+            for (TaskModel task : workflow.getTasks()) {
+                if (TaskType.TASK_TYPE_JOIN.equals(task.getTaskType())
+                        && task.getStatus() == TaskModel.Status.IN_PROGRESS
+                        && !task.isExecuted()
+                        && !outcome.tasksToBeScheduled.contains(task)) {
+                    WorkflowSystemTask workflowSystemTask =
+                            systemTaskRegistry.get(task.getTaskType());
+                    // Safety check: only re-evaluate if JOIN is configured as synchronous
+                    if (!workflowSystemTask.isAsync()) {
+                        // execute() returns true if JOIN condition is met and task status changed to terminal
+                        if (workflowSystemTask.execute(workflow, task, this)) {
+                            LOGGER.info(
+                                    "JOIN task completed: taskId={}, taskType={}, status={}, workflowId={}",
+                                    task.getTaskId(),
+                                    task.getTaskType(),
+                                    task.getStatus(),
+                                    workflow.getWorkflowId());
+                            tasksToBeUpdated.add(task);
+                            stateChanged = true;
+                        }
                     }
                 }
             }

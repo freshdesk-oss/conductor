@@ -108,7 +108,10 @@ public class Join extends WorkflowSystemTask {
         return Optional.of(Math.min((long) Math.pow(2, index), defaultOffset));
     }
 
+    @Override
     public boolean isAsync() {
-        return true;
+        // JOIN executes synchronously for immediate completion when join conditions are met
+        // It is re-evaluated on every decide() call when tasks in joinOn list complete
+        return false;
     }
 }
