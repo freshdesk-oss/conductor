@@ -698,7 +698,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                         selectTaskV2Statement.bind(
                                 UUID.fromString(workflowId), correlationId, taskId));
         Row row = resultSet.one();
-        if (row == null) {
+        if (row == null && fallbackToOldWorkflowExecutionTables) {
             resultSet =
                     session.execute(
                             selectTaskStatement.bind(
@@ -954,7 +954,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     private WorkflowModel getWorkflowModelWithTasks(String workflowId, UUID workflowUUID, Integer correlationId) {
         List<Row> rows = session.execute(
                 selectWorkflowWithTasksV2Statement.bind(workflowUUID, correlationId)).all();
-        if (rows.isEmpty() || fallbackToOldWorkflowExecutionTables) {
+        if (rows.isEmpty() && fallbackToOldWorkflowExecutionTables) {
             rows = session.execute(
                     selectWorkflowWithTasksStatement.bind(workflowUUID, correlationId)).all();
         }
@@ -992,7 +992,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     private WorkflowModel getWorkflowModelWithoutTasks(UUID workflowUUID, Integer correlationId) {
         ResultSet resultSet = session.execute(selectWorkflowV2Statement.bind(workflowUUID, correlationId));
         Row row = resultSet.one();
-        if (row == null) {
+        if (row == null && fallbackToOldWorkflowExecutionTables) {
             resultSet = session.execute(selectWorkflowStatement.bind(workflowUUID, correlationId));
             row = resultSet.one();
         }
@@ -1071,7 +1071,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
             List<Row> rows = session.execute(
                     selectWorkflowsByCorIdFromWorkflowV2Statement.bind(Integer.parseInt(correlationId))).all();
-            if (rows.isEmpty() || fallbackToOldWorkflowExecutionTables) {
+            if (rows.isEmpty() && fallbackToOldWorkflowExecutionTables) {
                 rows = session.execute(
                         selectWorkflowsByCorIdFromWorkflowStatement.bind(Integer.parseInt(correlationId))).all();
             }
@@ -1351,7 +1351,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         Integer corelId = Objects.isNull(correlationId) ? 0 : Integer.parseInt(correlationId);
         ResultSet resultSet = session.execute(selectTotalV2Statement.bind(UUID.fromString(workflowId), corelId));
         Row row = resultSet.one();
-        if (row == null) {
+        if (row == null && fallbackToOldWorkflowExecutionTables) {
             resultSet = session.execute(selectTotalStatement.bind(UUID.fromString(workflowId), corelId));
             row = resultSet.one();
         }
@@ -1378,7 +1378,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         try {
             ResultSet resultSet = session.execute(selectTaskLookupV2Statement.bind(taskUUID));
             Row row = resultSet.one();
-            if (row == null) {
+            if (row == null && fallbackToOldWorkflowExecutionTables) {
                 resultSet = session.execute(selectTaskLookupStatement.bind(taskUUID));
                 row = resultSet.one();
             }
@@ -1403,7 +1403,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         try {
             ResultSet resultSet = session.execute(selectShardFromTaskLookupV2Statement.bind(taskUUID));
             Row row = resultSet.one();
-            if (row == null) {
+            if (row == null && fallbackToOldWorkflowExecutionTables) {
                 resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
                 row = resultSet.one();
             }
@@ -1428,7 +1428,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         try {
             ResultSet resultSet = session.execute(selectShardFromWorkflowLookupV2Statement.bind(workflowUUID));
             Row row = resultSet.one();
-            if (row == null) {
+            if (row == null && fallbackToOldWorkflowExecutionTables) {
                 resultSet = session.execute(selectShardFromWorkflowLookupStatement.bind(workflowUUID));
                 row = resultSet.one();
             }
