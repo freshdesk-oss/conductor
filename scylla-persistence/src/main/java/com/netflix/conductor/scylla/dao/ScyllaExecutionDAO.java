@@ -845,16 +845,29 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             String workflowId = workflow.getWorkflowId();
             try {
                 recordCassandraDaoRequests("removeWorkflow", "n/a", workflow.getWorkflowName());
+
+                // updateWorkflow uses LWT (IF version=?), which assigns a server-side Paxos
+                // timestamp that can be ahead of the client clock. A regular DELETE's
+                // client-assigned timestamp may be lower, causing the LWT-written workflow
+                // row to survive the tombstone. Query the actual write timestamp and ensure
+                // the DELETE uses a strictly higher one.
+                long lwtWriteTimestamp = queryWorkflowEntityWriteTimestamp(workflowId, correlationId);
+                long deleteTimestamp = Math.max(
+                        lwtWriteTimestamp + 1,
+                        System.currentTimeMillis() * 1000);
+
                 ResultSet oldTableResultSet = null;
                 if (fallbackToOldWorkflowExecutionTables) {
                     oldTableResultSet = session.execute(
                             deleteWorkflowStatement.bind(
-                                    UUID.fromString(workflowId), correlationId));
+                                    UUID.fromString(workflowId), correlationId)
+                                    .setDefaultTimestamp(deleteTimestamp));
                 }
                 ResultSet v2ResultSet =
                         session.execute(
                                 deleteWorkflowV2Statement.bind(
-                                        UUID.fromString(workflowId), correlationId));
+                                        UUID.fromString(workflowId), correlationId)
+                                        .setDefaultTimestamp(deleteTimestamp));
                 removed = fallbackToOldWorkflowExecutionTables ? (oldTableResultSet.wasApplied() || v2ResultSet.wasApplied()) : v2ResultSet.wasApplied();
             } catch (DriverException e) {
                 Monitors.error(CLASS_NAME, "removeWorkflow");
@@ -866,6 +879,28 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             workflow.getTasks().forEach(this::removeTaskLookup);
         }
         return removed;
+    }
+
+    /**
+     * Queries the WRITETIME of the workflow entity row in workflows_v2.
+     * Used to determine the Paxos-assigned timestamp from LWT updates so that
+     * subsequent deletes can use a strictly higher timestamp.
+     *
+     * @return the write timestamp in microseconds, or 0 if the row does not exist
+     */
+    private long queryWorkflowEntityWriteTimestamp(String workflowId, int correlationId) {
+        try {
+            String cql = String.format(
+                    "SELECT WRITETIME(payload) AS wt FROM %s.workflows_v2 "
+                    + "WHERE workflow_id=%s AND shard_id=%d AND entity='workflow' AND task_id=''",
+                    properties.getKeyspace(), workflowId, correlationId);
+            ResultSet rs = session.execute(cql);
+            Row row = rs.one();
+            return (row != null) ? row.getLong("wt") : 0;
+        } catch (Exception e) {
+            LOGGER.warn("Failed to query workflow entity write timestamp for {}", workflowId, e);
+            return 0;
+        }
     }
 
     /**
@@ -1444,6 +1479,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         this.redisLock = (RedisLock) applicationContext.getBean("provideRedisLock");
         setConcurrencyLimitEnabled(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("concurrencyLimitEnabled", "false")));
         setFallbackToOldTaskInProgressActive(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldTaskInProgressActive", "false")));
-        this.fallbackToOldWorkflowExecutionTables = Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldWorkflowExecutionTables", "true"));
+        this.fallbackToOldWorkflowExecutionTables = Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldWorkflowExecutionTables", "false"));
     }
 }
