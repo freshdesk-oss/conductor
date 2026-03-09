@@ -430,7 +430,13 @@ public class RedisExecutionDAO extends BaseDynoDAO
     @Override
     public boolean removeWorkflow(String workflowId) {
         WorkflowModel workflow = getWorkflow(workflowId, true);
+        return removeWorkflow(workflow);
+    }
+
+    @Override
+    public boolean removeWorkflow(WorkflowModel workflow) {
         if (workflow != null) {
+            String workflowId = workflow.getWorkflowId();
             recordRedisDaoRequests("removeWorkflow");
 
             // Remove from lists

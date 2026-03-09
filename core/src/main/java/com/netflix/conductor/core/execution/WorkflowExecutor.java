@@ -573,6 +573,7 @@ public class WorkflowExecutor {
                     workflow.getParentWorkflowTaskId());
             expediteLazyWorkflowEvaluation(workflow.getParentWorkflowId());
         }
+        executionDAOFacade.removeWorkflow(workflow);
 
         executionLockService.releaseLock(workflow.getWorkflowId());
         executionLockService.deleteLock(workflow.getWorkflowId());

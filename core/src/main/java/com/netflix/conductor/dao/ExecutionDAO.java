@@ -123,6 +123,8 @@ public interface ExecutionDAO {
      */
     boolean removeWorkflow(String workflowId);
 
+    boolean removeWorkflow(WorkflowModel workflow);
+
     /**
      * Removes the workflow with ttl seconds
      *

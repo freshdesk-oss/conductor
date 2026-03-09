@@ -372,12 +372,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                             task.setScheduledTime(System.currentTimeMillis());
                         }
                         BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
-                        if (fallbackToOldWorkflowExecutionTables) {
-                            batchStatement.add(updateTaskLookupStatement.bind(
-                                    workflowUUID, correlationId, toUUID(task.getTaskId(), "Invalid task id")));
-                            batchStatement.add(updateWorkflowLookupStatement.bind(
-                                    correlationId, workflowUUID));
-                        }
                         batchStatement.add(updateTaskLookupV2Statement.bind(
                                 workflowUUID, correlationId, toUUID(task.getTaskId(), "Invalid task id")));
                         batchStatement.add(updateWorkflowLookupV2Statement.bind(
@@ -392,14 +386,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             tasks.forEach(
                     task -> {
                         String taskPayload = toJson(task);
-                        if (fallbackToOldWorkflowExecutionTables) {
-                            batchStatement.add(
-                                    insertTaskStatement.bind(
-                                            workflowUUID,
-                                            correlationId,
-                                            task.getTaskId(),
-                                            taskPayload));
-                        }
                         batchStatement.add(
                                 insertTaskV2Statement.bind(
                                         workflowUUID,
@@ -542,14 +528,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                         prevTask.getStatus());
 
                 if (!prevTask.getStatus().equals(TaskModel.Status.COMPLETED)) {**/
-                if (fallbackToOldWorkflowExecutionTables) {
-                    session.execute(
-                            insertTaskStatement.bind(
-                                    UUID.fromString(task.getWorkflowInstanceId()),
-                                    correlationId,
-                                    task.getTaskId(),
-                                    taskPayload));
-                }
                 session.execute(
                         insertTaskV2Statement.bind(
                                 UUID.fromString(task.getWorkflowInstanceId()),
@@ -764,11 +742,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             recordCassandraDaoRequests("createWorkflow", "n/a", workflow.getWorkflowName());
             recordCassandraDaoPayloadSize(
                     "createWorkflow", payload.length(), "n/a", workflow.getWorkflowName());
-            if (fallbackToOldWorkflowExecutionTables) {
-                session.execute(
-                        insertWorkflowStatement.bind(
-                                UUID.fromString(workflow.getWorkflowId()), correlationId, "", payload, 0, 1, 1));
-            }
             session.execute(
                     insertWorkflowV2Statement.bind(
                             UUID.fromString(workflow.getWorkflowId()), correlationId, "", payload, 0, 1, 1));
@@ -827,7 +800,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                 UUID.fromString(workflow.getWorkflowId()), correlationId, currentVersion));
 
         boolean wasWorkflowUpdateApplied =
-                fallbackToOldWorkflowExecutionTables ? oldTableResultSet.wasApplied() : v2ResultSet.wasApplied();
+                fallbackToOldWorkflowExecutionTables ? (oldTableResultSet.wasApplied() || v2ResultSet.wasApplied()) : v2ResultSet.wasApplied();
         if (wasWorkflowUpdateApplied) {
             LOGGER.debug("Updated workflow with isRetry {} - current status {} for workflowId {} with version {}",
                     isRetry, workflow.getStatus(), workflow.getWorkflowId(), prevWorkflow.getVersion() + 1);
@@ -861,9 +834,15 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @Override
     public boolean removeWorkflow(String workflowId) {
         WorkflowModel workflow = getWorkflow(workflowId, true);
+        return removeWorkflow(workflow);
+    }
+
+    @Override
+    public boolean removeWorkflow(WorkflowModel workflow) {
         Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
         boolean removed = false;
         if (workflow != null) {
+            String workflowId = workflow.getWorkflowId();
             try {
                 recordCassandraDaoRequests("removeWorkflow", "n/a", workflow.getWorkflowName());
                 ResultSet oldTableResultSet = null;
@@ -876,7 +855,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                         session.execute(
                                 deleteWorkflowV2Statement.bind(
                                         UUID.fromString(workflowId), correlationId));
-                removed = fallbackToOldWorkflowExecutionTables ? oldTableResultSet.wasApplied() : v2ResultSet.wasApplied();
+                removed = fallbackToOldWorkflowExecutionTables ? (oldTableResultSet.wasApplied() || v2ResultSet.wasApplied()) : v2ResultSet.wasApplied();
             } catch (DriverException e) {
                 Monitors.error(CLASS_NAME, "removeWorkflow");
                 logErrorToDebug(Thread.currentThread().getStackTrace()[2].getMethodName(), e);
@@ -1465,6 +1444,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         this.redisLock = (RedisLock) applicationContext.getBean("provideRedisLock");
         setConcurrencyLimitEnabled(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("concurrencyLimitEnabled", "false")));
         setFallbackToOldTaskInProgressActive(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldTaskInProgressActive", "false")));
-        this.fallbackToOldWorkflowExecutionTables = Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldWorkflowExecutionTables", "false"));
+        this.fallbackToOldWorkflowExecutionTables = Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldWorkflowExecutionTables", "true"));
     }
 }

@@ -437,6 +437,10 @@ public class ExecutionDAOFacade {
         }
     }
 
+    public void removeWorkflow(WorkflowModel workflow) {
+        executionDAO.removeWorkflow(workflow);
+    }
+
     public void removeWorkflowWithExpiry(
             String workflowId, boolean archiveWorkflow, int ttlSeconds) {
         try {
