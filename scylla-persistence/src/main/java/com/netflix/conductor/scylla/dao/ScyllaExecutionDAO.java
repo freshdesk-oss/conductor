@@ -92,6 +92,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     protected final PreparedStatement selectTotalV2Statement;
     protected final PreparedStatement selectTaskV2Statement;
     protected final PreparedStatement selectWorkflowV2Statement;
+    protected final PreparedStatement selectWorkflowWritetimeV2Statement;
     protected final PreparedStatement selectWorkflowWithTasksV2Statement;
     protected final PreparedStatement selectTaskLookupV2Statement;
     protected final PreparedStatement selectShardFromTaskLookupStatement;
@@ -249,6 +250,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         this.selectWorkflowV2Statement =
                 session.prepare(statements.getSelectWorkflowV2Statement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
+        this.selectWorkflowWritetimeV2Statement =
+                session.prepare(statements.getSelectWorkflowWritetimeV2Statement())
+                        .setConsistencyLevel(properties.getWriteConsistencyLevel());
         this.selectWorkflowWithTasksStatement =
                 session.prepare(statements.getSelectWorkflowWithTasksStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
@@ -917,11 +921,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
      */
     private long queryWorkflowEntityWriteTimestamp(String workflowId, int correlationId) {
         try {
-            String cql = String.format(
-                    "SELECT WRITETIME(payload) AS wt FROM %s.workflows_v2 "
-                    + "WHERE workflow_id=%s AND shard_id=%d AND entity='workflow' AND task_id=''",
-                    properties.getKeyspace(), workflowId, correlationId);
-            ResultSet rs = session.execute(cql);
+            ResultSet rs = session.execute(
+                    selectWorkflowWritetimeV2Statement.bind(
+                            UUID.fromString(workflowId), correlationId));
             Row row = rs.one();
             return (row != null) ? row.getLong("wt") : 0;
         } catch (Exception e) {

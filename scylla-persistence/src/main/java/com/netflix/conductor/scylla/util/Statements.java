@@ -513,6 +513,21 @@ public class Statements {
     }
 
     /**
+     * @return cql query statement to retrieve the WRITETIME of the workflow entity payload
+     *     from the "workflows_v2" table
+     */
+    public String getSelectWorkflowWritetimeV2Statement() {
+        return QueryBuilder.select()
+                .fcall(FUNC_WRITETIME, QueryBuilder.column(PAYLOAD_KEY)).as("wt")
+                .from(keyspace, TABLE_WORKFLOWS_V2)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .and(eq(ENTITY_KEY, ENTITY_TYPE_WORKFLOW))
+                .and(eq(TASK_ID_KEY, ""))
+                .getQueryString();
+    }
+
+    /**
      * @return cql query statement to retrieve a workflow with its tasks from the "workflows_v2" table
      */
     public String getSelectWorkflowWithTasksV2Statement() {

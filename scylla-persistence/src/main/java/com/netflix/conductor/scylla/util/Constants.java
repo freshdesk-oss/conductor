@@ -60,6 +60,8 @@ public interface Constants {
     String ENTITY_TYPE_WORKFLOW = "workflow";
     String ENTITY_TYPE_TASK = "task";
 
+    String FUNC_WRITETIME = "writetime";
+
     int DEFAULT_SHARD_ID = 1;
     int DEFAULT_TOTAL_PARTITIONS = 1;
 }
