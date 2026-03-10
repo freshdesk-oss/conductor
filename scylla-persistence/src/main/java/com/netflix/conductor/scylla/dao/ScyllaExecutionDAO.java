@@ -372,6 +372,12 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                             task.setScheduledTime(System.currentTimeMillis());
                         }
                         BatchStatement batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);
+                        if (fallbackToOldWorkflowExecutionTables) {
+                            batchStatement.add(updateTaskLookupStatement.bind(
+                                    workflowUUID, correlationId, toUUID(task.getTaskId(), "Invalid task id")));
+                            batchStatement.add(updateWorkflowLookupStatement.bind(
+                                    correlationId, workflowUUID));
+                        }
                         batchStatement.add(updateTaskLookupV2Statement.bind(
                                 workflowUUID, correlationId, toUUID(task.getTaskId(), "Invalid task id")));
                         batchStatement.add(updateWorkflowLookupV2Statement.bind(
@@ -386,6 +392,14 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             tasks.forEach(
                     task -> {
                         String taskPayload = toJson(task);
+                        if (fallbackToOldWorkflowExecutionTables) {
+                            batchStatement.add(
+                                    insertTaskStatement.bind(
+                                            workflowUUID,
+                                            correlationId,
+                                            task.getTaskId(),
+                                            taskPayload));
+                        }
                         batchStatement.add(
                                 insertTaskV2Statement.bind(
                                         workflowUUID,
@@ -528,6 +542,14 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                         prevTask.getStatus());
 
                 if (!prevTask.getStatus().equals(TaskModel.Status.COMPLETED)) {**/
+                if (fallbackToOldWorkflowExecutionTables) {
+                    session.execute(
+                            insertTaskStatement.bind(
+                                    UUID.fromString(task.getWorkflowInstanceId()),
+                                    correlationId,
+                                    task.getTaskId(),
+                                    taskPayload));
+                }
                 session.execute(
                         insertTaskV2Statement.bind(
                                 UUID.fromString(task.getWorkflowInstanceId()),
@@ -742,6 +764,11 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             recordCassandraDaoRequests("createWorkflow", "n/a", workflow.getWorkflowName());
             recordCassandraDaoPayloadSize(
                     "createWorkflow", payload.length(), "n/a", workflow.getWorkflowName());
+            if(fallbackToOldWorkflowExecutionTables) {
+                session.execute(
+                        insertWorkflowStatement.bind(
+                                UUID.fromString(workflow.getWorkflowId()), correlationId, "", payload, 0, 1, 1));
+            }
             session.execute(
                     insertWorkflowV2Statement.bind(
                             UUID.fromString(workflow.getWorkflowId()), correlationId, "", payload, 0, 1, 1));
@@ -966,11 +993,13 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     private WorkflowModel getWorkflowModelWithTasks(String workflowId, UUID workflowUUID, Integer correlationId) {
-        List<Row> rows = session.execute(
-                selectWorkflowWithTasksV2Statement.bind(workflowUUID, correlationId)).all();
-        if (rows.isEmpty() && fallbackToOldWorkflowExecutionTables) {
+        List<Row> rows;
+        if (fallbackToOldWorkflowExecutionTables) {
             rows = session.execute(
                     selectWorkflowWithTasksStatement.bind(workflowUUID, correlationId)).all();
+        } else {
+            rows = session.execute(
+                    selectWorkflowWithTasksV2Statement.bind(workflowUUID, correlationId)).all();
         }
         if (rows.isEmpty()) {
             LOGGER.info("Workflow {} not found in datastore", workflowId);
@@ -1004,13 +1033,13 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     }
 
     private WorkflowModel getWorkflowModelWithoutTasks(UUID workflowUUID, Integer correlationId) {
-        ResultSet resultSet = session.execute(selectWorkflowV2Statement.bind(workflowUUID, correlationId));
-        Row row = resultSet.one();
-        if (row == null && fallbackToOldWorkflowExecutionTables) {
-            resultSet = session.execute(selectWorkflowStatement.bind(workflowUUID, correlationId));
-            row = resultSet.one();
+        ResultSet resultSet;
+        if (fallbackToOldWorkflowExecutionTables) {
+            resultSet = session.execute(selectWorkflowStatement.bind(workflowUUID, correlationId));;
+        } else {
+            resultSet = session.execute(selectWorkflowV2Statement.bind(workflowUUID, correlationId));;
         }
-        return Optional.ofNullable(row)
+        return Optional.ofNullable(resultSet.one())
                 .map(
                         r -> {
                             WorkflowModel wf =
@@ -1083,11 +1112,13 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         try{
             recordCassandraDaoRequests("getWorkflowsByCorrelationId", "n/a", correlationId);
 
-            List<Row> rows = session.execute(
-                    selectWorkflowsByCorIdFromWorkflowV2Statement.bind(Integer.parseInt(correlationId))).all();
-            if (rows.isEmpty() && fallbackToOldWorkflowExecutionTables) {
+            List<Row> rows;
+            if (fallbackToOldWorkflowExecutionTables) {
                 rows = session.execute(
                         selectWorkflowsByCorIdFromWorkflowStatement.bind(Integer.parseInt(correlationId))).all();
+            } else {
+                rows = session.execute(
+                        selectWorkflowsByCorIdFromWorkflowV2Statement.bind(Integer.parseInt(correlationId))).all();
             }
             List<WorkflowModel> wfList = rows.stream()
                     .map(row -> {
@@ -1363,15 +1394,16 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     @VisibleForTesting
     WorkflowMetadata getWorkflowMetadata(String workflowId, String correlationId) {
         Integer corelId = Objects.isNull(correlationId) ? 0 : Integer.parseInt(correlationId);
-        ResultSet resultSet = session.execute(selectTotalV2Statement.bind(UUID.fromString(workflowId), corelId));
-        Row row = resultSet.one();
-        if (row == null && fallbackToOldWorkflowExecutionTables) {
+        ResultSet resultSet;
+        if (fallbackToOldWorkflowExecutionTables) {
             resultSet = session.execute(selectTotalStatement.bind(UUID.fromString(workflowId), corelId));
-            row = resultSet.one();
+        } else {
+            resultSet = session.execute(selectTotalV2Statement.bind(UUID.fromString(workflowId), corelId));
         }
+
         recordCassandraDaoRequests("getWorkflowMetadata");
 
-        return Optional.ofNullable(row)
+        return Optional.ofNullable(resultSet.one())
                 .map(
                         currentRow -> {
                             WorkflowMetadata workflowMetadata = new WorkflowMetadata();
@@ -1390,13 +1422,13 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     String lookupWorkflowIdFromTaskId(String taskId) {
         UUID taskUUID = toUUID(taskId, "Invalid task id");
         try {
-            ResultSet resultSet = session.execute(selectTaskLookupV2Statement.bind(taskUUID));
-            Row row = resultSet.one();
-            if (row == null && fallbackToOldWorkflowExecutionTables) {
+            ResultSet resultSet;
+            if (fallbackToOldWorkflowExecutionTables) {
                 resultSet = session.execute(selectTaskLookupStatement.bind(taskUUID));
-                row = resultSet.one();
+            } else {
+                resultSet = session.execute(selectTaskLookupV2Statement.bind(taskUUID));;
             }
-            return Optional.ofNullable(row)
+            return Optional.ofNullable(resultSet.one())
                     .map(r -> r.getUUID(WORKFLOW_ID_KEY).toString())
                     .orElse(null);
         } catch (DriverException e) {
@@ -1415,13 +1447,13 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     String lookupShardIdFromTaskId(String taskId) {
         UUID taskUUID = toUUID(taskId, "Invalid task id");
         try {
-            ResultSet resultSet = session.execute(selectShardFromTaskLookupV2Statement.bind(taskUUID));
-            Row row = resultSet.one();
-            if (row == null && fallbackToOldWorkflowExecutionTables) {
-                resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));
-                row = resultSet.one();
+            ResultSet resultSet;
+            if (fallbackToOldWorkflowExecutionTables) {
+                resultSet = session.execute(selectShardFromTaskLookupStatement.bind(taskUUID));;
+            } else {
+                resultSet = session.execute(selectShardFromTaskLookupV2Statement.bind(taskUUID));
             }
-            return Optional.ofNullable(row)
+            return Optional.ofNullable(resultSet.one())
                     .map(r -> String.valueOf(r.getInt(SHARD_ID_KEY)))
                     .orElse(null);
         } catch (DriverException e) {
@@ -1440,13 +1472,13 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     String lookupShardIdFromWorkflowId(String workflowId) {
         UUID workflowUUID = toUUID(workflowId, "Invalid workflow id");
         try {
-            ResultSet resultSet = session.execute(selectShardFromWorkflowLookupV2Statement.bind(workflowUUID));
-            Row row = resultSet.one();
-            if (row == null && fallbackToOldWorkflowExecutionTables) {
+            ResultSet resultSet;
+            if (fallbackToOldWorkflowExecutionTables) {
                 resultSet = session.execute(selectShardFromWorkflowLookupStatement.bind(workflowUUID));
-                row = resultSet.one();
+            } else {
+                resultSet = session.execute(selectShardFromWorkflowLookupV2Statement.bind(workflowUUID));
             }
-            return Optional.ofNullable(row)
+            return Optional.ofNullable(resultSet.one())
                     .map(r -> String.valueOf(r.getInt(SHARD_ID_KEY)))
                     .orElse(null);
         } catch (DriverException e) {
@@ -1476,9 +1508,9 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.redisLock = (RedisLock) applicationContext.getBean("provideRedisLock");
+        this.redisLock = applicationContext.getBean("provideRedisLock", RedisLock.class);
         setConcurrencyLimitEnabled(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("concurrencyLimitEnabled", "false")));
         setFallbackToOldTaskInProgressActive(Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldTaskInProgressActive", "false")));
-        this.fallbackToOldWorkflowExecutionTables = Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldWorkflowExecutionTables", "false"));
+        this.fallbackToOldWorkflowExecutionTables = Boolean.parseBoolean(applicationContext.getEnvironment().getProperty("fallbackToOldWorkflowExecutionTables", "true"));
     }
 }
