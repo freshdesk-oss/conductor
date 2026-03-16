@@ -2577,4 +2577,122 @@ public class TestWorkflowExecutor {
 
         return tasks;
     }
+
+    @Test
+    public void testTerminateWorkflowWithSkippedStatus() {
+        WorkflowDef def = new WorkflowDef();
+        def.setName("test");
+
+        TaskModel runningTask = new TaskModel();
+        runningTask.setTaskId("task1");
+        runningTask.setReferenceTaskName("ref1");
+        runningTask.setStatus(TaskModel.Status.IN_PROGRESS);
+        runningTask.setTaskType(TaskType.SIMPLE.name());
+
+        WorkflowModel workflow = new WorkflowModel();
+        workflow.setWorkflowDefinition(def);
+        workflow.setWorkflowId("1");
+        workflow.setStatus(WorkflowModel.Status.RUNNING);
+        workflow.setOwnerApp("junit_test");
+        workflow.setCreateTime(10L);
+        workflow.setEndTime(100L);
+        workflow.setOutput(Collections.EMPTY_MAP);
+        workflow.getTasks().add(runningTask);
+
+        when(executionDAOFacade.getWorkflowModel(anyString(), anyBoolean())).thenReturn(workflow);
+
+        workflowExecutor.terminateWorkflow("1", "skipping", "SKIPPED");
+
+        assertEquals(WorkflowModel.Status.SKIPPED, workflow.getStatus());
+        assertEquals("skipping", workflow.getReasonForIncompletion());
+        assertEquals(TaskModel.Status.SKIPPED, runningTask.getStatus());
+        verify(workflowStatusListener, times(1)).onWorkflowSkipped(workflow);
+        verify(workflowStatusListener, never()).onWorkflowTerminated(any());
+        verify(executionDAOFacade, times(1)).updateWorkflow(workflow);
+        verify(executionDAOFacade, times(1))
+                .removeFromPendingWorkflow(eq("test"), eq("1"));
+    }
+
+    @Test
+    public void testTerminateWorkflowWithSkippedStatusUpdatesParent() {
+        WorkflowDef def = new WorkflowDef();
+        def.setName("sub-workflow");
+
+        WorkflowModel subWorkflow = new WorkflowModel();
+        subWorkflow.setWorkflowDefinition(def);
+        subWorkflow.setWorkflowId("sub-1");
+        subWorkflow.setStatus(WorkflowModel.Status.RUNNING);
+        subWorkflow.setOwnerApp("junit_test");
+        subWorkflow.setOutput(Collections.EMPTY_MAP);
+        subWorkflow.setParentWorkflowId("parent-1");
+        subWorkflow.setParentWorkflowTaskId("parent-task-1");
+
+        TaskModel parentSubWorkflowTask = new TaskModel();
+        parentSubWorkflowTask.setTaskId("parent-task-1");
+        parentSubWorkflowTask.setTaskType(TaskType.SUB_WORKFLOW.name());
+        parentSubWorkflowTask.setStatus(TaskModel.Status.IN_PROGRESS);
+        parentSubWorkflowTask.setSubWorkflowId("sub-1");
+
+        when(executionDAOFacade.getWorkflowModel(eq("sub-1"), anyBoolean()))
+                .thenReturn(subWorkflow);
+        when(executionDAOFacade.getTaskModel(eq("parent-task-1")))
+                .thenReturn(parentSubWorkflowTask);
+
+        workflowExecutor.terminateWorkflow("sub-1", "not needed", "SKIPPED");
+
+        assertEquals(WorkflowModel.Status.SKIPPED, subWorkflow.getStatus());
+        assertEquals(TaskModel.Status.SKIPPED, parentSubWorkflowTask.getStatus());
+        verify(executionDAOFacade, times(1)).updateTask(parentSubWorkflowTask);
+    }
+
+    @Test
+    public void testTerminateWorkflowSkippedDoesNotTriggerFailureWorkflow() {
+        WorkflowDef def = new WorkflowDef();
+        def.setName("test");
+        def.setFailureWorkflow("failure_workflow");
+
+        WorkflowModel workflow = new WorkflowModel();
+        workflow.setWorkflowDefinition(def);
+        workflow.setWorkflowId("1");
+        workflow.setStatus(WorkflowModel.Status.RUNNING);
+        workflow.setOwnerApp("junit_test");
+        workflow.setOutput(Collections.EMPTY_MAP);
+
+        when(executionDAOFacade.getWorkflowModel(anyString(), anyBoolean())).thenReturn(workflow);
+
+        workflowExecutor.terminateWorkflow("1", "skip it", "SKIPPED");
+
+        assertEquals(WorkflowModel.Status.SKIPPED, workflow.getStatus());
+        verify(eventPublisher, never()).publishEvent(any(WorkflowCreationEvent.class));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTerminateWorkflowWithInvalidStatus() {
+        WorkflowModel workflow = new WorkflowModel();
+        workflow.setWorkflowId("1");
+        workflow.setStatus(WorkflowModel.Status.RUNNING);
+        when(executionDAOFacade.getWorkflowModel(anyString(), anyBoolean())).thenReturn(workflow);
+
+        workflowExecutor.terminateWorkflow("1", "reason", "INVALID_STATUS");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTerminateWorkflowWithDisallowedStatus() {
+        WorkflowModel workflow = new WorkflowModel();
+        workflow.setWorkflowId("1");
+        workflow.setStatus(WorkflowModel.Status.RUNNING);
+        when(executionDAOFacade.getWorkflowModel(anyString(), anyBoolean())).thenReturn(workflow);
+
+        workflowExecutor.terminateWorkflow("1", "reason", "FAILED");
+    }
+
+    @Test(expected = ConflictException.class)
+    public void testTerminateWorkflowSkippedOnTerminalWorkflow() {
+        WorkflowModel workflow = new WorkflowModel();
+        workflow.setWorkflowId("1");
+        workflow.setStatus(WorkflowModel.Status.TERMINATED);
+        when(executionDAOFacade.getWorkflowModel(anyString(), anyBoolean())).thenReturn(workflow);
+
+        workflowExecutor.terminateWorkflow("1", "reason", "SKIPPED");
+    }
 }

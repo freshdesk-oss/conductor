@@ -34,7 +34,8 @@ public class WorkflowModel {
         FAILED(true, false),
         TIMED_OUT(true, false),
         TERMINATED(true, false),
-        PAUSED(false, true);
+        PAUSED(false, true),
+        SKIPPED(true, true);
 
         private final boolean terminal;
         private final boolean successful;

@@ -51,4 +51,10 @@ public class WorkflowStatusListenerStub implements WorkflowStatusListener {
         LOGGER.info("Workflow {} is running", workflow.getWorkflowId());
         eventPublisher.pushWorkflowEvents(workflow);
     }
+
+    @Override
+    public void onWorkflowSkipped(WorkflowModel workflow) {
+        LOGGER.info("Workflow {} is skipped", workflow.getWorkflowId());
+        eventPublisher.pushWorkflowEvents(workflow);
+    }
 }

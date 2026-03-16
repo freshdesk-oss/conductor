@@ -42,4 +42,12 @@ public interface WorkflowStatusListener {
     default void onWorkflowFinalized(WorkflowModel workflow) {}
 
     default void onWorkflowRunning(WorkflowModel workflow) {}
+
+    default void onWorkflowSkippedIfEnabled(WorkflowModel workflow) {
+        if (workflow.getWorkflowDefinition().isWorkflowStatusListenerEnabled()) {
+            onWorkflowSkipped(workflow);
+        }
+    }
+
+    default void onWorkflowSkipped(WorkflowModel workflow) {}
 }

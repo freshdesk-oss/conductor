@@ -210,11 +210,18 @@ public class WorkflowResource {
     }
 
     @DeleteMapping("/{workflowId}")
-    @Operation(summary = "Terminate workflow execution")
+    @Operation(
+            summary = "Terminate workflow execution",
+            description =
+                    "Terminates a running workflow. The status parameter controls the terminal state: "
+                            + "TERMINATED (default) cascades failure to parent workflows, "
+                            + "SKIPPED marks the workflow as successfully skipped without cascading failure.")
     public void terminate(
             @PathVariable("workflowId") String workflowId,
-            @RequestParam(value = "reason", required = false) String reason) {
-        workflowService.terminateWorkflow(workflowId, reason);
+            @RequestParam(value = "reason", required = false) String reason,
+            @RequestParam(value = "status", defaultValue = "TERMINATED", required = false)
+                    String status) {
+        workflowService.terminateWorkflow(workflowId, reason, status);
     }
 
     @Operation(

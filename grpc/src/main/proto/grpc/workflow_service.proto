@@ -162,6 +162,7 @@ message ResetWorkflowCallbacksResponse {}
 message TerminateWorkflowRequest {
     string workflow_id = 1;
     string reason = 2;
+    string status = 3;
 }
 
 message TerminateWorkflowResponse {}

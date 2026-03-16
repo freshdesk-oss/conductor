@@ -268,4 +268,36 @@ public class TestWorkflowRepairService {
         assertEquals("v1", argumentCaptor.getValue().getOutputData().get("k1"));
         assertEquals("v2", argumentCaptor.getValue().getOutputData().get("k2"));
     }
+
+    @Test
+    public void assertSkippedSubWorkflowTaskIsRepairedToSkipped() {
+        String subWorkflowId = "subWorkflowId";
+        String taskId = "taskId";
+
+        TaskModel task = new TaskModel();
+        task.setTaskType(TASK_TYPE_SUB_WORKFLOW);
+        task.setStatus(TaskModel.Status.IN_PROGRESS);
+        task.setTaskId(taskId);
+        task.setCallbackAfterSeconds(60);
+        task.setSubWorkflowId(subWorkflowId);
+        Map<String, Object> outputMap = new HashMap<>();
+        outputMap.put("subWorkflowId", subWorkflowId);
+        task.setOutputData(outputMap);
+
+        WorkflowModel subWorkflow = new WorkflowModel();
+        subWorkflow.setWorkflowId(subWorkflowId);
+        subWorkflow.setStatus(WorkflowModel.Status.SKIPPED);
+        subWorkflow.setOutput(Map.of("k1", "v1"));
+
+        when(executionDAO.getWorkflow(subWorkflowId, false)).thenReturn(subWorkflow);
+
+        assertTrue(workflowRepairService.verifyAndRepairTask(task));
+        verify(queueDAO, never()).containsMessage(anyString(), anyString());
+        verify(queueDAO, never()).push(anyString(), anyString(), anyLong());
+
+        ArgumentCaptor<TaskModel> argumentCaptor = ArgumentCaptor.forClass(TaskModel.class);
+        verify(executionDAO, times(1)).updateTask(argumentCaptor.capture());
+        assertEquals(taskId, argumentCaptor.getValue().getTaskId());
+        assertEquals(TaskModel.Status.SKIPPED, argumentCaptor.getValue().getStatus());
+    }
 }

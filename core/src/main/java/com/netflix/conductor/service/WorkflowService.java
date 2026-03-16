@@ -253,6 +253,18 @@ public interface WorkflowService {
             String reason);
 
     /**
+     * Terminate workflow execution with a specific terminal status.
+     *
+     * @param workflowId WorkflowId of the workflow.
+     * @param reason Reason for terminating the workflow.
+     * @param status Target terminal status (TERMINATED or SKIPPED).
+     */
+    void terminateWorkflow(
+            @NotEmpty(message = "WorkflowId cannot be null or empty.") String workflowId,
+            String reason,
+            String status);
+
+    /**
      * Search for workflows based on payload and given parameters. Use sort options as sort ASCor
      * DESC e.g. sort=name or sort=workflowId:DESC. If order is not specified, defaults to ASC.
      *

@@ -17,6 +17,7 @@ message Workflow {
         TIMED_OUT = 3;
         TERMINATED = 4;
         PAUSED = 5;
+        SKIPPED = 6;
     }
     Workflow.WorkflowStatus status = 1;
     int64 end_time = 2;

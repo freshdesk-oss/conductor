@@ -580,13 +580,187 @@ public class WorkflowExecutor {
         return workflow;
     }
 
+    private static final Set<WorkflowModel.Status> ALLOWED_TERMINATION_STATUSES =
+            Set.of(WorkflowModel.Status.TERMINATED, WorkflowModel.Status.SKIPPED);
+
     public void terminateWorkflow(String workflowId, String reason) {
-        WorkflowModel workflow = executionDAOFacade.getWorkflowModel(workflowId, true);
-        if (WorkflowModel.Status.COMPLETED.equals(workflow.getStatus())) {
-            throw new ConflictException("Cannot terminate a COMPLETED workflow.");
+        terminateWorkflow(workflowId, reason, WorkflowModel.Status.TERMINATED.name());
+    }
+
+    public void terminateWorkflow(String workflowId, String reason, String statusStr) {
+        WorkflowModel.Status targetStatus;
+        try {
+            targetStatus = WorkflowModel.Status.valueOf(statusStr);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid workflow status: " + statusStr);
         }
-        workflow.setStatus(WorkflowModel.Status.TERMINATED);
-        terminateWorkflow(workflow, reason, null);
+        if (!ALLOWED_TERMINATION_STATUSES.contains(targetStatus)) {
+            throw new IllegalArgumentException(
+                    "Status must be one of " + ALLOWED_TERMINATION_STATUSES + ", got: " + statusStr);
+        }
+
+        WorkflowModel workflow = executionDAOFacade.getWorkflowModel(workflowId, true);
+        if (workflow.getStatus().isTerminal()) {
+            throw new ConflictException(
+                    "Cannot terminate a workflow in terminal state. Current status: "
+                            + workflow.getStatus());
+        }
+
+        if (targetStatus.isSuccessful()) {
+            gracefullyTerminateWorkflow(workflow, reason, targetStatus);
+        } else {
+            workflow.setStatus(WorkflowModel.Status.TERMINATED);
+            terminateWorkflow(workflow, reason, null);
+        }
+    }
+
+    /**
+     * Gracefully stops a workflow with a successful terminal status (COMPLETED or SKIPPED). Unlike
+     * standard termination, this does not cascade failure to parent workflows or trigger failure
+     * workflows. Non-terminal tasks are set to the matching status instead of CANCELED.
+     */
+    private void gracefullyTerminateWorkflow(
+            WorkflowModel workflow, String reason, WorkflowModel.Status targetStatus) {
+        try {
+            executionLockService.acquireLock(workflow.getWorkflowId(), 60000);
+
+            workflow.setStatus(targetStatus);
+
+            try {
+                deciderService.updateWorkflowOutput(workflow, null);
+            } catch (Exception e) {
+                LOGGER.error(
+                        "Failed to update output data for workflow: {}",
+                        workflow.getWorkflowId(),
+                        e);
+                Monitors.error(CLASS_NAME, "gracefullyTerminateWorkflow");
+            }
+
+            workflow.setReasonForIncompletion(reason);
+            executionDAOFacade.updateWorkflow(workflow);
+
+            if (WorkflowModel.Status.SKIPPED.equals(targetStatus)) {
+                workflowStatusListener.onWorkflowSkipped(workflow);
+            } else {
+                workflowStatusListener.onWorkflowCompleted(workflow);
+            }
+
+            Monitors.recordWorkflowTermination(workflow.getStatus(), workflow.getOwnerApp());
+            LOGGER.info(
+                    "Workflow {} is {} because of {}",
+                    workflow.getWorkflowId(),
+                    targetStatus,
+                    reason);
+
+            try {
+                workflow.getTasks()
+                        .forEach(
+                                task ->
+                                        queueDAO.remove(
+                                                QueueUtils.getQueueName(task), task.getTaskId()));
+            } catch (Exception e) {
+                LOGGER.warn(
+                        "Error removing task(s) from queue during workflow {}: {}",
+                        targetStatus,
+                        workflow.getWorkflowId(),
+                        e);
+            }
+
+            if (workflow.hasParent()) {
+                updateParentWorkflowTask(workflow);
+                LOGGER.info(
+                        "{} updated parent {} task {}",
+                        workflow.toShortString(),
+                        workflow.getParentWorkflowId(),
+                        workflow.getParentWorkflowTaskId());
+                expediteLazyWorkflowEvaluation(workflow.getParentWorkflowId());
+            }
+
+            executionDAOFacade.removeFromPendingWorkflow(
+                    workflow.getWorkflowName(), workflow.getWorkflowId());
+
+            List<String> erroredTasks = completeNonTerminalTasks(workflow, targetStatus);
+            if (!erroredTasks.isEmpty()) {
+                throw new NonTransientException(
+                        String.format(
+                                "Error completing system tasks: %s",
+                                String.join(",", erroredTasks)));
+            }
+        } finally {
+            executionLockService.releaseLock(workflow.getWorkflowId());
+            executionLockService.deleteLock(workflow.getWorkflowId());
+        }
+    }
+
+    private static final Set<TaskModel.Status> ALREADY_STARTED_STATUSES =
+            Set.of(TaskModel.Status.IN_PROGRESS, TaskModel.Status.SCHEDULED);
+
+    /**
+     * Sets all non-terminal tasks to an appropriate terminal status. For SKIPPED workflows,
+     * tasks that were already dispatched (IN_PROGRESS/SCHEDULED) are marked CANCELED rather than
+     * SKIPPED. For SUB_WORKFLOW tasks with running sub-workflows, recursively applies the same
+     * graceful termination.
+     */
+    @VisibleForTesting
+    List<String> completeNonTerminalTasks(
+            WorkflowModel workflow, WorkflowModel.Status workflowStatus) {
+        List<String> erroredTasks = new ArrayList<>();
+        for (TaskModel task : workflow.getTasks()) {
+            if (!task.getStatus().isTerminal()) {
+                TaskModel.Status targetTaskStatus = resolveTaskStatus(task, workflowStatus);
+                task.setStatus(targetTaskStatus);
+                if (systemTaskRegistry.isSystemTask(task.getTaskType())
+                        && TaskType.TASK_TYPE_SUB_WORKFLOW.equals(task.getTaskType())
+                        && StringUtils.isNotEmpty(task.getSubWorkflowId())) {
+                    try {
+                        WorkflowModel subWorkflow =
+                                executionDAOFacade.getWorkflowModel(
+                                        task.getSubWorkflowId(), true);
+                        if (!subWorkflow.getStatus().isTerminal()) {
+                            gracefullyTerminateWorkflow(
+                                    subWorkflow,
+                                    "Parent workflow "
+                                            + workflow.getWorkflowId()
+                                            + " is "
+                                            + workflowStatus,
+                                    workflowStatus);
+                        }
+                    } catch (Exception e) {
+                        erroredTasks.add(task.getReferenceTaskName());
+                        LOGGER.error(
+                                "Error gracefully completing sub-workflow task:{}/{} in workflow: {}",
+                                task.getTaskType(),
+                                task.getTaskId(),
+                                workflow.getWorkflowId(),
+                                e);
+                    }
+                }
+                executionDAOFacade.updateTask(task);
+            }
+        }
+        if (erroredTasks.isEmpty()) {
+            try {
+                workflowStatusListener.onWorkflowFinalizedIfEnabled(workflow);
+                queueDAO.remove(DECIDER_QUEUE, workflow.getWorkflowId());
+            } catch (Exception e) {
+                LOGGER.error(
+                        "Error removing workflow: {} from decider queue",
+                        workflow.getWorkflowId(),
+                        e);
+            }
+        }
+        return erroredTasks;
+    }
+
+    private TaskModel.Status resolveTaskStatus(
+            TaskModel task, WorkflowModel.Status workflowStatus) {
+        if (WorkflowModel.Status.SKIPPED.equals(workflowStatus)
+                && ALREADY_STARTED_STATUSES.contains(task.getStatus())) {
+            return TaskModel.Status.CANCELED;
+        }
+        return WorkflowModel.Status.SKIPPED.equals(workflowStatus)
+                ? TaskModel.Status.SKIPPED
+                : TaskModel.Status.COMPLETED;
     }
 
     /**
