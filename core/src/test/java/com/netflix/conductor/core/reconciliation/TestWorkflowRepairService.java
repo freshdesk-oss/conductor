@@ -270,7 +270,7 @@ public class TestWorkflowRepairService {
     }
 
     @Test
-    public void assertSkippedSubWorkflowTaskIsRepairedToSkipped() {
+    public void assertTerminatedSubWorkflowTaskIsRepairedToCanceled() {
         String subWorkflowId = "subWorkflowId";
         String taskId = "taskId";
 
@@ -287,7 +287,6 @@ public class TestWorkflowRepairService {
         WorkflowModel subWorkflow = new WorkflowModel();
         subWorkflow.setWorkflowId(subWorkflowId);
         subWorkflow.setStatus(WorkflowModel.Status.TERMINATED);
-        subWorkflow.setTerminateParent(false);
         subWorkflow.setOutput(Map.of("k1", "v1"));
 
         when(executionDAO.getWorkflow(subWorkflowId, false)).thenReturn(subWorkflow);
@@ -299,6 +298,6 @@ public class TestWorkflowRepairService {
         ArgumentCaptor<TaskModel> argumentCaptor = ArgumentCaptor.forClass(TaskModel.class);
         verify(executionDAO, times(1)).updateTask(argumentCaptor.capture());
         assertEquals(taskId, argumentCaptor.getValue().getTaskId());
-        assertEquals(TaskModel.Status.SKIPPED, argumentCaptor.getValue().getStatus());
+        assertEquals(TaskModel.Status.CANCELED, argumentCaptor.getValue().getStatus());
     }
 }
