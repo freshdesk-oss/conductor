@@ -207,16 +207,16 @@ public class WorkflowResourceTest {
 
     @Test
     public void testTerminate() {
-        workflowResource.terminate("w123", "test", "TERMINATED");
+        workflowResource.terminate("w123", "test", true);
         verify(mockWorkflowService, times(1))
-                .terminateWorkflow(eq("w123"), eq("test"), eq("TERMINATED"));
+                .terminateWorkflow(eq("w123"), eq("test"), eq(true));
     }
 
     @Test
-    public void testTerminateWithSkippedStatus() {
-        workflowResource.terminate("w123", "not needed", "SKIPPED");
+    public void testTerminateWithTerminateParentFalse() {
+        workflowResource.terminate("w123", "not needed", false);
         verify(mockWorkflowService, times(1))
-                .terminateWorkflow(eq("w123"), eq("not needed"), eq("SKIPPED"));
+                .terminateWorkflow(eq("w123"), eq("not needed"), eq(false));
     }
 
     @Test

@@ -1070,7 +1070,6 @@ public abstract class AbstractProtoMapper {
             case TIMED_OUT: to = WorkflowPb.Workflow.WorkflowStatus.TIMED_OUT; break;
             case TERMINATED: to = WorkflowPb.Workflow.WorkflowStatus.TERMINATED; break;
             case PAUSED: to = WorkflowPb.Workflow.WorkflowStatus.PAUSED; break;
-            case SKIPPED: to = WorkflowPb.Workflow.WorkflowStatus.SKIPPED; break;
             default: throw new IllegalArgumentException("Unexpected enum constant: " + from);
         }
         return to;
@@ -1085,7 +1084,6 @@ public abstract class AbstractProtoMapper {
             case TIMED_OUT: to = Workflow.WorkflowStatus.TIMED_OUT; break;
             case TERMINATED: to = Workflow.WorkflowStatus.TERMINATED; break;
             case PAUSED: to = Workflow.WorkflowStatus.PAUSED; break;
-            case SKIPPED: to = Workflow.WorkflowStatus.SKIPPED; break;
             default: throw new IllegalArgumentException("Unexpected enum constant: " + from);
         }
         return to;

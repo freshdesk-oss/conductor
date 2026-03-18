@@ -37,8 +37,7 @@ public class Workflow extends Auditable {
         FAILED(true, false),
         TIMED_OUT(true, false),
         TERMINATED(true, false),
-        PAUSED(false, true),
-        SKIPPED(true, true);
+        PAUSED(false, true);
 
         private final boolean terminal;
 

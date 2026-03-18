@@ -126,7 +126,7 @@ public class SubWorkflow extends WorkflowSystemTask {
         if (!subWorkflowStatus.isTerminal()) {
             return false;
         }
-
+        subWorkflow.setTerminateParent(workflow.isTerminateParent());
         updateTaskStatus(subWorkflow, task);
         return true;
     }
@@ -179,10 +179,10 @@ public class SubWorkflow extends WorkflowSystemTask {
                 task.setStatus(TaskModel.Status.FAILED);
                 break;
             case TERMINATED:
-                task.setStatus(TaskModel.Status.CANCELED);
-                break;
-            case SKIPPED:
-                task.setStatus(TaskModel.Status.SKIPPED);
+                task.setStatus(
+                        subworkflow.isTerminateParent()
+                                ? TaskModel.Status.CANCELED
+                                : TaskModel.Status.SKIPPED);
                 break;
             case TIMED_OUT:
                 task.setStatus(TaskModel.Status.TIMED_OUT);

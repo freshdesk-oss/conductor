@@ -286,7 +286,8 @@ public class TestWorkflowRepairService {
 
         WorkflowModel subWorkflow = new WorkflowModel();
         subWorkflow.setWorkflowId(subWorkflowId);
-        subWorkflow.setStatus(WorkflowModel.Status.SKIPPED);
+        subWorkflow.setStatus(WorkflowModel.Status.TERMINATED);
+        subWorkflow.setTerminateParent(false);
         subWorkflow.setOutput(Map.of("k1", "v1"));
 
         when(executionDAO.getWorkflow(subWorkflowId, false)).thenReturn(subWorkflow);

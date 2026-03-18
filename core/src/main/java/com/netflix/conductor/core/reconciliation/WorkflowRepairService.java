@@ -188,10 +188,10 @@ public class WorkflowRepairService {
                 task.setStatus(TaskModel.Status.FAILED);
                 break;
             case TERMINATED:
-                task.setStatus(TaskModel.Status.CANCELED);
-                break;
-            case SKIPPED:
-                task.setStatus(TaskModel.Status.SKIPPED);
+                task.setStatus(
+                        subWorkflow.isTerminateParent()
+                                ? TaskModel.Status.CANCELED
+                                : TaskModel.Status.SKIPPED);
                 break;
             case TIMED_OUT:
                 task.setStatus(TaskModel.Status.TIMED_OUT);

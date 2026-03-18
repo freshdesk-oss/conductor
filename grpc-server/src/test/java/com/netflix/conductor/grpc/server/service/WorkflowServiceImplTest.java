@@ -376,22 +376,22 @@ public class WorkflowServiceImplTest {
 
         verify(workflowService).terminateWorkflow(WORKFLOW_ID, "test reason");
         verify(workflowService, never())
-                .terminateWorkflow(anyString(), anyString(), anyString());
+                .terminateWorkflow(anyString(), anyString(), anyBoolean());
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testTerminateWorkflowWithSkippedStatus() {
+    public void testTerminateWorkflowWithTerminateParentFalse() {
         WorkflowServicePb.TerminateWorkflowRequest req =
                 WorkflowServicePb.TerminateWorkflowRequest.newBuilder()
                         .setWorkflowId(WORKFLOW_ID)
                         .setReason("not needed")
-                        .setStatus("SKIPPED")
+                        .setTerminateParent(false)
                         .build();
 
         workflowServiceImpl.terminateWorkflow(req, mock(StreamObserver.class));
 
         verify(workflowService)
-                .terminateWorkflow(WORKFLOW_ID, "not needed", "SKIPPED");
+                .terminateWorkflow(WORKFLOW_ID, "not needed", false);
     }
 }

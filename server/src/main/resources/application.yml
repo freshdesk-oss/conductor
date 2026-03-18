@@ -7,13 +7,13 @@ event-filter:
             - field: status
               caseType: includes
               operator: contains
-              values: COMPLETED,TERMINATED,FAILED,RUNNING,SKIPPED
+              values: COMPLETED,TERMINATED,FAILED,RUNNING
         task:
           rules:
             - field: status
               caseType: includes
               operator: contains
-              values: CANCELED,COMPLETED_WITH_ERRORS,FAILED,FAILED_WITH_TERMINAL_ERROR,SKIPPED
+              values: CANCELED,COMPLETED_WITH_ERRORS,FAILED,FAILED_WITH_TERMINAL_ERROR
             - field: taskType
               caseType: excludes
               operator: contains

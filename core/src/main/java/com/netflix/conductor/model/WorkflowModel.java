@@ -34,8 +34,7 @@ public class WorkflowModel {
         FAILED(true, false),
         TIMED_OUT(true, false),
         TERMINATED(true, false),
-        PAUSED(false, true),
-        SKIPPED(true, true);
+        PAUSED(false, true);
 
         private final boolean terminal;
         private final boolean successful;
@@ -119,6 +118,18 @@ public class WorkflowModel {
     @JsonIgnore private Map<String, Object> inputPayload = new HashMap<>();
 
     @JsonIgnore private Map<String, Object> outputPayload = new HashMap<>();
+
+    /** Transient flag set at termination time; not persisted. When false, the parent workflow's
+     * sub-task is marked SKIPPED instead of CANCELED, preventing failure from bubbling up. */
+    @JsonIgnore private boolean terminateParent = true;
+
+    public boolean isTerminateParent() {
+        return terminateParent;
+    }
+
+    public void setTerminateParent(boolean terminateParent) {
+        this.terminateParent = terminateParent;
+    }
 
     public Status getPreviousStatus() {
         return previousStatus;

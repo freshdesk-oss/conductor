@@ -213,15 +213,16 @@ public class WorkflowResource {
     @Operation(
             summary = "Terminate workflow execution",
             description =
-                    "Terminates a running workflow. The status parameter controls the terminal state: "
-                            + "TERMINATED (default) cascades failure to parent workflows, "
-                            + "SKIPPED marks the workflow as successfully skipped without cascading failure.")
+                    "Terminates a running workflow. When terminateParent is true (default), the "
+                            + "parent workflow's sub-task is marked CANCELED and failure bubbles up. "
+                            + "When terminateParent is false, the parent sub-task is marked SKIPPED "
+                            + "and the parent workflow continues normally.")
     public void terminate(
             @PathVariable("workflowId") String workflowId,
             @RequestParam(value = "reason", required = false) String reason,
-            @RequestParam(value = "status", defaultValue = "TERMINATED", required = false)
-                    String status) {
-        workflowService.terminateWorkflow(workflowId, reason, status);
+            @RequestParam(value = "terminateParent", defaultValue = "true", required = false)
+                    boolean terminateParent) {
+        workflowService.terminateWorkflow(workflowId, reason, terminateParent);
     }
 
     @Operation(

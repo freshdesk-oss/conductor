@@ -402,9 +402,9 @@ public class WorkflowServiceTest {
 
     @Test
     public void testTerminateWorkflowWithStatus() {
-        workflowService.terminateWorkflow("w123", "not needed", "SKIPPED");
+        workflowService.terminateWorkflow("w123", "not needed", false);
         verify(workflowExecutor, times(1))
-                .terminateWorkflow(eq("w123"), eq("not needed"), eq("SKIPPED"));
+                .terminateWorkflow(eq("w123"), eq("not needed"), eq(false));
     }
 
     @Test
