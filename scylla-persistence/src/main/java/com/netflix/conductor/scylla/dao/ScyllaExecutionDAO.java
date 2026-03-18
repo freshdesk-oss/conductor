@@ -677,7 +677,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
 
             String payload = toJson(workflow);
 
-            if (!isSuccessfulTerminalStatus(prevWorkflow.getStatus())) {
+            if (!prevWorkflow.getStatus().equals(WorkflowModel.Status.COMPLETED)) {
                 if (attemptUpdateWorkflow(workflow, prevWorkflow, payload, correlationId, Boolean.FALSE)) {
                     workflow.setTasks(tasks);
                 } else {
@@ -709,7 +709,7 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         LOGGER.info("Concurrent update detected, update failed for workflow: {} retrying..", workflow.getWorkflowId());
         WorkflowModel retriedWorkflow = getWorkflow(String.valueOf(correlationId), workflow.getWorkflowId());
 
-        if (!isSuccessfulTerminalStatus(retriedWorkflow.getStatus())) {
+        if (!retriedWorkflow.getStatus().equals(WorkflowModel.Status.COMPLETED)) {
             if (attemptUpdateWorkflow(workflow, retriedWorkflow, payload, correlationId, true)) {
                 workflow.setTasks(tasks);
             } else {
@@ -717,10 +717,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
                         workflow.getWorkflowId(), retriedWorkflow.getVersion());
             }
         }
-    }
-
-    private boolean isSuccessfulTerminalStatus(WorkflowModel.Status status) {
-        return status.isTerminal() && status.isSuccessful();
     }
 
     private void handleError(WorkflowModel workflow, DriverException e, String methodName) {
