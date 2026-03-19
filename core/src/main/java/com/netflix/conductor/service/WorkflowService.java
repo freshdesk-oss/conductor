@@ -257,13 +257,13 @@ public interface WorkflowService {
      *
      * @param workflowId WorkflowId of the workflow.
      * @param reason Reason for terminating the workflow.
-     * @param terminateParent When false, the parent workflow's sub-task is marked SKIPPED instead
+     * @param cascadeTermination When false, the parent workflow's sub-task is marked SKIPPED instead
      *     of CANCELED, preventing failure from propagating up.
      */
     void terminateWorkflow(
             @NotEmpty(message = "WorkflowId cannot be null or empty.") String workflowId,
             String reason,
-            boolean terminateParent);
+            boolean cascadeTermination);
 
     /**
      * Search for workflows based on payload and given parameters. Use sort options as sort ASCor

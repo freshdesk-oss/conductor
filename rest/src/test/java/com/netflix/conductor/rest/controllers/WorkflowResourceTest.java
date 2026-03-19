@@ -213,7 +213,7 @@ public class WorkflowResourceTest {
     }
 
     @Test
-    public void testTerminateWithTerminateParentFalse() {
+    public void testTerminateWithCascadeTerminationFalse() {
         workflowResource.terminate("w123", "not needed", false);
         verify(mockWorkflowService, times(1))
                 .terminateWorkflow(eq("w123"), eq("not needed"), eq(false));

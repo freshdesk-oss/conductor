@@ -162,8 +162,8 @@ message ResetWorkflowCallbacksResponse {}
 message TerminateWorkflowRequest {
     string workflow_id = 1;
     string reason = 2;
-    oneof terminate_parent_field {
-        bool terminate_parent = 3;
+    oneof cascade_termination_field {
+        bool cascade_termination = 3;
     }
 }
 

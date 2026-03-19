@@ -381,12 +381,12 @@ public class WorkflowServiceImplTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testTerminateWorkflowWithTerminateParentFalse() {
+    public void testTerminateWorkflowWithCascadeTerminateFalse() {
         WorkflowServicePb.TerminateWorkflowRequest req =
                 WorkflowServicePb.TerminateWorkflowRequest.newBuilder()
                         .setWorkflowId(WORKFLOW_ID)
                         .setReason("not needed")
-                        .setTerminateParent(false)
+                        .setCascadeTermination(false)
                         .build();
 
         workflowServiceImpl.terminateWorkflow(req, mock(StreamObserver.class));

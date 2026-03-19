@@ -276,13 +276,13 @@ public class WorkflowServiceImpl extends WorkflowServiceGrpc.WorkflowServiceImpl
             WorkflowServicePb.TerminateWorkflowRequest req,
             StreamObserver<WorkflowServicePb.TerminateWorkflowResponse> response) {
         try {
-            boolean terminateParent = req.getTerminateParent();
-            if (req.getTerminateParentFieldCase()
-                    == WorkflowServicePb.TerminateWorkflowRequest.TerminateParentFieldCase.TERMINATEPARENTFIELD_NOT_SET) {
+            boolean cascadeTermination = req.getCascadeTermination();
+            if (req.getCascadeTerminationFieldCase()
+                    == WorkflowServicePb.TerminateWorkflowRequest.CascadeTerminationFieldCase.CASCADETERMINATIONFIELD_NOT_SET) {
                 workflowService.terminateWorkflow(req.getWorkflowId(), req.getReason());
             } else {
                 workflowService.terminateWorkflow(
-                        req.getWorkflowId(), req.getReason(), terminateParent);
+                        req.getWorkflowId(), req.getReason(), cascadeTermination);
             }
             response.onNext(WorkflowServicePb.TerminateWorkflowResponse.getDefaultInstance());
             response.onCompleted();

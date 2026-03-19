@@ -2579,7 +2579,7 @@ public class TestWorkflowExecutor {
     }
 
     @Test
-    public void testTerminateWorkflowWithTerminateParentFalse() {
+    public void testTerminateWorkflowWithCascadeTerminateFalse() {
         WorkflowDef def = new WorkflowDef();
         def.setName("test");
 
@@ -2600,7 +2600,7 @@ public class TestWorkflowExecutor {
     }
 
     @Test
-    public void testTerminateWorkflowWithTerminateParentFalseUpdatesParentTaskAsSkipped() {
+    public void testTerminateWorkflowWithCascadeTerminateFalseUpdatesParentTaskAsSkipped() {
         WorkflowDef def = new WorkflowDef();
         def.setName("sub-workflow");
 
@@ -2632,7 +2632,7 @@ public class TestWorkflowExecutor {
     }
 
     @Test
-    public void testTerminateWorkflowWithTerminateParentTrueUpdateParentTaskAsCanceled() {
+    public void testTerminateWorkflowWithCascadeTerminateTrueUpdateParentTaskAsCanceled() {
         WorkflowDef def = new WorkflowDef();
         def.setName("sub-workflow");
 
