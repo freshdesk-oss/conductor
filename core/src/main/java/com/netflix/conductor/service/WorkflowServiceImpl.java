@@ -329,8 +329,8 @@ public class WorkflowServiceImpl implements WorkflowService {
         workflowExecutor.terminateWorkflow(workflowId, reason);
     }
 
-    public void terminateWorkflow(String workflowId, String reason, boolean terminateParent) {
-        workflowExecutor.terminateWorkflow(workflowId, reason, terminateParent);
+    public void terminateWorkflow(String workflowId, String reason, boolean cascadeTermination) {
+        workflowExecutor.terminateWorkflow(workflowId, reason, cascadeTermination);
     }
 
     /**

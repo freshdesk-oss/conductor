@@ -583,14 +583,14 @@ public class WorkflowExecutor {
         terminateWorkflow(workflowId, reason, true);
     }
 
-    public void terminateWorkflow(String workflowId, String reason, boolean terminateParent) {
+    public void terminateWorkflow(String workflowId, String reason, boolean cascadeTermination) {
         WorkflowModel workflow = executionDAOFacade.getWorkflowModel(workflowId, true);
         if (workflow.getStatus().isTerminal()) {
             throw new ConflictException(
                     "Cannot terminate a workflow in terminal state. Current status: "
                             + workflow.getStatus());
         }
-        workflow.setCascadeTermination(terminateParent);
+        workflow.setCascadeTermination(cascadeTermination);
         workflow.setStatus(WorkflowModel.Status.TERMINATED);
         terminateWorkflow(workflow, reason, null);
     }
