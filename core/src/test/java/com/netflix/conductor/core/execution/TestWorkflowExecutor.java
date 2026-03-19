@@ -2595,7 +2595,7 @@ public class TestWorkflowExecutor {
         workflowExecutor.terminateWorkflow("1", "skipping", false);
 
         assertEquals(WorkflowModel.Status.TERMINATED, workflow.getStatus());
-        assertFalse(workflow.isTerminateParent());
+        assertFalse(workflow.isCascadeTermination());
         assertEquals("skipping", workflow.getReasonForIncompletion());
     }
 

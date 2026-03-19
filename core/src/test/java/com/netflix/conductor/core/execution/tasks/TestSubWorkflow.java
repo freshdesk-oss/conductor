@@ -351,7 +351,7 @@ public class TestSubWorkflow {
         assertTrue(task.getReasonForIncompletion().contains("unit3"));
 
         subWorkflowInstance.setStatus(WorkflowModel.Status.TERMINATED);
-        subWorkflowInstance.setTerminateParent(false);
+        subWorkflowInstance.setCascadeTermination(false);
         assertTrue(subWorkflow.execute(workflowInstance, task, workflowExecutor));
         assertEquals(TaskModel.Status.SKIPPED, task.getStatus());
     }

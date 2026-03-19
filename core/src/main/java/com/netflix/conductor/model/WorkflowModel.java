@@ -121,14 +121,14 @@ public class WorkflowModel {
 
     /** Transient flag set at termination time; not persisted. When false, the parent workflow's
      * sub-task is marked SKIPPED instead of CANCELED, preventing failure from bubbling up. */
-    @JsonIgnore private boolean terminateParent = true;
+    @JsonIgnore private boolean cascadeTermination = true;
 
-    public boolean isTerminateParent() {
-        return terminateParent;
+    public boolean isCascadeTermination() {
+        return cascadeTermination;
     }
 
-    public void setTerminateParent(boolean terminateParent) {
-        this.terminateParent = terminateParent;
+    public void setCascadeTermination(boolean cascadeTermination) {
+        this.cascadeTermination = cascadeTermination;
     }
 
     public Status getPreviousStatus() {
