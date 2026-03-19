@@ -220,7 +220,7 @@ public class WorkflowResource {
     public void terminate(
             @PathVariable("workflowId") String workflowId,
             @RequestParam(value = "reason", required = false) String reason,
-            @RequestParam(value = "terminateParent", defaultValue = "true", required = false)
+            @RequestParam(value = "cascadeTermination", defaultValue = "true", required = false)
                     boolean terminateParent) {
         workflowService.terminateWorkflow(workflowId, reason, terminateParent);
     }
