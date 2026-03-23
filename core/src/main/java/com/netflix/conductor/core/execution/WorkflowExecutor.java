@@ -613,7 +613,7 @@ public class WorkflowExecutor {
                             "Unable to acquire lock for parent workflow %s, can't terminate the workflow %s without cascading, try again.",
                             workflow.getParentWorkflowId(), workflow.getWorkflowId());
                     LOGGER.error(lockAcquisitionError);
-                    throw new ConflictException(lockAcquisitionError);
+                    throw new TransientException(lockAcquisitionError);
                 }
                 parentWfLockAcquired = true;
             }
