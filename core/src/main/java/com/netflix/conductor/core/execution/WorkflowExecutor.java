@@ -516,68 +516,73 @@ public class WorkflowExecutor {
     @VisibleForTesting
     WorkflowModel completeWorkflow(WorkflowModel workflow) {
         LOGGER.debug("Completing workflow execution for {}", workflow.getWorkflowId());
+        try {
+            if (workflow.getStatus().equals(WorkflowModel.Status.COMPLETED)) {
+                queueDAO.remove(DECIDER_QUEUE, workflow.getWorkflowId()); // remove from the sweep queue
+                executionDAOFacade.removeFromPendingWorkflow(
+                        workflow.getWorkflowName(), workflow.getWorkflowId());
+                executionDAOFacade.scheduleWorkflowDeletion(workflow.getWorkflowId());
+                LOGGER.debug("Workflow: {} has already been completed.", workflow.getWorkflowId());
+                return workflow;
+            }
 
-        if (workflow.getStatus().equals(WorkflowModel.Status.COMPLETED)) {
+            if (workflow.getStatus().isTerminal()) {
+                String msg =
+                        "Workflow is already in terminal state. Current status: "
+                                + workflow.getStatus();
+                throw new ConflictException(msg);
+            }
+
+            deciderService.updateWorkflowOutput(workflow, null);
+
+            workflow.setStatus(WorkflowModel.Status.COMPLETED);
+
+            // update the failed reference task names
+            List<TaskModel> failedTasks =
+                    workflow.getTasks().stream()
+                            .filter(
+                                    t ->
+                                            FAILED.equals(t.getStatus())
+                                                    || FAILED_WITH_TERMINAL_ERROR.equals(
+                                                            t.getStatus()))
+                            .collect(Collectors.toList());
+
+            workflow.getFailedReferenceTaskNames()
+                    .addAll(
+                            failedTasks.stream()
+                                    .map(TaskModel::getReferenceTaskName)
+                                    .collect(Collectors.toSet()));
+
+            workflow.getFailedTaskNames()
+                    .addAll(
+                            failedTasks.stream()
+                                    .map(TaskModel::getTaskDefName)
+                                    .collect(Collectors.toSet()));
+
+            executionDAOFacade.updateWorkflow(workflow);
+            LOGGER.debug("Completed workflow execution for {}", workflow.getWorkflowId());
+            workflowStatusListener.onWorkflowCompletedIfEnabled(workflow);
+            Monitors.recordWorkflowCompletion(
+                    workflow.getEndTime() - workflow.getCreateTime(),
+                    workflow.getOwnerApp());
+
+            if (workflow.hasParent()) {
+                updateParentWorkflowTask(workflow);
+                LOGGER.info(
+                        "{} updated parent {} task {}",
+                        workflow.toShortString(),
+                        workflow.getParentWorkflowId(),
+                        workflow.getParentWorkflowTaskId());
+                expediteLazyWorkflowEvaluation(workflow.getParentWorkflowId());
+            }
+
             queueDAO.remove(DECIDER_QUEUE, workflow.getWorkflowId()); // remove from the sweep queue
-            executionDAOFacade.removeFromPendingWorkflow(
-                    workflow.getWorkflowName(), workflow.getWorkflowId());
-            LOGGER.debug("Workflow: {} has already been completed.", workflow.getWorkflowId());
+            executionDAOFacade.scheduleWorkflowDeletion(workflow.getWorkflowId());
             return workflow;
+        } finally {
+            executionLockService.releaseLock(workflow.getWorkflowId());
+            executionLockService.deleteLock(workflow.getWorkflowId());
         }
-
-        if (workflow.getStatus().isTerminal()) {
-            String msg =
-                    "Workflow is already in terminal state. Current status: "
-                            + workflow.getStatus();
-            throw new ConflictException(msg);
-        }
-
-        deciderService.updateWorkflowOutput(workflow, null);
-
-        workflow.setStatus(WorkflowModel.Status.COMPLETED);
-
-        // update the failed reference task names
-        List<TaskModel> failedTasks =
-                workflow.getTasks().stream()
-                        .filter(
-                                t ->
-                                        FAILED.equals(t.getStatus())
-                                                || FAILED_WITH_TERMINAL_ERROR.equals(t.getStatus()))
-                        .collect(Collectors.toList());
-
-        workflow.getFailedReferenceTaskNames()
-                .addAll(
-                        failedTasks.stream()
-                                .map(TaskModel::getReferenceTaskName)
-                                .collect(Collectors.toSet()));
-
-        workflow.getFailedTaskNames()
-                .addAll(
-                        failedTasks.stream()
-                                .map(TaskModel::getTaskDefName)
-                                .collect(Collectors.toSet()));
-
-        executionDAOFacade.updateWorkflow(workflow);
-        LOGGER.debug("Completed workflow execution for {}", workflow.getWorkflowId());
-        workflowStatusListener.onWorkflowCompletedIfEnabled(workflow);
-        Monitors.recordWorkflowCompletion(
-                workflow.getEndTime() - workflow.getCreateTime(),
-                workflow.getOwnerApp());
-
-        if (workflow.hasParent()) {
-            updateParentWorkflowTask(workflow);
-            LOGGER.info(
-                    "{} updated parent {} task {}",
-                    workflow.toShortString(),
-                    workflow.getParentWorkflowId(),
-                    workflow.getParentWorkflowTaskId());
-            expediteLazyWorkflowEvaluation(workflow.getParentWorkflowId());
-        }
-        executionDAOFacade.removeWorkflow(workflow);
-
-        executionLockService.releaseLock(workflow.getWorkflowId());
-        executionLockService.deleteLock(workflow.getWorkflowId());
-        return workflow;
     }
 
     public void terminateWorkflow(String workflowId, String reason) {

@@ -92,7 +92,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
     protected final PreparedStatement selectTotalV2Statement;
     protected final PreparedStatement selectTaskV2Statement;
     protected final PreparedStatement selectWorkflowV2Statement;
-    protected final PreparedStatement selectWorkflowWritetimeV2Statement;
     protected final PreparedStatement selectWorkflowWithTasksV2Statement;
     protected final PreparedStatement selectTaskLookupV2Statement;
     protected final PreparedStatement selectShardFromTaskLookupStatement;
@@ -250,9 +249,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
         this.selectWorkflowV2Statement =
                 session.prepare(statements.getSelectWorkflowV2Statement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
-        this.selectWorkflowWritetimeV2Statement =
-                session.prepare(statements.getSelectWorkflowWritetimeV2Statement())
-                        .setConsistencyLevel(properties.getWriteConsistencyLevel());
         this.selectWorkflowWithTasksStatement =
                 session.prepare(statements.getSelectWorkflowWithTasksStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
@@ -877,28 +873,16 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             try {
                 recordCassandraDaoRequests("removeWorkflow", "n/a", workflow.getWorkflowName());
 
-                // updateWorkflow uses LWT (IF version=?), which assigns a server-side Paxos
-                // timestamp that can be ahead of the client clock. A regular DELETE's
-                // client-assigned timestamp may be lower, causing the LWT-written workflow
-                // row to survive the tombstone. Query the actual write timestamp and ensure
-                // the DELETE uses a strictly higher one.
-                long lwtWriteTimestamp = queryWorkflowEntityWriteTimestamp(workflowId, correlationId);
-                long deleteTimestamp = Math.max(
-                        lwtWriteTimestamp + 1,
-                        System.currentTimeMillis() * 1000);
-
                 ResultSet oldTableResultSet = null;
                 if (fallbackToOldWorkflowExecutionTables) {
                     oldTableResultSet = session.execute(
                             deleteWorkflowStatement.bind(
-                                    UUID.fromString(workflowId), correlationId)
-                                    .setDefaultTimestamp(deleteTimestamp));
+                                    UUID.fromString(workflowId), correlationId));
                 }
                 ResultSet v2ResultSet =
                         session.execute(
                                 deleteWorkflowV2Statement.bind(
-                                        UUID.fromString(workflowId), correlationId)
-                                        .setDefaultTimestamp(deleteTimestamp));
+                                        UUID.fromString(workflowId), correlationId));
                 removed = fallbackToOldWorkflowExecutionTables ? (oldTableResultSet.wasApplied() || v2ResultSet.wasApplied()) : v2ResultSet.wasApplied();
             } catch (DriverException e) {
                 Monitors.error(CLASS_NAME, "removeWorkflow");
@@ -910,26 +894,6 @@ public class ScyllaExecutionDAO extends ScyllaBaseDAO
             workflow.getTasks().forEach(this::removeTaskLookup);
         }
         return removed;
-    }
-
-    /**
-     * Queries the WRITETIME of the workflow entity row in workflows_v2.
-     * Used to determine the Paxos-assigned timestamp from LWT updates so that
-     * subsequent deletes can use a strictly higher timestamp.
-     *
-     * @return the write timestamp in microseconds, or 0 if the row does not exist
-     */
-    private long queryWorkflowEntityWriteTimestamp(String workflowId, int correlationId) {
-        try {
-            ResultSet rs = session.execute(
-                    selectWorkflowWritetimeV2Statement.bind(
-                            UUID.fromString(workflowId), correlationId));
-            Row row = rs.one();
-            return (row != null) ? row.getLong("wt") : 0;
-        } catch (Exception e) {
-            LOGGER.warn("Failed to query workflow entity write timestamp for {}", workflowId, e);
-            return 0;
-        }
     }
 
     /**
