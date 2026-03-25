@@ -585,10 +585,8 @@ public class WorkflowExecutor {
 
     public void terminateWorkflow(String workflowId, String reason, boolean cascadeTermination) {
         WorkflowModel workflow = executionDAOFacade.getWorkflowModel(workflowId, true);
-        if (workflow.getStatus().isTerminal()) {
-            throw new ConflictException(
-                    "Cannot terminate a workflow in terminal state. Current status: "
-                            + workflow.getStatus());
+        if (WorkflowModel.Status.COMPLETED.equals(workflow.getStatus())) {
+            throw new ConflictException("Cannot terminate a COMPLETED workflow.");
         }
         workflow.setCascadeTermination(cascadeTermination);
         workflow.setStatus(WorkflowModel.Status.TERMINATED);
