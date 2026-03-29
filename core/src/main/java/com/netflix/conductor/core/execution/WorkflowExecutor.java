@@ -19,7 +19,6 @@ import static com.netflix.conductor.model.TaskModel.Status.FAILED_WITH_TERMINAL_
 import static com.netflix.conductor.model.TaskModel.Status.IN_PROGRESS;
 import static com.netflix.conductor.model.TaskModel.Status.SCHEDULED;
 import static com.netflix.conductor.model.TaskModel.Status.SKIPPED;
-import static com.netflix.conductor.model.TaskModel.Status.COMPLETED_WITH_ERRORS;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -581,10 +580,15 @@ public class WorkflowExecutor {
     }
 
     public void terminateWorkflow(String workflowId, String reason) {
+        terminateWorkflow(workflowId, reason, true);
+    }
+
+    public void terminateWorkflow(String workflowId, String reason, boolean cascadeTermination) {
         WorkflowModel workflow = executionDAOFacade.getWorkflowModel(workflowId, true);
         if (WorkflowModel.Status.COMPLETED.equals(workflow.getStatus())) {
             throw new ConflictException("Cannot terminate a COMPLETED workflow.");
         }
+        workflow.setCascadeTermination(cascadeTermination);
         workflow.setStatus(WorkflowModel.Status.TERMINATED);
         terminateWorkflow(workflow, reason, null);
     }
@@ -597,7 +601,20 @@ public class WorkflowExecutor {
      */
     public WorkflowModel terminateWorkflow(
             WorkflowModel workflow, String reason, String failureWorkflow) {
+        boolean parentWfLockAcquired = false;
         try {
+            if (!workflow.isCascadeTermination() && workflow.hasParent()) {
+                LOGGER.debug("Acquiring lock for parent workflow {} to prevent the sub workflow task status update by other threads.",
+                        workflow.getParentWorkflowId());
+                if (!executionLockService.acquireLock(workflow.getParentWorkflowId(), 60000)) {
+                    String lockAcquisitionError = String.format(
+                            "Unable to acquire lock for parent workflow %s, can't terminate the workflow %s without cascading, try again.",
+                            workflow.getParentWorkflowId(), workflow.getWorkflowId());
+                    LOGGER.error(lockAcquisitionError);
+                    throw new TransientException(lockAcquisitionError);
+                }
+                parentWfLockAcquired = true;
+            }
             executionLockService.acquireLock(workflow.getWorkflowId(), 60000);
 
             if (!workflow.getStatus().isTerminal()) {
@@ -713,6 +730,11 @@ public class WorkflowExecutor {
             }
             return workflow;
         } finally {
+            if (parentWfLockAcquired) {
+                executionLockService.releaseLock(workflow.getParentWorkflowId());
+                executionLockService.deleteLock(workflow.getParentWorkflowId());
+
+            }
             executionLockService.releaseLock(workflow.getWorkflowId());
             executionLockService.deleteLock(workflow.getWorkflowId());
         }

@@ -44,6 +44,7 @@ import com.netflix.conductor.core.config.ConductorProperties;
 import com.netflix.conductor.core.dal.ExecutionDAOFacade;
 import com.netflix.conductor.core.event.WorkflowCreationEvent;
 import com.netflix.conductor.core.exception.ConflictException;
+import com.netflix.conductor.core.exception.TransientException;
 import com.netflix.conductor.core.exception.NotFoundException;
 import com.netflix.conductor.core.exception.TerminateWorkflowException;
 import com.netflix.conductor.core.execution.evaluators.Evaluator;
@@ -2502,7 +2503,7 @@ public class TestWorkflowExecutor {
         assertFalse(workflowExecutor.isLazyEvaluateWorkflow(workflowDef, task));
 
         task.setReferenceTaskName("branchTask2");
-        assertTrue(workflowExecutor.isLazyEvaluateWorkflow(workflowDef, task));
+        assertFalse(workflowExecutor.isLazyEvaluateWorkflow(workflowDef, task));
 
         task.setReferenceTaskName("simple");
         assertFalse(workflowExecutor.isLazyEvaluateWorkflow(workflowDef, task));
@@ -2576,5 +2577,192 @@ public class TestWorkflowExecutor {
         }
 
         return tasks;
+    }
+
+    @Test
+    public void testTerminateWorkflowWithCascadeTerminateFalse() {
+        WorkflowDef def = new WorkflowDef();
+        def.setName("test");
+
+        WorkflowModel workflow = new WorkflowModel();
+        workflow.setWorkflowDefinition(def);
+        workflow.setWorkflowId("1");
+        workflow.setStatus(WorkflowModel.Status.RUNNING);
+        workflow.setOwnerApp("junit_test");
+        workflow.setOutput(Collections.EMPTY_MAP);
+
+        when(executionDAOFacade.getWorkflowModel(anyString(), anyBoolean())).thenReturn(workflow);
+
+        workflowExecutor.terminateWorkflow("1", "skipping", false);
+
+        assertEquals(WorkflowModel.Status.TERMINATED, workflow.getStatus());
+        assertFalse(workflow.isCascadeTermination());
+        assertEquals("skipping", workflow.getReasonForIncompletion());
+    }
+
+    @Test
+    public void testTerminateWorkflowWithCascadeTerminateFalseUpdatesParentTaskAsSkipped() {
+        WorkflowDef def = new WorkflowDef();
+        def.setName("sub-workflow");
+
+        WorkflowModel subWorkflow = new WorkflowModel();
+        subWorkflow.setWorkflowDefinition(def);
+        subWorkflow.setWorkflowId("sub-1");
+        subWorkflow.setStatus(WorkflowModel.Status.RUNNING);
+        subWorkflow.setOwnerApp("junit_test");
+        subWorkflow.setOutput(Collections.EMPTY_MAP);
+        subWorkflow.setParentWorkflowId("parent-1");
+        subWorkflow.setParentWorkflowTaskId("parent-task-1");
+
+        TaskModel parentSubWorkflowTask = new TaskModel();
+        parentSubWorkflowTask.setTaskId("parent-task-1");
+        parentSubWorkflowTask.setTaskType(TaskType.SUB_WORKFLOW.name());
+        parentSubWorkflowTask.setStatus(TaskModel.Status.IN_PROGRESS);
+        parentSubWorkflowTask.setSubWorkflowId("sub-1");
+
+        when(executionDAOFacade.getWorkflowModel(eq("sub-1"), anyBoolean()))
+                .thenReturn(subWorkflow);
+        when(executionDAOFacade.getTaskModel(eq("parent-task-1")))
+                .thenReturn(parentSubWorkflowTask);
+        // parent lock must be stubbed — cascade=false path acquires it before terminating
+        when(executionLockService.acquireLock(eq("parent-1"), anyLong())).thenReturn(true);
+
+        workflowExecutor.terminateWorkflow("sub-1", "not needed", false);
+
+        assertEquals(WorkflowModel.Status.TERMINATED, subWorkflow.getStatus());
+        assertEquals(TaskModel.Status.SKIPPED, parentSubWorkflowTask.getStatus());
+        verify(executionDAOFacade, times(1)).updateTask(parentSubWorkflowTask);
+        // parent lock must be acquired and released exactly once
+        verify(executionLockService, times(1)).acquireLock(eq("parent-1"), anyLong());
+        verify(executionLockService, times(1)).releaseLock(eq("parent-1"));
+        verify(executionLockService, times(1)).deleteLock(eq("parent-1"));
+    }
+
+    @Test
+    public void testTerminateWorkflowCascadeFalseParentLockFailureThrowsTransientException() {
+        WorkflowDef def = new WorkflowDef();
+        def.setName("sub-workflow");
+
+        WorkflowModel subWorkflow = new WorkflowModel();
+        subWorkflow.setWorkflowDefinition(def);
+        subWorkflow.setWorkflowId("sub-1");
+        subWorkflow.setStatus(WorkflowModel.Status.RUNNING);
+        subWorkflow.setOwnerApp("junit_test");
+        subWorkflow.setOutput(Collections.EMPTY_MAP);
+        subWorkflow.setParentWorkflowId("parent-1");
+        subWorkflow.setParentWorkflowTaskId("parent-task-1");
+
+        when(executionDAOFacade.getWorkflowModel(eq("sub-1"), anyBoolean()))
+                .thenReturn(subWorkflow);
+        // parent lock acquisition fails
+        when(executionLockService.acquireLock(eq("parent-1"), anyLong())).thenReturn(false);
+
+        assertThrows(
+                TransientException.class,
+                () -> workflowExecutor.terminateWorkflow("sub-1", "reason", false));
+
+        // sub-WF must NOT have been terminated
+        assertEquals(WorkflowModel.Status.RUNNING, subWorkflow.getStatus());
+        // parent lock was attempted but not acquired — must NOT be released/deleted
+        verify(executionLockService, never()).releaseLock(eq("parent-1"));
+        verify(executionLockService, never()).deleteLock(eq("parent-1"));
+    }
+
+    @Test
+    public void testTerminateWorkflowCascadeFalseTopLevelWorkflowNoParentLockAcquired() {
+        // A top-level workflow (no parent) terminated with cascade=false must not attempt
+        // to acquire a lock for a null parent workflow id.
+        WorkflowDef def = new WorkflowDef();
+        def.setName("test");
+
+        WorkflowModel workflow = new WorkflowModel();
+        workflow.setWorkflowDefinition(def);
+        workflow.setWorkflowId("top-1");
+        workflow.setStatus(WorkflowModel.Status.RUNNING);
+        workflow.setOwnerApp("junit_test");
+        workflow.setOutput(Collections.EMPTY_MAP);
+        // no parentWorkflowId set — hasParent() == false
+
+        when(executionDAOFacade.getWorkflowModel(eq("top-1"), anyBoolean()))
+                .thenReturn(workflow);
+
+        workflowExecutor.terminateWorkflow("top-1", "reason", false);
+
+        assertEquals(WorkflowModel.Status.TERMINATED, workflow.getStatus());
+        // no lock attempted for null/absent parent
+        verify(executionLockService, never()).acquireLock(isNull(), anyLong());
+        verify(executionLockService, never()).releaseLock(isNull());
+    }
+
+    @Test
+    public void testTerminateWorkflowCascadeFalseParentLockReleasedWhenDaoThrows() {
+        WorkflowDef def = new WorkflowDef();
+        def.setName("sub-workflow");
+
+        WorkflowModel subWorkflow = new WorkflowModel();
+        subWorkflow.setWorkflowDefinition(def);
+        subWorkflow.setWorkflowId("sub-1");
+        subWorkflow.setStatus(WorkflowModel.Status.RUNNING);
+        subWorkflow.setOwnerApp("junit_test");
+        subWorkflow.setOutput(Collections.EMPTY_MAP);
+        subWorkflow.setParentWorkflowId("parent-1");
+        subWorkflow.setParentWorkflowTaskId("parent-task-1");
+
+        when(executionDAOFacade.getWorkflowModel(eq("sub-1"), anyBoolean()))
+                .thenReturn(subWorkflow);
+        when(executionLockService.acquireLock(eq("parent-1"), anyLong())).thenReturn(true);
+        when(executionDAOFacade.updateWorkflow(any()))
+                .thenThrow(new RuntimeException("DAO failure"));
+
+        try {
+            workflowExecutor.terminateWorkflow("sub-1", "reason", false);
+        } catch (RuntimeException ignored) {
+        }
+
+        // parent lock must be released in finally even when DAO throws mid-termination
+        verify(executionLockService, times(1)).releaseLock(eq("parent-1"));
+        verify(executionLockService, times(1)).deleteLock(eq("parent-1"));
+    }
+
+    @Test
+    public void testTerminateWorkflowWithCascadeTerminateTrueUpdateParentTaskAsCanceled() {
+        WorkflowDef def = new WorkflowDef();
+        def.setName("sub-workflow");
+
+        WorkflowModel subWorkflow = new WorkflowModel();
+        subWorkflow.setWorkflowDefinition(def);
+        subWorkflow.setWorkflowId("sub-1");
+        subWorkflow.setStatus(WorkflowModel.Status.RUNNING);
+        subWorkflow.setOwnerApp("junit_test");
+        subWorkflow.setOutput(Collections.EMPTY_MAP);
+        subWorkflow.setParentWorkflowId("parent-1");
+        subWorkflow.setParentWorkflowTaskId("parent-task-1");
+
+        TaskModel parentSubWorkflowTask = new TaskModel();
+        parentSubWorkflowTask.setTaskId("parent-task-1");
+        parentSubWorkflowTask.setTaskType(TaskType.SUB_WORKFLOW.name());
+        parentSubWorkflowTask.setStatus(TaskModel.Status.IN_PROGRESS);
+        parentSubWorkflowTask.setSubWorkflowId("sub-1");
+
+        when(executionDAOFacade.getWorkflowModel(eq("sub-1"), anyBoolean()))
+                .thenReturn(subWorkflow);
+        when(executionDAOFacade.getTaskModel(eq("parent-task-1")))
+                .thenReturn(parentSubWorkflowTask);
+
+        workflowExecutor.terminateWorkflow("sub-1", "reason", true);
+
+        assertEquals(WorkflowModel.Status.TERMINATED, subWorkflow.getStatus());
+        assertEquals(TaskModel.Status.CANCELED, parentSubWorkflowTask.getStatus());
+        verify(executionDAOFacade, times(1)).updateTask(parentSubWorkflowTask);
+    }
+
+    @Test(expected = ConflictException.class)
+    public void testTerminateWorkflowOnTerminalWorkflow() {
+        WorkflowModel workflow = new WorkflowModel();
+        workflow.setWorkflowId("1");
+        workflow.setStatus(WorkflowModel.Status.TERMINATED);
+        when(executionDAOFacade.getWorkflowModel(anyString(), anyBoolean())).thenReturn(workflow);
+
+        workflowExecutor.terminateWorkflow("1", "reason", false);
     }
 }

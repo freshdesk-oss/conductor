@@ -210,11 +210,19 @@ public class WorkflowResource {
     }
 
     @DeleteMapping("/{workflowId}")
-    @Operation(summary = "Terminate workflow execution")
+    @Operation(
+            summary = "Terminate workflow execution",
+            description =
+                    "Terminates a running workflow. When cascadeTermination is true (default), the "
+                            + "parent workflow's sub-task is marked CANCELED and failure bubbles up. "
+                            + "When cascadeTermination is false, the parent sub-task is marked SKIPPED "
+                            + "and the parent workflow continues normally.")
     public void terminate(
             @PathVariable("workflowId") String workflowId,
-            @RequestParam(value = "reason", required = false) String reason) {
-        workflowService.terminateWorkflow(workflowId, reason);
+            @RequestParam(value = "reason", required = false) String reason,
+            @RequestParam(value = "cascadeTermination", defaultValue = "true", required = false)
+                    boolean cascadeTermination) {
+        workflowService.terminateWorkflow(workflowId, reason, cascadeTermination);
     }
 
     @Operation(

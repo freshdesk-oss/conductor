@@ -119,6 +119,18 @@ public class WorkflowModel {
 
     @JsonIgnore private Map<String, Object> outputPayload = new HashMap<>();
 
+    /** Transient flag set at termination time; not persisted. When false, the parent workflow's
+     * sub-task is marked SKIPPED instead of CANCELED, preventing failure from bubbling up. */
+    @JsonIgnore private boolean cascadeTermination = true;
+
+    public boolean isCascadeTermination() {
+        return cascadeTermination;
+    }
+
+    public void setCascadeTermination(boolean cascadeTermination) {
+        this.cascadeTermination = cascadeTermination;
+    }
+
     public Status getPreviousStatus() {
         return previousStatus;
     }

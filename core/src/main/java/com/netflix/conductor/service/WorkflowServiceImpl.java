@@ -329,6 +329,10 @@ public class WorkflowServiceImpl implements WorkflowService {
         workflowExecutor.terminateWorkflow(workflowId, reason);
     }
 
+    public void terminateWorkflow(String workflowId, String reason, boolean cascadeTermination) {
+        workflowExecutor.terminateWorkflow(workflowId, reason, cascadeTermination);
+    }
+
     /**
      * Search for workflows based on payload and given parameters. Use sort options as sort ASCor
      * DESC e.g. sort=name or sort=workflowId:DESC. If order is not specified, defaults to ASC.

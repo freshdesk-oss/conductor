@@ -126,7 +126,7 @@ public class SubWorkflow extends WorkflowSystemTask {
         if (!subWorkflowStatus.isTerminal()) {
             return false;
         }
-
+        subWorkflow.setCascadeTermination(workflow.isCascadeTermination());
         updateTaskStatus(subWorkflow, task);
         return true;
     }
@@ -179,7 +179,10 @@ public class SubWorkflow extends WorkflowSystemTask {
                 task.setStatus(TaskModel.Status.FAILED);
                 break;
             case TERMINATED:
-                task.setStatus(TaskModel.Status.CANCELED);
+                task.setStatus(
+                        subworkflow.isCascadeTermination()
+                                ? TaskModel.Status.CANCELED
+                                : TaskModel.Status.SKIPPED);
                 break;
             case TIMED_OUT:
                 task.setStatus(TaskModel.Status.TIMED_OUT);

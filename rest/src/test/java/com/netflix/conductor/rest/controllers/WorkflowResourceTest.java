@@ -35,6 +35,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -206,8 +207,16 @@ public class WorkflowResourceTest {
 
     @Test
     public void testTerminate() {
-        workflowResource.terminate("w123", "test");
-        verify(mockWorkflowService, times(1)).terminateWorkflow(anyString(), anyString());
+        workflowResource.terminate("w123", "test", true);
+        verify(mockWorkflowService, times(1))
+                .terminateWorkflow(eq("w123"), eq("test"), eq(true));
+    }
+
+    @Test
+    public void testTerminateWithCascadeTerminationFalse() {
+        workflowResource.terminate("w123", "not needed", false);
+        verify(mockWorkflowService, times(1))
+                .terminateWorkflow(eq("w123"), eq("not needed"), eq(false));
     }
 
     @Test

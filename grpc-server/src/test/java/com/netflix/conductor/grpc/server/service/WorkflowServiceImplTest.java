@@ -362,4 +362,36 @@ public class WorkflowServiceImplTest {
                 WorkflowPb.Workflow.newBuilder().build(),
                 workflowSearchResult.getResultsList().get(0));
     }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testTerminateWorkflowDefaultStatus() {
+        WorkflowServicePb.TerminateWorkflowRequest req =
+                WorkflowServicePb.TerminateWorkflowRequest.newBuilder()
+                        .setWorkflowId(WORKFLOW_ID)
+                        .setReason("test reason")
+                        .build();
+
+        workflowServiceImpl.terminateWorkflow(req, mock(StreamObserver.class));
+
+        verify(workflowService).terminateWorkflow(WORKFLOW_ID, "test reason");
+        verify(workflowService, never())
+                .terminateWorkflow(anyString(), anyString(), anyBoolean());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testTerminateWorkflowWithCascadeTerminateFalse() {
+        WorkflowServicePb.TerminateWorkflowRequest req =
+                WorkflowServicePb.TerminateWorkflowRequest.newBuilder()
+                        .setWorkflowId(WORKFLOW_ID)
+                        .setReason("not needed")
+                        .setCascadeTermination(false)
+                        .build();
+
+        workflowServiceImpl.terminateWorkflow(req, mock(StreamObserver.class));
+
+        verify(workflowService)
+                .terminateWorkflow(WORKFLOW_ID, "not needed", false);
+    }
 }

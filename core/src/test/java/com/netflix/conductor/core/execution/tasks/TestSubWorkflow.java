@@ -349,6 +349,13 @@ public class TestSubWorkflow {
         assertTrue(subWorkflow.execute(workflowInstance, task, workflowExecutor));
         assertEquals(TaskModel.Status.CANCELED, task.getStatus());
         assertTrue(task.getReasonForIncompletion().contains("unit3"));
+
+        // cascade=false must be set on the PARENT workflow — execute() copies it to the sub-WF
+        // at line 129; setting it only on subWorkflowInstance is immediately overwritten.
+        workflowInstance.setCascadeTermination(false);
+        subWorkflowInstance.setStatus(WorkflowModel.Status.TERMINATED);
+        assertTrue(subWorkflow.execute(workflowInstance, task, workflowExecutor));
+        assertEquals(TaskModel.Status.SKIPPED, task.getStatus());
     }
 
     @Test
