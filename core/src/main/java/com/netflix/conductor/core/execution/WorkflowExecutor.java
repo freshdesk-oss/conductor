@@ -341,6 +341,7 @@ public class WorkflowExecutor {
             parentWorkflow.setStatus(WorkflowModel.Status.RUNNING);
             parentWorkflow.setLastRetriedTime(System.currentTimeMillis());
             executionDAOFacade.updateWorkflow(parentWorkflow);
+            workflowStatusListener.onWorkflowRunning(parentWorkflow);
             expediteLazyWorkflowEvaluation(parentWorkflowId);
 
             workflow = parentWorkflow;
@@ -399,6 +400,7 @@ public class WorkflowExecutor {
                 workflow.getPriority(),
                 properties.getWorkflowOffsetTimeout().getSeconds());
         executionDAOFacade.updateWorkflow(workflow);
+        workflowStatusListener.onWorkflowRunning(workflow);
         LOGGER.info(
                 "Workflow {} that failed due to '{}' was retried",
                 workflow.toShortString(),
@@ -1387,6 +1389,7 @@ public class WorkflowExecutor {
                 workflow.getPriority(),
                 properties.getWorkflowOffsetTimeout().getSeconds());
         executionDAOFacade.updateWorkflow(workflow);
+        workflowStatusListener.onWorkflowRunning(workflow);
         decide(workflowId);
     }
 
