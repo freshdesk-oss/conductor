@@ -13,6 +13,9 @@ LABEL maintainer="Netflix OSS <conductor@netflix.com>"
 COPY . /conductor
 WORKDIR /conductor
 
+# findutils provides xargs, which Gradle needs but the base image lacks
+RUN yum install -y findutils
+
 # Build the server on run
 RUN ./gradlew build -x test --stacktrace
 
