@@ -37,7 +37,7 @@ COPY --from=builder /conductor/server/build/libs/conductor-server-*-boot.jar /ap
 COPY --from=builder /conductor/server/build/libs/$OPENTELEMETRY_JAR_FILE /app/libs
 
 # Required Packages
-RUN yum install -y procps shadow-utils mysql screen nc wget
+RUN yum install -y procps shadow-utils mariadb105 screen nc wget
 RUN yum install python3-pip python3-wheel python3-devel gcc -y
 RUN pip3 install scylla-cqlsh
 
