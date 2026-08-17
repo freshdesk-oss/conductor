@@ -5,7 +5,7 @@
 # ===========================================================================================================
 # 0. Builder stage
 # ===========================================================================================================
-FROM public.ecr.aws/amazoncorretto/amazoncorretto:17 AS builder
+FROM public.ecr.aws/amazoncorretto/amazoncorretto:17-al2 AS builder
 
 LABEL maintainer="Netflix OSS <conductor@netflix.com>"
 
@@ -19,7 +19,7 @@ RUN ./gradlew build -x test --stacktrace
 # ===========================================================================================================
 # 1. Bin stage
 # ===========================================================================================================
-FROM public.ecr.aws/amazoncorretto/amazoncorretto:17
+FROM public.ecr.aws/amazoncorretto/amazoncorretto:17-al2
 
 LABEL maintainer="Netflix OSS <conductor@netflix.com>"
 ENV OPENTELEMETRY_JAR_FILE opentelemetry-javaagent-1.32.1.jar
