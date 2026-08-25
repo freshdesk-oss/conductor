@@ -19,6 +19,7 @@ dependencies {
 
     implementation project(':conductor-rest')
     implementation project(':conductor-core')
+    compileOnly project(':conductor-common')
     implementation project(':conductor-redis-persistence')
     implementation project(':conductor-scylla-persistence')
     implementation project(':conductor-es6-persistence')
@@ -34,6 +35,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.retry:spring-retry'
+
+    // Account-deletion's Freshworks Boot Kafka listener (@CentralListener) and outbound status publish.
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'com.freshworks.boot:freshworks-boot-kafka:1.112.0'
 
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
     implementation 'org.apache.logging.log4j:log4j-web'
