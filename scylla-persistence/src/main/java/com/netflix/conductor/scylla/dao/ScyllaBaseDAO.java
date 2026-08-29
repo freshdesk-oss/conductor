@@ -94,7 +94,9 @@ public abstract class ScyllaBaseDAO {
             if (!initialized) {
                 session.execute(getCreateKeyspaceStatement());
                 session.execute(getCreateWorkflowsTableStatement());
+                session.execute(getCreateWorkflowsTableV2Statement());
                 session.execute(getCreateTaskLookupTableStatement());
+                session.execute(getCreateTaskLookupTableV2Statement());
                 session.execute(getCreateTaskDefLimitTableStatement());
                 session.execute(getCreateWorkflowDefsTableStatement());
                 session.execute(getCreateWorkflowDefsIndexTableStatement());
@@ -105,6 +107,7 @@ public abstract class ScyllaBaseDAO {
                 //Added task_in_progress_v2
                 session.execute(getCreateTaskInProgressTableV2Statement());
                 session.execute(getCreateWorkflowLookupTableStatement());
+                session.execute(getCreateWorkflowLookupTableV2Statement());
                 session.execute(getCreateEventHandlersTableStatement());
                 session.execute(getCreateEventExecutionsTableStatement());
                 LOGGER.info(
@@ -145,8 +148,31 @@ public abstract class ScyllaBaseDAO {
                 .getQueryString();
     }
 
+    private String getCreateWorkflowsTableV2Statement() {
+        return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_WORKFLOWS_V2)
+                .ifNotExists()
+                .addPartitionKey(WORKFLOW_ID_KEY, DataType.uuid())
+                .addPartitionKey(SHARD_ID_KEY, DataType.cint())
+                .addClusteringColumn(ENTITY_KEY, DataType.text())
+                .addClusteringColumn(TASK_ID_KEY, DataType.text())
+                .addColumn(PAYLOAD_KEY, DataType.text())
+                .addColumn(VERSION, DataType.cint())
+                .addStaticColumn(TOTAL_TASKS_KEY, DataType.cint())
+                .addStaticColumn(TOTAL_PARTITIONS_KEY, DataType.cint())
+                .getQueryString();
+    }
+
     private String getCreateTaskLookupTableStatement() {
         return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_TASK_LOOKUP)
+                .ifNotExists()
+                .addPartitionKey(TASK_ID_KEY, DataType.uuid())
+                .addColumn(SHARD_ID_KEY,DataType.cint())
+                .addColumn(WORKFLOW_ID_KEY, DataType.uuid())
+                .getQueryString();
+    }
+
+    private String getCreateTaskLookupTableV2Statement() {
+        return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_TASK_LOOKUP_V2)
                 .ifNotExists()
                 .addPartitionKey(TASK_ID_KEY, DataType.uuid())
                 .addColumn(SHARD_ID_KEY,DataType.cint())
@@ -159,6 +185,14 @@ public abstract class ScyllaBaseDAO {
      */
     private String getCreateWorkflowLookupTableStatement() {
         return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_WORKFLOW_LOOKUP)
+                .ifNotExists()
+                .addPartitionKey(WORKFLOW_ID_KEY, DataType.uuid())
+                .addColumn(SHARD_ID_KEY,DataType.cint())
+                .getQueryString();
+    }
+
+    private String getCreateWorkflowLookupTableV2Statement() {
+        return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_WORKFLOW_LOOKUP_V2)
                 .ifNotExists()
                 .addPartitionKey(WORKFLOW_ID_KEY, DataType.uuid())
                 .addColumn(SHARD_ID_KEY,DataType.cint())

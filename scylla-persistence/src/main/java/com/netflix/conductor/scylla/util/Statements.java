@@ -294,6 +294,35 @@ public class Statements {
                 .value(PAYLOAD_KEY, bindMarker())
                 .getQueryString();
     }
+
+    /**
+     * @return cql query statement to insert a new workflow into the "workflows_v2" table
+     */
+    public String getInsertWorkflowV2Statement() {
+        return QueryBuilder.insertInto(keyspace, TABLE_WORKFLOWS_V2)
+                .value(WORKFLOW_ID_KEY, bindMarker())
+                .value(SHARD_ID_KEY, bindMarker())
+                .value(TASK_ID_KEY, bindMarker())
+                .value(ENTITY_KEY, ENTITY_TYPE_WORKFLOW)
+                .value(PAYLOAD_KEY, bindMarker())
+                .value(TOTAL_TASKS_KEY, bindMarker())
+                .value(TOTAL_PARTITIONS_KEY, bindMarker())
+                .value(VERSION, bindMarker())
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to insert a new task into the "workflows_v2" table
+     */
+    public String getInsertTaskV2Statement() {
+        return QueryBuilder.insertInto(keyspace, TABLE_WORKFLOWS_V2)
+                .value(WORKFLOW_ID_KEY, bindMarker())
+                .value(SHARD_ID_KEY, bindMarker())
+                .value(TASK_ID_KEY, bindMarker())
+                .value(ENTITY_KEY, ENTITY_TYPE_TASK)
+                .value(PAYLOAD_KEY, bindMarker())
+                .getQueryString();
+    }
     /**
      * @return cql query statement to insert a new event execution into the "event_executions" table
      */
@@ -316,6 +345,19 @@ public class Statements {
     public String getSelectWorkflowsByCorrelationIdStatement() {
         return QueryBuilder.select(PAYLOAD_KEY)
                 .from(keyspace, TABLE_WORKFLOWS)
+                .where(eq(SHARD_ID_KEY, bindMarker()))
+                .and(eq(ENTITY_KEY, ENTITY_TYPE_WORKFLOW))
+                .allowFiltering()
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to retrieve all workflows executions from the "workflows_v2"
+     *     table by coorelationId
+     */
+    public String getSelectWorkflowsByCorrelationIdV2Statement() {
+        return QueryBuilder.select(PAYLOAD_KEY)
+                .from(keyspace, TABLE_WORKFLOWS_V2)
                 .where(eq(SHARD_ID_KEY, bindMarker()))
                 .and(eq(ENTITY_KEY, ENTITY_TYPE_WORKFLOW))
                 .allowFiltering()
@@ -433,6 +475,71 @@ public class Statements {
     }
 
     /**
+     * @return cql query statement to retrieve the total_tasks and total_partitions for a workflow
+     *     from the "workflows" table
+     */
+    public String getSelectTotalV2Statement() {
+        return QueryBuilder.select(TOTAL_TASKS_KEY, TOTAL_PARTITIONS_KEY)
+                .from(keyspace, TABLE_WORKFLOWS_V2)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to retrieve a task from the "workflows" table
+     */
+    public String getSelectTaskV2Statement() {
+        return QueryBuilder.select(PAYLOAD_KEY)
+                .from(keyspace, TABLE_WORKFLOWS_V2)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .and(eq(ENTITY_KEY, ENTITY_TYPE_TASK))
+                .and(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to retrieve a workflow (without its tasks) from the "workflows_v2"
+     *     table
+     */
+    public String getSelectWorkflowV2Statement() {
+        return QueryBuilder.select(PAYLOAD_KEY,VERSION)
+                .from(keyspace, TABLE_WORKFLOWS_V2)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .and(eq(ENTITY_KEY, ENTITY_TYPE_WORKFLOW))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to retrieve the WRITETIME of the workflow entity payload
+     *     from the "workflows_v2" table
+     */
+    public String getSelectWorkflowWritetimeV2Statement() {
+        return QueryBuilder.select()
+                .fcall(FUNC_WRITETIME, QueryBuilder.column(PAYLOAD_KEY)).as("wt")
+                .from(keyspace, TABLE_WORKFLOWS_V2)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .and(eq(ENTITY_KEY, ENTITY_TYPE_WORKFLOW))
+                .and(eq(TASK_ID_KEY, ""))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to retrieve a workflow with its tasks from the "workflows_v2" table
+     */
+    public String getSelectWorkflowWithTasksV2Statement() {
+        return QueryBuilder.select()
+                .all()
+                .from(keyspace, TABLE_WORKFLOWS_V2)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
      * @return cql query statement to retrieve the workflow_id for a particular task_id from the
      *     "task_lookup" table
      */
@@ -455,12 +562,45 @@ public class Statements {
     }
 
     /**
+     * @return cql query statement to retrieve the workflow_id for a particular task_id from the
+     *     "task_lookup_v2" table
+     */
+    public String getSelectTaskFromLookupTableV2Statement() {
+        return QueryBuilder.select(WORKFLOW_ID_KEY)
+                .from(keyspace, TABLE_TASK_LOOKUP_V2)
+                .where(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to retrieve the shard_id for a particular task_id from the
+     *     "task_lookup_v2" table
+     */
+    public String getSelectShardFromTaskLookupTableV2Statement() {
+        return QueryBuilder.select(SHARD_ID_KEY)
+                .from(keyspace, TABLE_TASK_LOOKUP_V2)
+                .where(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
      * @return cql query statement to retrieve the shard_id for a particular workflow_id  from the
      *     "workflow_lookup" table
      */
     public String getSelectShardFromWorkflowLookupTableStatement() {
         return QueryBuilder.select(SHARD_ID_KEY)
                 .from(keyspace, TABLE_WORKFLOW_LOOKUP)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to retrieve the shard_id for a particular workflow_id  from the
+     *     "workflow_lookup_v2" table
+     */
+    public String getSelectShardFromWorkflowLookupTableV2Statement() {
+        return QueryBuilder.select(SHARD_ID_KEY)
+                .from(keyspace, TABLE_WORKFLOW_LOOKUP_V2)
                 .where(eq(WORKFLOW_ID_KEY, bindMarker()))
                 .getQueryString();
     }
@@ -533,6 +673,46 @@ public class Statements {
     }
 
     /**
+     * @return cql query statement to update a workflow in the "workflows_v2" table
+     */
+    public String getUpdateWorkflowV2Statement() {
+        return QueryBuilder.update(keyspace, TABLE_WORKFLOWS_V2)
+                .with(set(PAYLOAD_KEY, bindMarker()))
+                .and(set(VERSION, bindMarker()))
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .and(eq(ENTITY_KEY, ENTITY_TYPE_WORKFLOW))
+                .and(eq(TASK_ID_KEY, ""))
+                .onlyIf(eq(VERSION, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to update the total_tasks in a shard for a workflow in the
+     *     "workflows_v2" table
+     */
+    public String getUpdateTotalTasksV2Statement() {
+        return QueryBuilder.update(keyspace, TABLE_WORKFLOWS_V2)
+                .with(set(TOTAL_TASKS_KEY, bindMarker()))
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to update the total_partitions for a workflow in the "workflows_v2"
+     *     table
+     */
+    public String getUpdateTotalPartitionsV2Statement() {
+        return QueryBuilder.update(keyspace, TABLE_WORKFLOWS_V2)
+                .with(set(TOTAL_PARTITIONS_KEY, bindMarker()))
+                .and(set(TOTAL_TASKS_KEY, bindMarker()))
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
      * @return cql query statement to add a new task_id to workflow_id mapping to the "task_lookup"
      *     table
      */
@@ -545,11 +725,34 @@ public class Statements {
     }
 
     /**
+     * @return cql query statement to add a new task_id to workflow_id mapping to the "task_lookup_v2"
+     *     table
+     */
+    public String getUpdateTaskLookupV2Statement() {
+        return QueryBuilder.update(keyspace, TABLE_TASK_LOOKUP_V2)
+                .with(set(WORKFLOW_ID_KEY, bindMarker()))
+                .and(set(SHARD_ID_KEY, bindMarker()))
+                .where(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
      * @return cql query statement to update shard_id to workflow_id mapping to the "workflow_lookup"
      *     table
      */
     public String getUpdateWorkflowLookupStatement() {
         return QueryBuilder.update(keyspace, TABLE_WORKFLOW_LOOKUP)
+                .with(set(SHARD_ID_KEY, bindMarker()))
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to update shard_id to workflow_id mapping to the "workflow_lookup_v2"
+     *     table
+     */
+    public String getUpdateWorkflowLookupV2Statement() {
+        return QueryBuilder.update(keyspace, TABLE_WORKFLOW_LOOKUP_V2)
                 .with(set(SHARD_ID_KEY, bindMarker()))
                 .where(eq(WORKFLOW_ID_KEY, bindMarker()))
                 .getQueryString();
@@ -593,12 +796,34 @@ public class Statements {
     }
 
     /**
+     * @return cql query statement to delete a workflow from the "workflows_v2" table
+     */
+    public String getDeleteWorkflowV2Statement() {
+        return QueryBuilder.delete()
+                .from(keyspace, TABLE_WORKFLOWS_V2)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
      * @return cql query statement to delete a task_id to workflow_id mapping from the "task_lookup"
      *     table
      */
     public String getDeleteTaskLookupStatement() {
         return QueryBuilder.delete()
                 .from(keyspace, TABLE_TASK_LOOKUP)
+                .where(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to delete a task_id to workflow_id mapping from the "task_lookup_v2"
+     *     table
+     */
+    public String getDeleteTaskLookupV2Statement() {
+        return QueryBuilder.delete()
+                .from(keyspace, TABLE_TASK_LOOKUP_V2)
                 .where(eq(TASK_ID_KEY, bindMarker()))
                 .getQueryString();
     }
@@ -615,11 +840,35 @@ public class Statements {
     }
 
     /**
+     * @return cql query statement to delete a workflow_lookup entry from the "workflow_lookup"
+     *     table
+     */
+    public String getDeleteWorkflowLookupV2Statement() {
+        return QueryBuilder.delete()
+                .from(keyspace, TABLE_WORKFLOW_LOOKUP_V2)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
      * @return cql query statement to delete a task from the "workflows" table
      */
     public String getDeleteTaskStatement() {
         return QueryBuilder.delete()
                 .from(keyspace, TABLE_WORKFLOWS)
+                .where(eq(WORKFLOW_ID_KEY, bindMarker()))
+                .and(eq(SHARD_ID_KEY, bindMarker()))
+                .and(eq(ENTITY_KEY, ENTITY_TYPE_TASK))
+                .and(eq(TASK_ID_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to delete a task from the "workflows_v2" table
+     */
+    public String getDeleteTaskV2Statement() {
+        return QueryBuilder.delete()
+                .from(keyspace, TABLE_WORKFLOWS_V2)
                 .where(eq(WORKFLOW_ID_KEY, bindMarker()))
                 .and(eq(SHARD_ID_KEY, bindMarker()))
                 .and(eq(ENTITY_KEY, ENTITY_TYPE_TASK))

@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.conductor.common.metadata.events.EventExecution;
 import com.netflix.conductor.common.metadata.tasks.PollData;
 import com.netflix.conductor.common.metadata.tasks.Task;
+import com.netflix.conductor.common.metadata.tasks.TaskType;
 import com.netflix.conductor.common.metadata.tasks.TaskDef;
 import com.netflix.conductor.common.metadata.tasks.TaskExecLog;
 import com.netflix.conductor.common.run.SearchResult;
@@ -375,8 +376,11 @@ public class ExecutionDAOFacade {
      */
     public void removeWorkflow(String workflowId, boolean archiveWorkflow) {
         WorkflowModel workflow = getWorkflowModelFromDataStore(workflowId, true);
+        removeWorkflow(workflow, archiveWorkflow);
+    }
 
-        executionDAO.removeWorkflow(workflowId);
+    public void removeWorkflow(WorkflowModel workflow, boolean archiveWorkflow) {
+        executionDAO.removeWorkflow(workflow);
         try {
             removeWorkflowIndex(workflow, archiveWorkflow);
         } catch (JsonProcessingException e) {
@@ -401,7 +405,7 @@ public class ExecutionDAOFacade {
                             } catch (Exception e) {
                                 LOGGER.info(
                                         "Error removing task: {} of workflow: {} from {} queue",
-                                        workflowId,
+                                        workflow.getWorkflowId(),
                                         task.getTaskId(),
                                         QueueUtils.getQueueName(task),
                                         e);
@@ -409,9 +413,9 @@ public class ExecutionDAOFacade {
                         });
 
         try {
-            queueDAO.remove(DECIDER_QUEUE, workflowId);
+            queueDAO.remove(DECIDER_QUEUE, workflow.getWorkflowId());
         } catch (Exception e) {
-            LOGGER.info("Error removing workflow: {} from decider queue", workflowId, e);
+            LOGGER.info("Error removing workflow: {} from decider queue", workflow.getWorkflowId(), e);
         }
     }
 
@@ -432,9 +436,17 @@ public class ExecutionDAOFacade {
                                 workflow.getWorkflowId(), workflow.getStatus()));
             }
         } else {
-            // Not archiving, also remove workflow from index
-            indexDAO.asyncRemoveWorkflow(workflow.getWorkflowId());
+            // Delete synchronously so workflow docs do not linger after primary-store deletion.
+            indexDAO.removeWorkflow(workflow.getWorkflowId());
         }
+    }
+
+    public void scheduleWorkflowDeletion(String workflowId) {
+        LOGGER.info("Scheduling workflow for deletion {}", workflowId);
+        scheduledThreadPoolExecutor.schedule(
+                new DeleteWorkflowOnCompletion(workflowId),
+                properties.getAsyncUpdateDelay().getSeconds(),
+                TimeUnit.SECONDS);
     }
 
     public void removeWorkflowWithExpiry(
@@ -602,8 +614,8 @@ public class ExecutionDAOFacade {
                                 task.getTaskId(), workflow.getWorkflowId(), task.getStatus()));
             }
         } else {
-            // Not archiving, remove task from index
-            indexDAO.asyncRemoveTask(workflow.getWorkflowId(), task.getTaskId());
+            // Delete synchronously so task docs do not linger after primary-store deletion.
+            indexDAO.removeTask(workflow.getWorkflowId(), task.getTaskId());
         }
     }
 
@@ -811,10 +823,85 @@ public class ExecutionDAOFacade {
         public void run() {
             try {
                 WorkflowModel workflowModel = executionDAO.getWorkflow(workflowId, false);
+                if (workflowModel == null) {
+                    LOGGER.debug(
+                            "Skipping delayed index update for workflow {} because it no longer exists",
+                            workflowId);
+                    return;
+                }
                 indexDAO.asyncIndexWorkflow(new WorkflowSummary(workflowModel.toWorkflow()));
             } catch (Exception e) {
                 LOGGER.error("Unable to update workflow: {}", workflowId, e);
             }
         }
+    }
+
+    class DeleteWorkflowOnCompletion implements Runnable {
+
+        private final String workflowId;
+
+        DeleteWorkflowOnCompletion(String workflowId) {
+            this.workflowId = workflowId;
+        }
+
+        @Override
+        public void run() {
+            try {
+                WorkflowModel workflow = executionDAO.getWorkflow(workflowId, true);
+                if (workflow == null) {
+                    LOGGER.debug(
+                            "Skipping deletion for workflow {} because it no longer exists",
+                            workflowId);
+                    return;
+                }
+
+                if (isDeletionEligibleAfterCompletion(workflow)) {
+                    deleteCompletedWorkflowHierarchy(workflow);
+                } else {
+                    LOGGER.debug(
+                            "Workflow {} is not eligible for deletion after completion yet",
+                            workflowId);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Unable to delete completed workflow: {}", workflowId, e);
+            }
+        }
+    }
+
+    private boolean isDeletionEligibleAfterCompletion(WorkflowModel workflow) {
+        if (!WorkflowModel.Status.COMPLETED.equals(workflow.getStatus())) {
+            return false;
+        }
+
+        String parentWorkflowId = workflow.getParentWorkflowId();
+        while (StringUtils.isNotBlank(parentWorkflowId)) {
+            WorkflowModel parentWorkflow = executionDAO.getWorkflow(parentWorkflowId, false);
+            if (parentWorkflow == null) {
+                return true;
+            }
+            if (!WorkflowModel.Status.COMPLETED.equals(parentWorkflow.getStatus())) {
+                return false;
+            }
+            parentWorkflowId = parentWorkflow.getParentWorkflowId();
+        }
+        return true;
+    }
+
+    private void deleteCompletedWorkflowHierarchy(WorkflowModel workflow) {
+        workflow.getTasks().stream()
+                .filter(task -> TaskType.TASK_TYPE_SUB_WORKFLOW.equals(task.getTaskType()))
+                .map(TaskModel::getSubWorkflowId)
+                .filter(StringUtils::isNotBlank)
+                .forEach(
+                        subWorkflowId -> {
+                            WorkflowModel subWorkflow = executionDAO.getWorkflow(subWorkflowId, true);
+                            if (subWorkflow != null
+                                    && WorkflowModel.Status.COMPLETED.equals(subWorkflow.getStatus())
+                                    && isDeletionEligibleAfterCompletion(subWorkflow)) {
+                                deleteCompletedWorkflowHierarchy(subWorkflow);
+                            }
+                        });
+
+        removeWorkflow(workflow, false);
     }
 }

@@ -565,9 +565,15 @@ public class CassandraExecutionDAO extends CassandraBaseDAO
     @Override
     public boolean removeWorkflow(String workflowId) {
         WorkflowModel workflow = getWorkflow(workflowId, true);
+        return removeWorkflow(workflow);
+    }
+
+    @Override
+    public boolean removeWorkflow(WorkflowModel workflow) {
         Integer correlationId = Objects.isNull(workflow.getCorrelationId()) ? 0 : Integer.parseInt(workflow.getCorrelationId());
         boolean removed = false;
         if (workflow != null) {
+            String workflowId = workflow.getWorkflowId();
             try {
                 recordCassandraDaoRequests("removeWorkflow", "n/a", workflow.getWorkflowName());
                 ResultSet resultSet =
