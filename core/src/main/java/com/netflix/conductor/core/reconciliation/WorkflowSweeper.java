@@ -12,6 +12,7 @@
  */
 package com.netflix.conductor.core.reconciliation;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Random;
@@ -83,7 +84,18 @@ public class WorkflowSweeper {
             }
 
             workflow = workflowExecutor.decide(workflowId);
+            if (workflow != null && workflow.getCreateTime() < (System.currentTimeMillis() - Duration.ofDays(5).toMillis())) {
+                long ageDays = Duration.between(Instant.ofEpochMilli(workflow.getCreateTime()), Instant.now()).toDays();
+                LOGGER.info("[SWEEPER] Auto-cancelled stuck workflow {} (age: {} days)", workflowId, ageDays);
+                if (!workflow.getStatus().isTerminal()) {
+                    workflowExecutor.terminateWorkflow(workflowId, "Auto-cancelled by sweeper: older than 5 days");
+                }
+                queueDAO.remove(DECIDER_QUEUE, workflowId);
+                return;
+            }
+
             if (workflow != null && workflow.getStatus().isTerminal()) {
+                LOGGER.info("[SWEEPER] Skipped terminal workflow {} (status: {})", workflowId, workflow.getStatus());
                 queueDAO.remove(DECIDER_QUEUE, workflowId);
                 return;
             }
