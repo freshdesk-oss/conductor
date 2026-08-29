@@ -218,14 +218,17 @@ public class WorkflowExecutor {
 
     public boolean registerWorkflow(WorkflowDef workflowDef, boolean overwrite) {
         try {
+            LOGGER.info("^CONDUCTOR^: Starting workflow registration for: " + workflowDef.getName());
             if (overwrite) {
                 metadataClient.updateWorkflowDefs(Arrays.asList(workflowDef));
             } else {
                 metadataClient.registerWorkflowDef(workflowDef);
             }
+            LOGGER.info("^CONDUCTOR^: Workflow registration successful for: " + workflowDef.getName());
             return true;
         } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
+            LOGGER.error("^CONDUCTOR^: Workflow registration failed for: "
+                    + workflowDef.getName() + ", error: " + e.getMessage(), e);
             return false;
         }
     }

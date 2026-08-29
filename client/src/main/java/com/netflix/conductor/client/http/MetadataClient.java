@@ -107,7 +107,11 @@ public class MetadataClient extends ClientBase {
      */
     public void updateWorkflowDefs(List<WorkflowDef> workflowDefs) {
         Validate.notNull(workflowDefs, "Workflow defs list cannot be null");
-        put("metadata/workflow", null, workflowDefs);
+        try {
+            put("metadata/workflow", null, workflowDefs);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while updating workflow definitions", e);
+        }
     }
 
     /**
