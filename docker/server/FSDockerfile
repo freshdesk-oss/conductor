@@ -13,6 +13,11 @@ LABEL maintainer="Netflix OSS <conductor@netflix.com>"
 COPY . /conductor
 WORKDIR /conductor
 
+ARG NEXUS_USERNAME
+ARG NEXUS_PASSWORD
+ENV NEXUS_USERNAME=$NEXUS_USERNAME
+ENV NEXUS_PASSWORD=$NEXUS_PASSWORD
+
 # Build the server on run
 RUN ./gradlew build -x test --stacktrace
 
