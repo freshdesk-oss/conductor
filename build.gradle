@@ -1,3 +1,4 @@
+import org.gradle.authentication.http.BasicAuthentication
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 buildscript {
@@ -40,6 +41,9 @@ plugins {
 ext.githubProjectName = rootProject.name // Change if github project name is not the same as the root project's name
 version = '3.15.0-FS'
 
+def nexusUsername = System.getenv('NEXUS_USERNAME')
+def nexusPassword = System.getenv('NEXUS_PASSWORD')
+
 subprojects {
     tasks.withType(Javadoc).all { enabled = false }
 }
@@ -67,6 +71,18 @@ allprojects {
 
     repositories {
         mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url "https://repo.maven.apache.org/maven2" }
+        maven {
+            url = "https://nexuscentral.runwayci.com/repository/maven-releases/"
+            credentials {
+                username = nexusUsername
+                password = nexusPassword
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+        }
 
         // oss-candidate for -rc.* verions:
         maven {
