@@ -1,11 +1,7 @@
 package com.netflix.conductor.freshworks.deletion.config;
 
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
-import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -19,11 +15,9 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
-import org.springframework.retry.support.RetryTemplate;
 
 import com.freshworks.boot.common.AccountFetcher;
 import com.freshworks.boot.common.context.account.IAccount;
-import com.netflix.conductor.core.exception.TransientException;
 import com.netflix.conductor.freshworks.deletion.model.AccountDeletionStatusPayload;
 import com.netflix.conductor.freshworks.deletion.model.CentralPayload;
 
@@ -35,25 +29,6 @@ import com.netflix.conductor.freshworks.deletion.model.CentralPayload;
 @EnableConfigurationProperties(AccountDeletionProperties.class)
 @ConditionalOnProperty(name = "conductor.account-deletion.enabled", havingValue = "true")
 public class AccountDeletionConfiguration {
-
-    @Bean
-    public RetryTemplate accountDeletionRetryTemplate(AccountDeletionProperties properties) {
-        return RetryTemplate.builder()
-                .maxAttempts(properties.getRetry().getMaxAttempts())
-                .retryOn(TransientException.class)
-                .noBackoff()
-                .build();
-    }
-
-    @Bean(destroyMethod = "shutdown")
-    public ExecutorService accountDeletionExecutor(AccountDeletionProperties properties) {
-        ThreadFactory threadFactory =
-                new BasicThreadFactory.Builder()
-                        .namingPattern("account-deletion-%d")
-                        .daemon(true)
-                        .build();
-        return Executors.newFixedThreadPool(properties.getPurgeThreads(), threadFactory);
-    }
 
     /**
      * Publishing reuses the {@code spring.kafka.consumer.*} connection (bootstrap servers, SASL)

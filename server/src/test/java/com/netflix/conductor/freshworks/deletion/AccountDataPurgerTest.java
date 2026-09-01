@@ -4,16 +4,16 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.retry.support.RetryTemplate;
 
 import com.netflix.conductor.common.run.Workflow;
 import com.netflix.conductor.core.dal.ExecutionDAOFacade;
-import com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties;
+import com.netflix.conductor.core.exception.TransientException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -22,15 +22,12 @@ import static org.mockito.Mockito.when;
 class AccountDataPurgerTest {
 
     private final ExecutionDAOFacade facade = mock(ExecutionDAOFacade.class);
-    private final AccountDeletionProperties properties = new AccountDeletionProperties();
-    private final AccountDataPurger purger =
-            new AccountDataPurger(facade, RetryTemplate.builder().maxAttempts(1).build(), properties);
+    private final AccountDataPurger purger = new AccountDataPurger(facade);
 
     @Test
-    void enumeratesAndHardDeletesEveryWorkflowUntilEmpty() {
+    void enumeratesAndHardDeletesEveryWorkflow() {
         when(facade.getWorkflowsByCorrelationId(isNull(), eq("5001"), eq(false)))
-                .thenReturn(List.of(workflow("w1"), workflow("w2")))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(List.of(workflow("w1"), workflow("w2")));
 
         int deleted = purger.purge("5001", "req-1", "trace-1");
 
@@ -49,14 +46,15 @@ class AccountDataPurgerTest {
     }
 
     @Test
-    void throwsWhenDataRemainsAfterPassBudget() {
-        properties.setMaxPurgePasses(2);
-        // Always returns one workflow → never converges.
+    void propagatesFailureSoKafkaRedeliveryCanRetry() {
         when(facade.getWorkflowsByCorrelationId(isNull(), eq("5001"), eq(false)))
                 .thenReturn(List.of(workflow("w1")));
+        doThrow(new TransientException("scylla timeout"))
+                .when(facade)
+                .removeWorkflow("w1", false);
 
         assertThrows(
-                IllegalStateException.class, () -> purger.purge("5001", "req-1", "trace-1"));
+                TransientException.class, () -> purger.purge("5001", "req-1", "trace-1"));
     }
 
     private static Workflow workflow(String id) {

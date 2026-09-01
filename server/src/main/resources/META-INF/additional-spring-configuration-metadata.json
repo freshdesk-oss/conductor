@@ -41,32 +41,11 @@
       "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties"
     },
     {
-      "name": "conductor.account-deletion.purge-threads",
-      "type": "java.lang.Integer",
-      "description": "Number of threads used to run account purges asynchronously.",
-      "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties",
-      "defaultValue": 2
-    },
-    {
-      "name": "conductor.account-deletion.max-purge-passes",
-      "type": "java.lang.Integer",
-      "description": "Max enumerate-then-delete passes before a purge is considered incomplete.",
-      "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties",
-      "defaultValue": 5
-    },
-    {
       "name": "conductor.account-deletion.status-topic",
       "type": "java.lang.String",
       "description": "Kafka topic that ACCOUNT_DELETION_STATUS events are published to.",
       "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties",
       "defaultValue": "account-deletion-notifications"
-    },
-    {
-      "name": "conductor.account-deletion.retry.max-attempts",
-      "type": "java.lang.Integer",
-      "description": "Retry attempts for transient failures during deletion and status publishing.",
-      "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties$Retry",
-      "defaultValue": 3
     }
   ],
   "hints": [
