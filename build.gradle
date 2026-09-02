@@ -117,6 +117,14 @@ allprojects {
                 includeGroupByRegex "com\\.github\\.vmg.*"
             }
         }
+
+        maven {
+            url "https://nexuscentral.runwayci.com/repository/maven-public/"
+            credentials {
+                username = project.findProperty("nexusUsername") ?: System.getenv("NEXUS_USERNAME")
+                password = project.findProperty("nexusPassword") ?: System.getenv("NEXUS_PASSWORD")
+            }
+        }
     }
 
     dependencyManagement {
