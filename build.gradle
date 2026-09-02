@@ -3,9 +3,6 @@ import org.springframework.boot.gradle.plugin.SpringBootPlugin
 buildscript {
     def nexusUsername = System.getenv('NEXUS_USERNAME')
     def nexusPassword = System.getenv('NEXUS_PASSWORD')
-    println "nexusCOnfig"
-    println nexusUsername
-    println nexusPassword
 
     repositories {
         mavenCentral()
