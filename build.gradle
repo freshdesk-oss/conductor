@@ -65,12 +65,26 @@ allprojects {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
     }
 
+    def nexusUsername = System.getenv('NEXUS_USER')
+    def nexusPassword = System.getenv('NEXUS_PASS')
+
     repositories {
         mavenCentral()
 
         // oss-candidate for -rc.* verions:
         maven {
             url "https://artifactory-oss.prod.netflix.net/artifactory/maven-oss-candidates"
+        }
+
+        maven {
+            url = "https://nexuscentral.runwayci.com/repository/maven-public/"
+            credentials {
+                username = nexusUsername
+                password = nexusPassword
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
         }
 
         /**
