@@ -9,25 +9,28 @@ import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.util.concurrent.SettableListenableFuture;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.freshworks.boot.messaging.KafkaMessageKey;
+import com.freshworks.boot.sdk.kafka.model.CentralData;
+import com.freshworks.boot.sdk.kafka.model.CentralPayload;
+import com.freshworks.boot.sdk.kafka.service.KafkaPublisher;
 import com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties;
 import com.netflix.conductor.freshworks.deletion.model.AccountDeletionRequestedEvent;
 import com.netflix.conductor.freshworks.deletion.model.AccountDeletionStatusPayload;
-import com.netflix.conductor.freshworks.deletion.model.CentralData;
-import com.netflix.conductor.freshworks.deletion.model.CentralPayload;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AccountDeletionStatusPublisherTest {
 
-    private final CentralKafkaPublisher kafkaPublisher = mock(CentralKafkaPublisher.class);
+    @SuppressWarnings("unchecked")
+    private final KafkaPublisher<KafkaMessageKey, CentralPayload<AccountDeletionStatusPayload>>
+            kafkaPublisher = mock(KafkaPublisher.class);
     private final AccountDeletionProperties properties = new AccountDeletionProperties();
     private final AccountDeletionStatusPublisher publisher =
             new AccountDeletionStatusPublisher(kafkaPublisher, properties);
@@ -36,24 +39,20 @@ class AccountDeletionStatusPublisherTest {
     @Test
     void buildsEnvelopeAndPayloadFromEvent() {
         properties.setService("conductor");
-        properties.setRegion("us-east-1");
-        properties.setPod("pod-1");
 
-        when(kafkaPublisher.publish(eq("5001"), any())).thenReturn(completedSendResult());
+        when(kafkaPublisher.publish(any())).thenReturn(completedSendResult());
 
         publisher.publish(DeletionStatus.SUCCESS, event(), "done", "trace-1");
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<CentralPayload<AccountDeletionStatusPayload>> captor =
                 ArgumentCaptor.forClass(CentralPayload.class);
-        verify(kafkaPublisher).publish(eq("5001"), captor.capture());
+        verify(kafkaPublisher).publish(captor.capture());
 
         CentralData<AccountDeletionStatusPayload> data = captor.getValue().getData();
         assertEquals("ACCOUNT_DELETION_STATUS", data.getPayloadType());
         assertEquals("2.0", data.getPayloadVersion());
         assertEquals("5001", data.getAccountId()); // envelope account_id = product_account_id
-        assertEquals("us-east-1", data.getRegion());
-        assertEquals("pod-1", data.getPod());
 
         AccountDeletionStatusPayload payload = data.getPayload();
         assertEquals("ACCOUNT_DELETION_STATUS", payload.getEventType());
@@ -79,11 +78,11 @@ class AccountDeletionStatusPublisherTest {
         assertFalse(json.contains("message"));
     }
 
-    private static ListenableFuture<SendResult<String, CentralPayload<AccountDeletionStatusPayload>>>
+    private static ListenableFuture<SendResult<KafkaMessageKey, CentralPayload<AccountDeletionStatusPayload>>>
             completedSendResult() {
         RecordMetadata metadata =
                 new RecordMetadata(new TopicPartition("account-deletion-notifications", 0), 0, 0, 0, 0, 0);
-        SettableListenableFuture<SendResult<String, CentralPayload<AccountDeletionStatusPayload>>> future =
+        SettableListenableFuture<SendResult<KafkaMessageKey, CentralPayload<AccountDeletionStatusPayload>>> future =
                 new SettableListenableFuture<>();
         future.set(new SendResult<>(null, metadata));
         return future;

@@ -7,18 +7,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import com.freshworks.boot.messaging.KafkaMessageKey;
+import com.freshworks.boot.sdk.kafka.model.CentralData;
+import com.freshworks.boot.sdk.kafka.model.CentralPayload;
+import com.freshworks.boot.sdk.kafka.service.KafkaPublisher;
 import com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties;
 import com.netflix.conductor.freshworks.deletion.model.AccountDeletionRequestedEvent;
 import com.netflix.conductor.freshworks.deletion.model.AccountDeletionStatusPayload;
-import com.netflix.conductor.freshworks.deletion.model.CentralData;
-import com.netflix.conductor.freshworks.deletion.model.CentralPayload;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 import com.netflix.conductor.metrics.Monitors;
 
 /**
  * Builds and publishes {@code ACCOUNT_DELETION_STATUS} events to Central for each stage of an
- * account purge. A publish failure is logged (and counted) but never propagated so it cannot crash
- * the purge worker; a missing terminal status is caught by Baikal SLA monitoring.
+ * account purge, via {@code freshworks-boot-central-kafka-sdk}'s {@link KafkaPublisher}. A publish
+ * failure is logged (and counted) but never propagated so it cannot crash the purge worker; a
+ * missing terminal status is caught by Baikal SLA monitoring.
  */
 @Component
 @ConditionalOnProperty(name = "conductor.account-deletion.enabled", havingValue = "true")
@@ -28,11 +31,14 @@ public class AccountDeletionStatusPublisher {
             LoggerFactory.getLogger(AccountDeletionStatusPublisher.class);
     private static final String PAYLOAD_VERSION = "2.0";
 
-    private final CentralKafkaPublisher kafkaPublisher;
+    private final KafkaPublisher<KafkaMessageKey, CentralPayload<AccountDeletionStatusPayload>>
+            kafkaPublisher;
     private final AccountDeletionProperties properties;
 
     public AccountDeletionStatusPublisher(
-            CentralKafkaPublisher kafkaPublisher, AccountDeletionProperties properties) {
+            KafkaPublisher<KafkaMessageKey, CentralPayload<AccountDeletionStatusPayload>>
+                    kafkaPublisher,
+            AccountDeletionProperties properties) {
         this.kafkaPublisher = kafkaPublisher;
         this.properties = properties;
     }
@@ -46,7 +52,7 @@ public class AccountDeletionStatusPublisher {
             CentralPayload<AccountDeletionStatusPayload> payload =
                     buildPayload(status, event, message);
             kafkaPublisher
-                    .publish(event.getProductAccountId(), payload)
+                    .publish(payload)
                     .addCallback(
                             result -> {
                                 LOGGER.info(
@@ -97,6 +103,12 @@ public class AccountDeletionStatusPublisher {
         }
     }
 
+    /**
+     * {@code region}/{@code pod} are intentionally left unset on the envelope here — {@link
+     * KafkaPublisher}'s {@code DefaultKafkaPublisher} auto-fills both from {@code
+     * freshworks.boot.kafka.producer.region}/{@code .pod} when null, so there's no need to
+     * duplicate that config under {@code conductor.account-deletion.*} as well.
+     */
     private CentralPayload<AccountDeletionStatusPayload> buildPayload(
             DeletionStatus status, AccountDeletionRequestedEvent event, String message) {
         AccountDeletionStatusPayload payload = new AccountDeletionStatusPayload();
@@ -112,16 +124,16 @@ public class AccountDeletionStatusPublisher {
         payload.setTimestamp(Instant.now().toString());
         payload.setMessage(message);
 
-        CentralData<AccountDeletionStatusPayload> data = new CentralData<>();
-        data.setAccountId(event.getProductAccountId());
-        data.setRegion(properties.getRegion());
-        data.setOrganisationId(event.getOrganisationId());
-        data.setProductId(event.getProductId());
-        data.setBundleId(event.getBundleId());
-        data.setPod(properties.getPod());
-        data.setPayloadType(AccountDeletionStatusPayload.EVENT_TYPE);
-        data.setPayloadVersion(PAYLOAD_VERSION);
-        data.setPayload(payload);
+        CentralData<AccountDeletionStatusPayload> data =
+                CentralData.<AccountDeletionStatusPayload>builder()
+                        .accountId(event.getProductAccountId())
+                        .organisationId(event.getOrganisationId())
+                        .productId(event.getProductId())
+                        .bundleId(event.getBundleId())
+                        .payloadType(AccountDeletionStatusPayload.EVENT_TYPE)
+                        .payloadVersion(PAYLOAD_VERSION)
+                        .payload(payload)
+                        .build();
         return new CentralPayload<>(data);
     }
 }

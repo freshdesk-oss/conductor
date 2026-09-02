@@ -27,25 +27,6 @@
       "type": "java.lang.String",
       "description": "This service's FreshID-registered service name, emitted in the ACCOUNT_DELETION_STATUS payload.",
       "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties"
-    },
-    {
-      "name": "conductor.account-deletion.pod",
-      "type": "java.lang.String",
-      "description": "Deployment pod forwarded to the collector envelope.",
-      "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties"
-    },
-    {
-      "name": "conductor.account-deletion.region",
-      "type": "java.lang.String",
-      "description": "Deployment region forwarded to the collector envelope.",
-      "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties"
-    },
-    {
-      "name": "conductor.account-deletion.status-topic",
-      "type": "java.lang.String",
-      "description": "Kafka topic that ACCOUNT_DELETION_STATUS events are published to.",
-      "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties",
-      "defaultValue": "account-deletion-notifications"
     }
   ],
   "hints": [
