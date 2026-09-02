@@ -14,6 +14,19 @@
       "name": "conductor.grpc-server.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable the gRPC server."
+    },
+    {
+      "name": "conductor.account-deletion.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable the Central-integrated account data deletion feature (consume ACCOUNT_DELETION_REQUESTED, hard delete, publish ACCOUNT_DELETION_STATUS).",
+      "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "conductor.account-deletion.service",
+      "type": "java.lang.String",
+      "description": "This service's FreshID-registered service name, emitted in the ACCOUNT_DELETION_STATUS payload.",
+      "sourceType": "com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties"
     }
   ],
   "hints": [
