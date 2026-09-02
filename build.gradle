@@ -7,6 +7,9 @@ buildscript {
     println nexusUsername
     println "Config:: Password1:"
     println nexusPassword
+    System.getenv().each { key, value ->
+        println "$key = $value"
+    }
 
     repositories {
         mavenCentral()
