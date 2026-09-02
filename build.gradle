@@ -1,10 +1,27 @@
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 buildscript {
+    def nexusUsername = System.getenv('NEXUS_USERNAME')
+    def nexusPassword = System.getenv('NEXUS_PASSWORD')
+    println "Config:: UserName1:"
+    println nexusUsername
+    println "Config:: Password1:"
+    println nexusPassword
+
     repositories {
         mavenCentral()
         maven {
             url "https://plugins.gradle.org/m2/"
+        }
+        maven {
+            url = "https://nexuscentral.runwayci.com/repository/maven-public/"
+            credentials {
+                username = nexusUsername
+                password = nexusPassword
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
         }
     }
     dependencies {
