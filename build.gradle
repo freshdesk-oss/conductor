@@ -67,6 +67,10 @@ allprojects {
 
     def nexusUsername = System.getenv('NEXUS_USERNAME')
     def nexusPassword = System.getenv('NEXUS_PASSWORD')
+    println "Config:: UserName:"
+    println nexusUsername
+    println "Config:: Password:"
+    println nexusPassword
 
     repositories {
         mavenCentral()
