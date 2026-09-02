@@ -1,15 +1,11 @@
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 buildscript {
-    def nexusUsername = System.getenv('NEXUS_USER')
-    def nexusPassword = System.getenv('NEXUS_PASS')
-    println "Config:: UserName1:"
+    def nexusUsername = System.getenv('NEXUS_USERNAME')
+    def nexusPassword = System.getenv('NEXUS_PASSWORD')
+    println "nexusCOnfig"
     println nexusUsername
-    println "Config:: Password1:"
     println nexusPassword
-    System.getenv().each { key, value ->
-        println "$key = $value"
-    }
 
     repositories {
         mavenCentral()
@@ -85,12 +81,8 @@ allprojects {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
     }
 
-    def nexusUsername = System.getenv('NEXUS_USER')
-    def nexusPassword = System.getenv('NEXUS_PASS')
-    println "Config:: UserName:"
-    println nexusUsername
-    println "Config:: Password:"
-    println nexusPassword
+    def nexusUsername = System.getenv('NEXUS_USERNAME')
+    def nexusPassword = System.getenv('NEXUS_PASSWORD')
 
     repositories {
         mavenCentral()
