@@ -23,7 +23,6 @@ class DataDeletionFullWiringTest {
 
     private final ApplicationContextRunner contextRunner =
             new ApplicationContextRunner()
-                    .withPropertyValues("conductor.data-deletion.enabled=true")
                     .withConfiguration(
                             org.springframework.boot.autoconfigure.AutoConfigurations.of(
                                     KafkaAutoConfiguration.class, CentralKafkaProducerConfig.class))
@@ -34,7 +33,7 @@ class DataDeletionFullWiringTest {
                             DataDeletionStatusPublisher.class);
 
     @Test
-    void bootsWithDataDeletionEnabled() {
+    void bootsWithDataDeletionWiring() {
         contextRunner.run(
                 context -> {
                     assertThat(context).hasNotFailed();

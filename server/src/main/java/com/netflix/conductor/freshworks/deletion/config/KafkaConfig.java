@@ -5,7 +5,6 @@ import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_
 
 import java.util.Map;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,8 +23,8 @@ import com.freshworks.boot.sdk.kafka.util.ProducerHelper;
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionStatusPayload;
 
 /**
- * Kafka producer wiring for the account deletion feature, gated on the same {@code
- * conductor.data-deletion.enabled=true} flag as {@link DataDeletionConfiguration}.
+ * Kafka producer wiring for the account deletion feature, always active alongside {@link
+ * DataDeletionConfiguration}.
  *
  * <p>{@code freshworks-boot-central-kafka-sdk}'s own {@code kafkaTemplate}/{@code kafkaPublisher}
  * beans come from generic {@code CentralKafkaProducerConfig} factory methods (<code>{@literal <P>}
@@ -45,7 +44,6 @@ import com.netflix.conductor.freshworks.deletion.model.DataDeletionStatusPayload
  * properties.
  */
 @Configuration
-@ConditionalOnProperty(name = "conductor.data-deletion.enabled", havingValue = "true")
 public class KafkaConfig {
 
     @Bean

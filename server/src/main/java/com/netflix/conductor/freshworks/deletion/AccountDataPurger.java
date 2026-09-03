@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.netflix.conductor.common.run.Workflow;
@@ -20,7 +19,6 @@ import com.netflix.conductor.core.dal.ExecutionDAOFacade;
  * finds nothing and succeeds.
  */
 @Component
-@ConditionalOnProperty(name = "conductor.data-deletion.enabled", havingValue = "true")
 public class AccountDataPurger {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AccountDataPurger.class);

@@ -6,19 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("conductor.data-deletion")
 public class DataDeletionProperties {
 
-    /** Enables the account deletion consume/delete/publish feature. */
-    private boolean enabled = false;
-
     /** This service's FreshID-registered service name, emitted in the status payload. */
     private String service = "conductor";
-
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
 
     public String getService() {
         return service;

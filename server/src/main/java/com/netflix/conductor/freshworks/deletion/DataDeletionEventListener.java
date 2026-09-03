@@ -3,7 +3,6 @@ package com.netflix.conductor.freshworks.deletion;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import com.freshworks.boot.kafka.CentralListener;
@@ -18,7 +17,6 @@ import io.opentelemetry.api.trace.Span;
  * {@link CentralListener}'s {@code messageSelectors} routes only this event type to this method.
  */
 @Service
-@ConditionalOnProperty(name = "conductor.data-deletion.enabled", havingValue = "true")
 public class DataDeletionEventListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DataDeletionEventListener.class);

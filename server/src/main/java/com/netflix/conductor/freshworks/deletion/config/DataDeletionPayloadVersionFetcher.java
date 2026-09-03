@@ -5,10 +5,8 @@ import org.springframework.stereotype.Component;
 import com.freshworks.boot.sdk.kafka.service.PayloadVersionFetcher;
 
 /**
- * Registered unconditionally (not gated on {@code conductor.data-deletion.enabled}), because
  * {@code freshworks-boot-central-kafka-sdk}'s producer auto-configuration requires a
- * {@link PayloadVersionFetcher} bean to exist at startup regardless of whether the feature is
- * enabled. Without it, the app would fail to boot whenever data-deletion is disabled.
+ * {@link PayloadVersionFetcher} bean to exist at startup, so this must always be registered.
  *
  * <p>{@link com.netflix.conductor.freshworks.deletion.DataDeletionStatusPublisher} always sets
  * {@code payloadVersion} explicitly on the payload it builds, so this fetcher is only consulted as

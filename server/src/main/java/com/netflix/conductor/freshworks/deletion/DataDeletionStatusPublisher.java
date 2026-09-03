@@ -4,7 +4,6 @@ import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.freshworks.boot.messaging.KafkaMessageKey;
@@ -24,7 +23,6 @@ import com.netflix.conductor.metrics.Monitors;
  * missing terminal status is caught by Baikal SLA monitoring.
  */
 @Component
-@ConditionalOnProperty(name = "conductor.data-deletion.enabled", havingValue = "true")
 public class DataDeletionStatusPublisher {
 
     private static final Logger LOGGER =

@@ -2,7 +2,6 @@ package com.netflix.conductor.freshworks.deletion;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
@@ -17,7 +16,6 @@ import com.netflix.conductor.metrics.Monitors;
  * retry.
  */
 @Component
-@ConditionalOnProperty(name = "conductor.data-deletion.enabled", havingValue = "true")
 public class DataDeletionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DataDeletionService.class);
