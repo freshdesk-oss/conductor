@@ -5,5 +5,6 @@ public enum DeletionStatus {
     QUEUED,
     STARTED,
     SUCCESS,
-    FAILURE
+    FAILURE,
+    NOT_FOUND
 }

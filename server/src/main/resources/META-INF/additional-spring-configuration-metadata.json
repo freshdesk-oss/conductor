@@ -20,6 +20,18 @@
       "type": "java.lang.String",
       "description": "This service's FreshID-registered service name, emitted in the ACCOUNT_DELETION_STATUS payload.",
       "sourceType": "com.netflix.conductor.freshworks.deletion.config.DataDeletionProperties"
+    },
+    {
+      "name": "conductor.product",
+      "type": "java.lang.String",
+      "description": "The product this Conductor instance serves. Inbound ACCOUNT_DELETION_REQUESTED events for any other product are ignored.",
+      "defaultValue": "freshservice"
+    },
+    {
+      "name": "freshid.service.name",
+      "type": "java.lang.String",
+      "description": "FreshID's service name, used as the message-selector prefix for the ACCOUNT_DELETION_REQUESTED Kafka event.",
+      "defaultValue": "freshidv2"
     }
   ],
   "hints": [

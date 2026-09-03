@@ -28,18 +28,15 @@ public class DataDeletionEventListener {
     }
 
     @CentralListener(
-            messageSelectors = "freshidv2:ACCOUNT_DELETION_REQUESTED:*",
+            messageSelectors = "${freshid.service.name}:ACCOUNT_DELETION_REQUESTED:*",
             messageFilterEnabled = false)
     public void onDataDeletionRequested(CentralDeletionEnvelope envelope) {
         DataDeletionRequestedEvent event = envelope != null ? envelope.getPayload() : null;
         String traceId = Span.current().getSpanContext().getTraceId();
 
-        if (event == null
-                || StringUtils.isBlank(event.getDeletionRequestId())
-                || StringUtils.isBlank(event.getProductAccountId())) {
+        if (event == null || StringUtils.isBlank(event.getProductAccountId())) {
             LOGGER.warn(
-                    "Rejected ACCOUNT_DELETION_REQUESTED with missing deletion_request_id/"
-                            + "product_account_id traceId={}",
+                    "Rejected ACCOUNT_DELETION_REQUESTED with missing product_account_id traceId={}",
                     traceId);
             return;
         }
