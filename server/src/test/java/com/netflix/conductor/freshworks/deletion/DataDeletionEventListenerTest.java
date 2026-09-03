@@ -2,7 +2,7 @@ package com.netflix.conductor.freshworks.deletion;
 
 import org.junit.jupiter.api.Test;
 
-import com.netflix.conductor.freshworks.deletion.model.AccountDeletionRequestedEvent;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
 import com.netflix.conductor.freshworks.deletion.model.CentralDeletionEnvelope;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -11,14 +11,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-class AccountDeletionEventListenerTest {
+class DataDeletionEventListenerTest {
 
-    private final AccountDeletionService service = mock(AccountDeletionService.class);
-    private final AccountDeletionEventListener listener = new AccountDeletionEventListener(service);
+    private final DataDeletionService service = mock(DataDeletionService.class);
+    private final DataDeletionEventListener listener = new DataDeletionEventListener(service);
 
     @Test
     void validEnvelopeDelegatesToService() {
-        listener.onAccountDeletionRequested(envelope("req-1", "5001"));
+        listener.onDataDeletionRequested(envelope("req-1", "5001"));
 
         verify(service)
                 .handle(
@@ -31,34 +31,34 @@ class AccountDeletionEventListenerTest {
 
     @Test
     void missingDeletionRequestIdIsIgnored() {
-        listener.onAccountDeletionRequested(envelope(null, "5001"));
+        listener.onDataDeletionRequested(envelope(null, "5001"));
 
         verifyNoInteractions(service);
     }
 
     @Test
     void missingProductAccountIdIsIgnored() {
-        listener.onAccountDeletionRequested(envelope("req-1", ""));
+        listener.onDataDeletionRequested(envelope("req-1", ""));
 
         verifyNoInteractions(service);
     }
 
     @Test
     void nullEnvelopeIsIgnored() {
-        listener.onAccountDeletionRequested(null);
+        listener.onDataDeletionRequested(null);
 
         verifyNoInteractions(service);
     }
 
     @Test
     void nullPayloadIsIgnored() {
-        listener.onAccountDeletionRequested(new CentralDeletionEnvelope());
+        listener.onDataDeletionRequested(new CentralDeletionEnvelope());
 
         verifyNoInteractions(service);
     }
 
     private static CentralDeletionEnvelope envelope(String deletionRequestId, String productAccountId) {
-        AccountDeletionRequestedEvent event = new AccountDeletionRequestedEvent();
+        DataDeletionRequestedEvent event = new DataDeletionRequestedEvent();
         event.setDeletionRequestId(deletionRequestId);
         event.setProductAccountId(productAccountId);
 

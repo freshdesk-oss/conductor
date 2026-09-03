@@ -12,21 +12,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * {@code freshworks-boot-central-kafka-sdk}'s {@code CentralKafkaProducerConfig} auto-configures
  * unconditionally (no {@code @ConditionalOnProperty}) and requires a {@code PayloadVersionFetcher}
- * bean at startup. This verifies {@link AccountDeletionPayloadVersionFetcher} satisfies that even
- * when {@code conductor.account-deletion.enabled} is unset — i.e. the app still boots with the
+ * bean at startup. This verifies {@link DataDeletionPayloadVersionFetcher} satisfies that even
+ * when {@code conductor.data-deletion.enabled} is unset — i.e. the app still boots with the
  * feature disabled, which is the whole point of registering that bean unconditionally.
  */
-class AccountDeletionKafkaAutoConfigurationTest {
+class DataDeletionKafkaAutoConfigurationTest {
 
     private final ApplicationContextRunner contextRunner =
             new ApplicationContextRunner()
                     .withConfiguration(
                             org.springframework.boot.autoconfigure.AutoConfigurations.of(
                                     KafkaAutoConfiguration.class, CentralKafkaProducerConfig.class))
-                    .withUserConfiguration(AccountDeletionPayloadVersionFetcher.class);
+                    .withUserConfiguration(DataDeletionPayloadVersionFetcher.class);
 
     @Test
-    void bootsWithoutAccountDeletionEnabled() {
+    void bootsWithoutDataDeletionEnabled() {
         contextRunner.run(
                 context -> {
                     assertThat(context).hasNotFailed();

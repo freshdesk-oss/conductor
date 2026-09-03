@@ -22,7 +22,7 @@ public class CentralDeletionEnvelope {
         this.data = data;
     }
 
-    public AccountDeletionRequestedEvent getPayload() {
+    public DataDeletionRequestedEvent getPayload() {
         return data != null ? data.getPayload() : null;
     }
 
@@ -30,13 +30,13 @@ public class CentralDeletionEnvelope {
     public static class EnvelopeData {
 
         @JsonProperty("payload")
-        private AccountDeletionRequestedEvent payload;
+        private DataDeletionRequestedEvent payload;
 
-        public AccountDeletionRequestedEvent getPayload() {
+        public DataDeletionRequestedEvent getPayload() {
             return payload;
         }
 
-        public void setPayload(AccountDeletionRequestedEvent payload) {
+        public void setPayload(DataDeletionRequestedEvent payload) {
             this.payload = payload;
         }
     }

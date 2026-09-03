@@ -13,9 +13,9 @@ import com.freshworks.boot.messaging.KafkaMessageKey;
 import com.freshworks.boot.sdk.kafka.model.CentralData;
 import com.freshworks.boot.sdk.kafka.model.CentralPayload;
 import com.freshworks.boot.sdk.kafka.service.KafkaPublisher;
-import com.netflix.conductor.freshworks.deletion.config.AccountDeletionProperties;
-import com.netflix.conductor.freshworks.deletion.model.AccountDeletionRequestedEvent;
-import com.netflix.conductor.freshworks.deletion.model.AccountDeletionStatusPayload;
+import com.netflix.conductor.freshworks.deletion.config.DataDeletionProperties;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionStatusPayload;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,14 +26,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class AccountDeletionStatusPublisherTest {
+class DataDeletionStatusPublisherTest {
 
     @SuppressWarnings("unchecked")
-    private final KafkaPublisher<KafkaMessageKey, CentralPayload<AccountDeletionStatusPayload>>
+    private final KafkaPublisher<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>>
             kafkaPublisher = mock(KafkaPublisher.class);
-    private final AccountDeletionProperties properties = new AccountDeletionProperties();
-    private final AccountDeletionStatusPublisher publisher =
-            new AccountDeletionStatusPublisher(kafkaPublisher, properties);
+    private final DataDeletionProperties properties = new DataDeletionProperties();
+    private final DataDeletionStatusPublisher publisher =
+            new DataDeletionStatusPublisher(kafkaPublisher, properties);
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -45,16 +45,16 @@ class AccountDeletionStatusPublisherTest {
         publisher.publish(DeletionStatus.SUCCESS, event(), "done", "trace-1");
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<CentralPayload<AccountDeletionStatusPayload>> captor =
+        ArgumentCaptor<CentralPayload<DataDeletionStatusPayload>> captor =
                 ArgumentCaptor.forClass(CentralPayload.class);
         verify(kafkaPublisher).publish(captor.capture());
 
-        CentralData<AccountDeletionStatusPayload> data = captor.getValue().getData();
+        CentralData<DataDeletionStatusPayload> data = captor.getValue().getData();
         assertEquals("ACCOUNT_DELETION_STATUS", data.getPayloadType());
         assertEquals("2.0", data.getPayloadVersion());
         assertEquals("5001", data.getAccountId()); // envelope account_id = product_account_id
 
-        AccountDeletionStatusPayload payload = data.getPayload();
+        DataDeletionStatusPayload payload = data.getPayload();
         assertEquals("ACCOUNT_DELETION_STATUS", payload.getEventType());
         assertEquals("req-1", payload.getDeletionRequestId());
         assertEquals("conductor", payload.getService());
@@ -66,7 +66,7 @@ class AccountDeletionStatusPublisherTest {
 
     @Test
     void serializesPayloadAsSnakeCaseAndDropsNullMessage() throws Exception {
-        AccountDeletionStatusPayload payload = new AccountDeletionStatusPayload();
+        DataDeletionStatusPayload payload = new DataDeletionStatusPayload();
         payload.setDeletionRequestId("req-1");
         payload.setStatus("QUEUED");
         payload.setMessage(null);
@@ -78,18 +78,18 @@ class AccountDeletionStatusPublisherTest {
         assertFalse(json.contains("message"));
     }
 
-    private static ListenableFuture<SendResult<KafkaMessageKey, CentralPayload<AccountDeletionStatusPayload>>>
+    private static ListenableFuture<SendResult<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>>>
             completedSendResult() {
         RecordMetadata metadata =
                 new RecordMetadata(new TopicPartition("account-deletion-notifications", 0), 0, 0, 0, 0, 0);
-        SettableListenableFuture<SendResult<KafkaMessageKey, CentralPayload<AccountDeletionStatusPayload>>> future =
+        SettableListenableFuture<SendResult<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>>> future =
                 new SettableListenableFuture<>();
         future.set(new SendResult<>(null, metadata));
         return future;
     }
 
-    private static AccountDeletionRequestedEvent event() {
-        AccountDeletionRequestedEvent event = new AccountDeletionRequestedEvent();
+    private static DataDeletionRequestedEvent event() {
+        DataDeletionRequestedEvent event = new DataDeletionRequestedEvent();
         event.setDeletionRequestId("req-1");
         event.setOrganisationId("org-1");
         event.setBundleId("bundle-1");

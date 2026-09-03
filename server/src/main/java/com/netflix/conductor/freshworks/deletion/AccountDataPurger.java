@@ -20,7 +20,7 @@ import com.netflix.conductor.core.dal.ExecutionDAOFacade;
  * finds nothing and succeeds.
  */
 @Component
-@ConditionalOnProperty(name = "conductor.account-deletion.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "conductor.data-deletion.enabled", havingValue = "true")
 public class AccountDataPurger {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AccountDataPurger.class);

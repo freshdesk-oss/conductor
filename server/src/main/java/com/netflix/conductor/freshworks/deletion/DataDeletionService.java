@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import com.netflix.conductor.freshworks.deletion.model.AccountDeletionRequestedEvent;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 import com.netflix.conductor.metrics.Monitors;
 
@@ -17,21 +17,21 @@ import com.netflix.conductor.metrics.Monitors;
  * retry.
  */
 @Component
-@ConditionalOnProperty(name = "conductor.account-deletion.enabled", havingValue = "true")
-public class AccountDeletionService {
+@ConditionalOnProperty(name = "conductor.data-deletion.enabled", havingValue = "true")
+public class DataDeletionService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AccountDeletionService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DataDeletionService.class);
 
-    private final AccountDeletionStatusPublisher statusPublisher;
+    private final DataDeletionStatusPublisher statusPublisher;
     private final AccountDataPurger purger;
 
-    public AccountDeletionService(AccountDeletionStatusPublisher statusPublisher, AccountDataPurger purger) {
+    public DataDeletionService(DataDeletionStatusPublisher statusPublisher, AccountDataPurger purger) {
         this.statusPublisher = statusPublisher;
         this.purger = purger;
     }
 
     /** Acknowledges the request and runs the purge. */
-    public void handle(AccountDeletionRequestedEvent event, String traceId) {
+    public void handle(DataDeletionRequestedEvent event, String traceId) {
         LOGGER.info(
                 "Received ACCOUNT_DELETION_REQUESTED deletion_request_id={} account_id={} "
                         + "product_account_id={} product={} traceId={}",
@@ -45,7 +45,7 @@ public class AccountDeletionService {
         runPurge(event, traceId);
     }
 
-    private void runPurge(AccountDeletionRequestedEvent event, String traceId) {
+    private void runPurge(DataDeletionRequestedEvent event, String traceId) {
         try {
             statusPublisher.publish(DeletionStatus.STARTED, event, null, traceId);
             int deleted = purger.purge(event.getProductAccountId(), event.getDeletionRequestId(), traceId);

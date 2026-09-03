@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public class AccountDeletionStatusPayload {
+public class DataDeletionStatusPayload {
 
     public static final String EVENT_TYPE = "ACCOUNT_DELETION_STATUS";
 

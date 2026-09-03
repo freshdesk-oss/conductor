@@ -3,8 +3,8 @@ package com.netflix.conductor.freshworks.deletion.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /** Configuration for the Central-integrated account data deletion feature. */
-@ConfigurationProperties("conductor.account-deletion")
-public class AccountDeletionProperties {
+@ConfigurationProperties("conductor.data-deletion")
+public class DataDeletionProperties {
 
     /** Enables the account deletion consume/delete/publish feature. */
     private boolean enabled = false;

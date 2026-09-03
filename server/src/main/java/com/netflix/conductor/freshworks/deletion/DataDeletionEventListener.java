@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import com.freshworks.boot.kafka.CentralListener;
-import com.netflix.conductor.freshworks.deletion.model.AccountDeletionRequestedEvent;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
 import com.netflix.conductor.freshworks.deletion.model.CentralDeletionEnvelope;
 
 import io.opentelemetry.api.trace.Span;
@@ -18,22 +18,22 @@ import io.opentelemetry.api.trace.Span;
  * {@link CentralListener}'s {@code messageSelectors} routes only this event type to this method.
  */
 @Service
-@ConditionalOnProperty(name = "conductor.account-deletion.enabled", havingValue = "true")
-public class AccountDeletionEventListener {
+@ConditionalOnProperty(name = "conductor.data-deletion.enabled", havingValue = "true")
+public class DataDeletionEventListener {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AccountDeletionEventListener.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DataDeletionEventListener.class);
 
-    private final AccountDeletionService service;
+    private final DataDeletionService service;
 
-    public AccountDeletionEventListener(AccountDeletionService service) {
+    public DataDeletionEventListener(DataDeletionService service) {
         this.service = service;
     }
 
     @CentralListener(
             messageSelectors = "freshidv2:ACCOUNT_DELETION_REQUESTED:*",
             messageFilterEnabled = false)
-    public void onAccountDeletionRequested(CentralDeletionEnvelope envelope) {
-        AccountDeletionRequestedEvent event = envelope != null ? envelope.getPayload() : null;
+    public void onDataDeletionRequested(CentralDeletionEnvelope envelope) {
+        DataDeletionRequestedEvent event = envelope != null ? envelope.getPayload() : null;
         String traceId = Span.current().getSpanContext().getTraceId();
 
         if (event == null

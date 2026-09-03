@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * break deserialization.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AccountDeletionRequestedEvent {
+public class DataDeletionRequestedEvent {
 
     @JsonProperty("event_type")
     private String eventType;
