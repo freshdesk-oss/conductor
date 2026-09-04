@@ -5,10 +5,6 @@ buildscript {
     def nexusPassword = System.getenv('NEXUS_PASSWORD')
 
     repositories {
-        mavenCentral()
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
         maven {
             url = "https://nexuscentral.runwayci.com/repository/maven-public/"
             credentials {
@@ -18,6 +14,10 @@ buildscript {
             authentication {
                 basic(BasicAuthentication)
             }
+        }
+        mavenCentral()
+        maven {
+            url "https://plugins.gradle.org/m2/"
         }
     }
     dependencies {
@@ -82,12 +82,6 @@ allprojects {
     def nexusPassword = System.getenv('NEXUS_PASSWORD')
 
     repositories {
-        mavenCentral()
-
-        // oss-candidate for -rc.* verions:
-        maven {
-            url "https://artifactory-oss.prod.netflix.net/artifactory/maven-oss-candidates"
-        }
 
         maven {
             url = "https://nexuscentral.runwayci.com/repository/maven-public/"
@@ -98,6 +92,13 @@ allprojects {
             authentication {
                 basic(BasicAuthentication)
             }
+        }
+
+        mavenCentral()
+
+        // oss-candidate for -rc.* verions:
+        maven {
+            url "https://artifactory-oss.prod.netflix.net/artifactory/maven-oss-candidates"
         }
 
         /**
