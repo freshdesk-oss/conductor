@@ -66,7 +66,6 @@ public class DataDeletionService {
             return;
         }
 
-        statusPublisher.publish(DeletionStatus.QUEUED, event, null, traceId);
         runPurge(event, traceId);
     }
 
