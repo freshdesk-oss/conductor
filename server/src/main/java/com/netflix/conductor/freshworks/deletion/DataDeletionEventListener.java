@@ -1,6 +1,5 @@
 package com.netflix.conductor.freshworks.deletion;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -15,6 +14,10 @@ import io.opentelemetry.api.trace.Span;
  * Kafka ingress for the FreshID {@code ACCOUNT_DELETION_REQUESTED} event, replacing the old WHaaS
  * REST webhook. Central publishes the event on the shared {@code freshidv2-external-events} topic;
  * {@link CentralListener}'s {@code messageSelectors} routes only this event type to this method.
+ *
+ * <p>A missing/malformed payload (nothing to build a status event from) is dropped here; a
+ * present payload lacking {@code product_account_id} is still handed to {@link
+ * DataDeletionService}, which reports it back as {@code NOT_FOUND}.
  */
 @Service
 public class DataDeletionEventListener {
@@ -34,10 +37,8 @@ public class DataDeletionEventListener {
         DataDeletionRequestedEvent event = envelope != null ? envelope.getPayload() : null;
         String traceId = Span.current().getSpanContext().getTraceId();
 
-        if (event == null || StringUtils.isBlank(event.getProductAccountId())) {
-            LOGGER.warn(
-                    "Rejected ACCOUNT_DELETION_REQUESTED with missing product_account_id traceId={}",
-                    traceId);
+        if (event == null) {
+            LOGGER.warn("Rejected ACCOUNT_DELETION_REQUESTED with missing payload traceId={}", traceId);
             return;
         }
 

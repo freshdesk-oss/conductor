@@ -22,15 +22,37 @@ class DataDeletionServiceTest {
             new DataDeletionService(statusPublisher, purger, "freshservice");
 
     @Test
-    void matchingProductQueuesAndPurges() {
-        when(purger.purge(anyString(), anyString(), anyString())).thenReturn(3);
+    void matchingProductStartsAndPurges() {
+        when(purger.purge(anyString(), anyString(), anyString())).thenReturn(true);
 
         service.handle(event("freshservice"), "trace-1");
 
-        verify(statusPublisher).publish(eq(DeletionStatus.QUEUED), any(), eq(null), eq("trace-1"));
         verify(statusPublisher).publish(eq(DeletionStatus.STARTED), any(), eq(null), eq("trace-1"));
         verify(statusPublisher)
                 .publish(eq(DeletionStatus.SUCCESS), any(), anyString(), eq("trace-1"));
+    }
+
+    @Test
+    void noAccountDataPublishesNotFound() {
+        when(purger.purge(anyString(), anyString(), anyString())).thenReturn(false);
+
+        service.handle(event("freshservice"), "trace-1");
+
+        verify(statusPublisher).publish(eq(DeletionStatus.STARTED), any(), eq(null), eq("trace-1"));
+        verify(statusPublisher)
+                .publish(eq(DeletionStatus.NOT_FOUND), any(), anyString(), eq("trace-1"));
+    }
+
+    @Test
+    void missingProductAccountIdPublishesNotFoundAndSkipsPurge() {
+        DataDeletionRequestedEvent event = event("freshservice");
+        event.setProductAccountId("");
+
+        service.handle(event, "trace-1");
+
+        verify(statusPublisher)
+                .publish(eq(DeletionStatus.NOT_FOUND), any(), anyString(), eq("trace-1"));
+        verifyNoInteractions(purger);
     }
 
     @Test
@@ -39,7 +61,7 @@ class DataDeletionServiceTest {
 
         verify(statusPublisher)
                 .publish(eq(DeletionStatus.NOT_FOUND), any(), anyString(), eq("trace-1"));
-        verify(statusPublisher, never()).publish(eq(DeletionStatus.QUEUED), any(), any(), any());
+        verify(statusPublisher, never()).publish(eq(DeletionStatus.STARTED), any(), any(), any());
         verifyNoInteractions(purger);
     }
 

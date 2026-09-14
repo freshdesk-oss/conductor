@@ -30,10 +30,16 @@ class DataDeletionEventListenerTest {
     }
 
     @Test
-    void missingProductAccountIdIsIgnored() {
+    void missingProductAccountIdStillDelegatesToService() {
         listener.onDataDeletionRequested(envelope("req-1", ""));
 
-        verifyNoInteractions(service);
+        verify(service)
+                .handle(
+                        argThat(
+                                e ->
+                                        "req-1".equals(e.getDeletionRequestId())
+                                                && "".equals(e.getProductAccountId())),
+                        any());
     }
 
     @Test

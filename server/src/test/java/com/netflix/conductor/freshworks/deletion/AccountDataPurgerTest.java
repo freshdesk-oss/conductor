@@ -9,8 +9,9 @@ import com.netflix.conductor.common.run.Workflow;
 import com.netflix.conductor.core.dal.ExecutionDAOFacade;
 import com.netflix.conductor.core.exception.TransientException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
@@ -29,19 +30,19 @@ class AccountDataPurgerTest {
         when(facade.getWorkflowsByCorrelationId(isNull(), eq("5001"), eq(false)))
                 .thenReturn(List.of(workflow("w1"), workflow("w2")));
 
-        int deleted = purger.purge("5001", "req-1", "trace-1");
+        boolean purged = purger.purge("5001", "req-1", "trace-1");
 
-        assertEquals(2, deleted);
+        assertTrue(purged);
         verify(facade).removeWorkflow("w1", false);
         verify(facade).removeWorkflow("w2", false);
     }
 
     @Test
-    void returnsZeroWhenAccountHasNoData() {
+    void returnsFalseWhenAccountHasNoData() {
         when(facade.getWorkflowsByCorrelationId(isNull(), eq("5001"), eq(false)))
                 .thenReturn(Collections.emptyList());
 
-        assertEquals(0, purger.purge("5001", "req-1", "trace-1"));
+        assertFalse(purger.purge("5001", "req-1", "trace-1"));
         verify(facade, times(0)).removeWorkflow(org.mockito.ArgumentMatchers.anyString(), eq(false));
     }
 

@@ -14,13 +14,12 @@ import com.netflix.conductor.freshworks.deletion.config.DataDeletionProperties;
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionStatusPayload;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
-import com.netflix.conductor.metrics.Monitors;
 
 /**
  * Builds and publishes {@code ACCOUNT_DELETION_STATUS} events to Central for each stage of an
  * account purge, via {@code freshworks-boot-central-kafka-sdk}'s {@link KafkaPublisher}. A publish
- * failure is logged (and counted) but never propagated so it cannot crash the purge worker; a
- * missing terminal status is caught by Baikal SLA monitoring.
+ * failure is logged but never propagated so it cannot crash the purge worker; a missing terminal
+ * status is caught by Baikal SLA monitoring.
  */
 @Component
 public class DataDeletionStatusPublisher {
@@ -64,18 +63,8 @@ public class DataDeletionStatusPublisher {
                                         result.getRecordMetadata().topic(),
                                         result.getRecordMetadata().partition(),
                                         result.getRecordMetadata().offset());
-                                Monitors.recordCounter(
-                                        "account_deletion_status_published",
-                                        1,
-                                        "status",
-                                        status.name());
                             },
                             ex -> {
-                                Monitors.recordCounter(
-                                        "account_deletion_status_publish_failed",
-                                        1,
-                                        "status",
-                                        status.name());
                                 LOGGER.error(
                                         "Failed to publish ACCOUNT_DELETION_STATUS deletion_request_id={} "
                                                 + "account_id={} product_account_id={} status={} traceId={}",
@@ -87,8 +76,6 @@ public class DataDeletionStatusPublisher {
                                         ex);
                             });
         } catch (Exception e) {
-            Monitors.recordCounter(
-                    "account_deletion_status_publish_failed", 1, "status", status.name());
             LOGGER.error(
                     "Failed to publish ACCOUNT_DELETION_STATUS deletion_request_id={} account_id={} "
                             + "product_account_id={} status={} traceId={}",
