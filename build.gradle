@@ -1,20 +1,7 @@
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 buildscript {
-    def nexusUsername = System.getenv('NEXUS_USERNAME')
-    def nexusPassword = System.getenv('NEXUS_PASSWORD')
-
     repositories {
-        maven {
-            url = "https://nexuscentral.runwayci.com/repository/maven-public/"
-            credentials {
-                username = nexusUsername
-                password = nexusPassword
-            }
-            authentication {
-                basic(BasicAuthentication)
-            }
-        }
         mavenCentral()
         maven {
             url "https://plugins.gradle.org/m2/"
@@ -32,6 +19,7 @@ plugins {
     id 'java'
     id 'application'
     id 'jacoco'
+    id 'nebula.netflixoss' version '11.1.0'
     id 'org.sonarqube' version '3.4.0.2513'
 }
 
@@ -60,6 +48,7 @@ apply from: "$rootDir/dependencies.gradle"
 apply from: "$rootDir/springboot-bom-overrides.gradle"
 
 allprojects {
+    apply plugin: 'nebula.netflixoss'
     apply plugin: 'io.spring.dependency-management'
     apply plugin: 'java-library'
     apply plugin: 'project-report'
@@ -68,7 +57,6 @@ allprojects {
     targetCompatibility = JavaVersion.VERSION_17
 
     group = 'com.netflix.conductor'
-    version = rootProject.version
 
     configurations.all {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
@@ -77,22 +65,7 @@ allprojects {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
     }
 
-    def nexusUsername = System.getenv('NEXUS_USERNAME')
-    def nexusPassword = System.getenv('NEXUS_PASSWORD')
-
     repositories {
-
-        maven {
-            url = "https://nexuscentral.runwayci.com/repository/maven-public/"
-            credentials {
-                username = nexusUsername
-                password = nexusPassword
-            }
-            authentication {
-                basic(BasicAuthentication)
-            }
-        }
-
         mavenCentral()
 
         // oss-candidate for -rc.* verions:
@@ -112,14 +85,6 @@ allprojects {
             }
             filter {
                 includeGroupByRegex "com\\.github\\.vmg.*"
-            }
-        }
-
-        maven {
-            url "https://nexuscentral.runwayci.com/repository/maven-public/"
-            credentials {
-                username = project.findProperty("nexusUsername") ?: System.getenv("NEXUS_USERNAME")
-                password = project.findProperty("nexusPassword") ?: System.getenv("NEXUS_PASSWORD")
             }
         }
     }
