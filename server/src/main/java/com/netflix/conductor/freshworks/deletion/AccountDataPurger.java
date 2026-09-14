@@ -29,18 +29,18 @@ public class AccountDataPurger {
         this.executionDAOFacade = executionDAOFacade;
     }
 
-    /** @return the total number of workflows deleted */
-    public int purge(String productAccountId, String deletionRequestId, String traceId) {
+    /** @return {@code true} if the account had data and it was deleted, {@code false} if none was found */
+    public boolean purge(String productAccountId, String deletionRequestId, String traceId) {
         List<Workflow> workflows =
                 executionDAOFacade.getWorkflowsByCorrelationId(null, productAccountId, false);
         if (workflows == null || workflows.isEmpty()) {
             LOGGER.info(
                     "Account purge complete deletion_request_id={} product_account_id={} traceId={} "
-                            + "totalDeleted=0",
+                            + "workflows=0",
                     deletionRequestId,
                     productAccountId,
                     traceId);
-            return 0;
+            return false;
         }
 
         LOGGER.info(
@@ -50,7 +50,6 @@ public class AccountDataPurger {
                 traceId,
                 workflows.size());
 
-        int totalDeleted = 0;
         for (Workflow workflow : workflows) {
             executionDAOFacade.removeWorkflow(workflow.getWorkflowId(), false);
             LOGGER.debug(
@@ -58,8 +57,7 @@ public class AccountDataPurger {
                     deletionRequestId,
                     workflow.getWorkflowId(),
                     traceId);
-            totalDeleted++;
         }
-        return totalDeleted;
+        return true;
     }
 }
