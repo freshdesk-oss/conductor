@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class DataDeletionProperties {
 
     /** This service's FreshID-registered service name, emitted in the status payload. */
-    private String service = "conductor";
+    private String service = "fs-caas";
 
     public String getService() {
         return service;

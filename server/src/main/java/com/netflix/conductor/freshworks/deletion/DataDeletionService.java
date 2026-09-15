@@ -10,10 +10,9 @@ import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEven
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 
 /**
- * Orchestrates an account deletion request: runs the hard delete synchronously on the Kafka
+ * Orchestrates data deletion request: runs the hard delete synchronously on the Kafka
  * listener thread, emitting {@code STARTED} then {@code SUCCESS}/{@code NOT_FOUND}/{@code
- * FAILURE}. Failures are rethrown so {@code freshworks-boot-kafka}'s consumer error handler
- * redelivers the message with exponential backoff instead of this class managing its own retry.
+ * FAILURE}.
  *
  * <p>Events missing {@code product_account_id} (nothing to shard on), or whose {@code product}
  * doesn't match {@code conductor.product} (this Conductor instance may share the FreshID event
@@ -93,13 +92,12 @@ public class DataDeletionService {
             }
         } catch (RuntimeException e) {
             LOGGER.error(
-                    "Account deletion FAILED deletion_request_id={} product_account_id={} traceId={}",
+                    "Data deletion FAILED deletion_request_id={} product_account_id={} traceId={}",
                     event.getDeletionRequestId(),
                     event.getProductAccountId(),
                     traceId,
                     e);
             statusPublisher.publish(DeletionStatus.FAILURE, event, e.getMessage(), traceId);
-            throw e;
         }
     }
 }
