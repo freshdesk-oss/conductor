@@ -35,7 +35,7 @@ public class AccountDataPurger {
                 executionDAOFacade.getWorkflowsByCorrelationId(null, productAccountId, false);
         if (workflows == null || workflows.isEmpty()) {
             LOGGER.info(
-                    "Account purge complete deletion_request_id={} product_account_id={} traceId={} "
+                    "Data purge complete deletion_request_id={} product_account_id={} traceId={} "
                             + "workflows=0",
                     deletionRequestId,
                     productAccountId,
@@ -44,7 +44,7 @@ public class AccountDataPurger {
         }
 
         LOGGER.info(
-                "Account purge deletion_request_id={} product_account_id={} traceId={} workflows={}",
+                "Data purge deletion_request_id={} product_account_id={} traceId={} workflows={}",
                 deletionRequestId,
                 productAccountId,
                 traceId,

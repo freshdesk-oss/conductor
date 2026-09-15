@@ -9,7 +9,7 @@ import com.freshworks.boot.common.AccountFetcher;
 import com.freshworks.boot.common.context.account.IAccount;
 
 /**
- * Wires the account deletion feature, always active. Kafka producer wiring lives separately in
+ * Wires the data deletion feature, always active. Kafka producer wiring lives separately in
  * {@link KafkaConfig}.
  */
 @Configuration

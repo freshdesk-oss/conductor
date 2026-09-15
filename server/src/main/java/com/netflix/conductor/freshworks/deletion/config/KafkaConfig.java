@@ -23,25 +23,7 @@ import com.freshworks.boot.sdk.kafka.util.ProducerHelper;
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionStatusPayload;
 
 /**
- * Kafka producer wiring for the account deletion feature, always active alongside {@link
- * DataDeletionConfiguration}.
- *
- * <p>{@code freshworks-boot-central-kafka-sdk}'s own {@code kafkaTemplate}/{@code kafkaPublisher}
- * beans come from generic {@code CentralKafkaProducerConfig} factory methods (<code>{@literal <P>}
- * KafkaTemplate&lt;KafkaMessageKey, CentralPayload&lt;P&gt;&gt;</code>) with an unresolved type
- * variable, so Spring registers them with no resolvable generic signature — they satisfy a
- * raw-type bean check but can never be autowired into a concretely-typed injection point like
- * {@link com.netflix.conductor.freshworks.deletion.DataDeletionStatusPublisher}'s constructor.
- * {@code workflow-service}'s {@code KafkaConfig} hits the same SDK limitation and works around it
- * the same way this does: a dedicated {@code KafkaConfig} building the producer stack with a
- * concrete generic type instead of going through the SDK's generic factory methods.
- *
- * <p>Reuses {@code spring.kafka.producer.*} (already configured for this SDK — see {@code
- * CentralKafkaProducerConfig#kafkaTemplate}, which builds its producer from the exact same {@link
- * KafkaProperties#buildProducerProperties()}) and the SDK's own {@code MessageKeySerializer}/
- * {@code MessageValueSerializer} so the wire format matches what Central expects, unlike {@code
- * workflow-service} which re-derives serializer/broker config from its own {@code @Value}
- * properties.
+ * Kafka producer wiring for the data deletion feature.
  */
 @Configuration
 public class KafkaConfig {
@@ -56,12 +38,6 @@ public class KafkaConfig {
                 config, new MessageKeySerializer(), new MessageValueSerializer<>());
     }
 
-    /**
-     * Named {@code kafkaTemplate} to match the SDK's own bean name: since this is a user-defined
-     * {@code @Configuration} bean (registered before deferred auto-configuration runs), the SDK's
-     * {@code CentralKafkaProducerConfig#kafkaTemplate}'s {@code @ConditionalOnMissingBean(
-     * KafkaTemplate.class)} then sees the name/type already taken and backs off.
-     */
     @Bean
     public KafkaTemplate<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>> kafkaTemplate(
             ProducerFactory<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>>
@@ -72,12 +48,6 @@ public class KafkaConfig {
         return kafkaTemplate;
     }
 
-    /**
-     * Named {@code kafkaPublisher} to match the SDK's own bean name, for the same reason as {@link
-     * #kafkaTemplate}: the SDK's {@code CentralKafkaProducerConfig#kafkaPublisher}'s {@code
-     * @ConditionalOnMissingBean(name = "kafkaPublisher")} sees the name already taken and backs
-     * off, leaving exactly one (concretely-typed) {@code KafkaPublisher} bean instead of two.
-     */
     @Bean
     public KafkaPublisher<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>> kafkaPublisher(
             KafkaTemplate<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>> kafkaTemplate,
