@@ -1,7 +1,6 @@
 package com.netflix.conductor.freshworks.deletion.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -13,7 +12,6 @@ import com.freshworks.boot.common.context.account.IAccount;
  * {@link KafkaConfig}.
  */
 @Configuration
-@EnableConfigurationProperties(DataDeletionProperties.class)
 public class DataDeletionConfiguration {
 
     /**

@@ -4,13 +4,13 @@ import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.freshworks.boot.messaging.KafkaMessageKey;
 import com.freshworks.boot.sdk.kafka.model.CentralData;
 import com.freshworks.boot.sdk.kafka.model.CentralPayload;
 import com.freshworks.boot.sdk.kafka.service.KafkaPublisher;
-import com.netflix.conductor.freshworks.deletion.config.DataDeletionProperties;
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionStatusPayload;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
@@ -26,18 +26,17 @@ public class DataDeletionStatusPublisher {
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(DataDeletionStatusPublisher.class);
-    private static final String PAYLOAD_VERSION = "2.0";
 
     private final KafkaPublisher<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>>
             kafkaPublisher;
-    private final DataDeletionProperties properties;
+    private final String service;
 
     public DataDeletionStatusPublisher(
             KafkaPublisher<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>>
                     kafkaPublisher,
-            DataDeletionProperties properties) {
+            @Value("${conductor.data-deletion.service:fs-caas}") String service) {
         this.kafkaPublisher = kafkaPublisher;
-        this.properties = properties;
+        this.service = service;
     }
 
     public void publish(
@@ -64,28 +63,26 @@ public class DataDeletionStatusPublisher {
                                         result.getRecordMetadata().partition(),
                                         result.getRecordMetadata().offset());
                             },
-                            ex -> {
-                                LOGGER.error(
-                                        "Failed to publish ACCOUNT_DELETION_STATUS deletion_request_id={} "
-                                                + "account_id={} product_account_id={} status={} traceId={}",
-                                        event.getDeletionRequestId(),
-                                        event.getAccountId(),
-                                        event.getProductAccountId(),
-                                        status,
-                                        traceId,
-                                        ex);
-                            });
+                            ex -> logPublishFailure(status, event, traceId, ex));
         } catch (Exception e) {
-            LOGGER.error(
-                    "Failed to publish ACCOUNT_DELETION_STATUS deletion_request_id={} account_id={} "
-                            + "product_account_id={} status={} traceId={}",
-                    event.getDeletionRequestId(),
-                    event.getAccountId(),
-                    event.getProductAccountId(),
-                    status,
-                    traceId,
-                    e);
+            logPublishFailure(status, event, traceId, e);
         }
+    }
+
+    private void logPublishFailure(
+            DeletionStatus status,
+            DataDeletionRequestedEvent event,
+            String traceId,
+            Throwable cause) {
+        LOGGER.error(
+                "Failed to publish ACCOUNT_DELETION_STATUS deletion_request_id={} account_id={} "
+                        + "product_account_id={} status={} traceId={}",
+                event.getDeletionRequestId(),
+                event.getAccountId(),
+                event.getProductAccountId(),
+                status,
+                traceId,
+                cause);
     }
 
     /**
@@ -98,7 +95,7 @@ public class DataDeletionStatusPublisher {
             DeletionStatus status, DataDeletionRequestedEvent event, String message) {
         DataDeletionStatusPayload payload = new DataDeletionStatusPayload();
         payload.setDeletionRequestId(event.getDeletionRequestId());
-        payload.setService(properties.getService());
+        payload.setService(service);
         payload.setOrganisationId(event.getOrganisationId());
         payload.setBundleId(event.getBundleId());
         payload.setAccountId(event.getAccountId());
@@ -116,7 +113,7 @@ public class DataDeletionStatusPublisher {
                         .productId(event.getProductId())
                         .bundleId(event.getBundleId())
                         .payloadType(DataDeletionStatusPayload.EVENT_TYPE)
-                        .payloadVersion(PAYLOAD_VERSION)
+                        .payloadVersion(DataDeletionStatusPayload.PAYLOAD_VERSION)
                         .payload(payload)
                         .build();
         return new CentralPayload<>(data);

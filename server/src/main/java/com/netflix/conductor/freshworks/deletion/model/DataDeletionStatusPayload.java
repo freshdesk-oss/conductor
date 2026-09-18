@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class DataDeletionStatusPayload {
 
     public static final String EVENT_TYPE = "ACCOUNT_DELETION_STATUS";
+    public static final String PAYLOAD_VERSION = "2.0";
 
     private String eventType = EVENT_TYPE;
     private String deletionRequestId;

@@ -11,9 +11,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DataDeletionRequestedEvent {
 
-    @JsonProperty("event_type")
-    private String eventType;
-
     @JsonProperty("deletion_request_id")
     private String deletionRequestId;
 
@@ -23,7 +20,7 @@ public class DataDeletionRequestedEvent {
     @JsonProperty("bundle_id")
     private String bundleId;
 
-    /** FreshID account id — echoed back only; not usable as conductor's numeric shard key. */
+    /** FreshID account id — echoed back in the status event only. */
     @JsonProperty("account_id")
     private String accountId;
 
@@ -33,17 +30,8 @@ public class DataDeletionRequestedEvent {
     @JsonProperty("product_id")
     private String productId;
 
-    /** Product account id — this is conductor's {@code correlationId}/{@code shard_id}. */
     @JsonProperty("product_account_id")
     private String productAccountId;
-
-    public String getEventType() {
-        return eventType;
-    }
-
-    public void setEventType(String eventType) {
-        this.eventType = eventType;
-    }
 
     public String getDeletionRequestId() {
         return deletionRequestId;

@@ -13,7 +13,6 @@ import com.freshworks.boot.messaging.KafkaMessageKey;
 import com.freshworks.boot.sdk.kafka.model.CentralData;
 import com.freshworks.boot.sdk.kafka.model.CentralPayload;
 import com.freshworks.boot.sdk.kafka.service.KafkaPublisher;
-import com.netflix.conductor.freshworks.deletion.config.DataDeletionProperties;
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionStatusPayload;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
@@ -31,15 +30,13 @@ class DataDeletionStatusPublisherTest {
     @SuppressWarnings("unchecked")
     private final KafkaPublisher<KafkaMessageKey, CentralPayload<DataDeletionStatusPayload>>
             kafkaPublisher = mock(KafkaPublisher.class);
-    private final DataDeletionProperties properties = new DataDeletionProperties();
+    private static final String SERVICE = "conductor";
     private final DataDeletionStatusPublisher publisher =
-            new DataDeletionStatusPublisher(kafkaPublisher, properties);
+            new DataDeletionStatusPublisher(kafkaPublisher, SERVICE);
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void buildsEnvelopeAndPayloadFromEvent() {
-        properties.setService("conductor");
-
         when(kafkaPublisher.publish(any())).thenReturn(completedSendResult());
 
         publisher.publish(DeletionStatus.SUCCESS, event(), "done", "trace-1");
@@ -57,7 +54,7 @@ class DataDeletionStatusPublisherTest {
         DataDeletionStatusPayload payload = data.getPayload();
         assertEquals("ACCOUNT_DELETION_STATUS", payload.getEventType());
         assertEquals("req-1", payload.getDeletionRequestId());
-        assertEquals("conductor", payload.getService());
+        assertEquals(SERVICE, payload.getService());
         assertEquals("freshid-acc-1", payload.getAccountId());
         assertEquals("5001", payload.getProductAccountId());
         assertEquals("SUCCESS", payload.getStatus());
@@ -68,7 +65,7 @@ class DataDeletionStatusPublisherTest {
     void serializesPayloadAsSnakeCaseAndDropsNullMessage() throws Exception {
         DataDeletionStatusPayload payload = new DataDeletionStatusPayload();
         payload.setDeletionRequestId("req-1");
-        payload.setStatus("QUEUED");
+        payload.setStatus(DeletionStatus.STARTED.name());
         payload.setMessage(null);
 
         String json = objectMapper.writeValueAsString(payload);

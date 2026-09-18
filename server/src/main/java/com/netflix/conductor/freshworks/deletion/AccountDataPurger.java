@@ -18,10 +18,10 @@ import com.netflix.conductor.dao.MetadataDAO;
  * production, so workflow and task rows age out on their own; deleting them on this event would
  * duplicate that.
  *
- * <p>A failure propagates to the caller so the inbound Kafka message is redelivered by {@code
- * freshworks-boot-kafka}'s consumer error handler, which retries with backoff and re-enumerates —
- * that redelivery is what converges the purge, rather than an in-process retry/pass loop. The
- * operation is idempotent: re-running on an already-purged account finds nothing and succeeds.
+ * <p>A failure propagates to {@link DataDeletionService}, which reports {@code FAILURE} to Central
+ * and does not rethrow — so the Kafka offset commits and the message is not redelivered.
+ * Recovery is therefore whoever re-triggers the deletion request, not an automatic retry. The
+ * operation is idempotent, so re-running on a partly-purged account completes the rest.
  *
  * <p>Definitions registered before the product account id was threaded through registration carry
  * no index row and so are not found here; those remain the responsibility of the calling service's
