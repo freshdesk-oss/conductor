@@ -13,10 +13,6 @@ import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
  * Orchestrates data deletion request: runs the hard delete synchronously on the Kafka
  * listener thread, emitting {@code STARTED} then {@code SUCCESS}/{@code NOT_FOUND}/{@code
  * FAILURE}.
- *
- * <p>Events missing {@code product_account_id} (nothing to shard on), or whose {@code product}
- * doesn't match {@code conductor.product} (this Conductor instance may share the FreshID event
- * stream with other products), are rejected with {@code NOT_FOUND} rather than purged.
  */
 @Component
 public class DataDeletionService {
