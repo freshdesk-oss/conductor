@@ -32,6 +32,7 @@ import com.netflix.conductor.annotations.Trace;
 import com.netflix.conductor.annotations.VisibleForTesting;
 import com.netflix.conductor.common.metadata.tasks.TaskDef;
 import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
+import com.netflix.conductor.common.metadata.workflow.WorkflowDefSummary;
 import com.netflix.conductor.core.exception.ConflictException;
 import com.netflix.conductor.core.exception.TransientException;
 import com.netflix.conductor.dao.MetadataDAO;
@@ -44,11 +45,14 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.DriverException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import static com.netflix.conductor.scylla.util.Constants.PRODUCT_ACCOUNT_ID_KEY;
 import static com.netflix.conductor.scylla.util.Constants.TASK_DEFINITION_KEY;
 import static com.netflix.conductor.scylla.util.Constants.TASK_DEFS_KEY;
 import static com.netflix.conductor.scylla.util.Constants.WORKFLOW_DEFINITION_KEY;
 import static com.netflix.conductor.scylla.util.Constants.WORKFLOW_DEF_INDEX_KEY;
+import static com.netflix.conductor.scylla.util.Constants.WORKFLOW_DEF_NAME_KEY;
 import static com.netflix.conductor.scylla.util.Constants.WORKFLOW_DEF_NAME_VERSION_KEY;
+import static com.netflix.conductor.scylla.util.Constants.WORKFLOW_VERSION_KEY;
 import static com.netflix.conductor.common.metadata.tasks.TaskDef.ONE_HOUR;
 
 @Trace
@@ -60,11 +64,13 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
 
     private final PreparedStatement insertWorkflowDefStatement;
     private final PreparedStatement insertWorkflowDefVersionIndexStatement;
+    private final PreparedStatement insertWorkflowDefByAccountStatement;
     private final PreparedStatement insertTaskDefStatement;
 
     private final PreparedStatement selectWorkflowDefStatement;
     private final PreparedStatement selectAllWorkflowDefVersionsByNameStatement;
     private final PreparedStatement selectAllWorkflowDefsStatement;
+    private final PreparedStatement selectWorkflowDefsByAccountStatement;
     private final PreparedStatement selectTaskDefStatement;
     private final PreparedStatement selectAllTaskDefsStatement;
 
@@ -73,6 +79,7 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
 
     private final PreparedStatement deleteWorkflowDefStatement;
     private final PreparedStatement deleteWorkflowDefIndexStatement;
+    private final PreparedStatement deleteWorkflowDefByAccountStatement;
     private final PreparedStatement deleteTaskDefStatement;
 
     public ScyllaMetadataDAO(
@@ -88,6 +95,9 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
         this.insertWorkflowDefVersionIndexStatement =
                 session.prepare(statements.getInsertWorkflowDefVersionIndexStatement())
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
+        this.insertWorkflowDefByAccountStatement =
+                session.prepare(statements.getInsertWorkflowDefByAccountStatement())
+                        .setConsistencyLevel(properties.getWriteConsistencyLevel());
         this.insertTaskDefStatement =
                 session.prepare(statements.getInsertTaskDefStatement())
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
@@ -100,6 +110,9 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
         this.selectAllWorkflowDefsStatement =
                 session.prepare(statements.getSelectAllWorkflowDefsStatement())
+                        .setConsistencyLevel(properties.getReadConsistencyLevel());
+        this.selectWorkflowDefsByAccountStatement =
+                session.prepare(statements.getSelectWorkflowDefsByAccountStatement())
                         .setConsistencyLevel(properties.getReadConsistencyLevel());
         this.selectTaskDefStatement =
                 session.prepare(statements.getSelectTaskDefStatement())
@@ -120,6 +133,9 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
         this.deleteWorkflowDefIndexStatement =
                 session.prepare(statements.getDeleteWorkflowDefIndexStatement())
+                        .setConsistencyLevel(properties.getWriteConsistencyLevel());
+        this.deleteWorkflowDefByAccountStatement =
+                session.prepare(statements.getDeleteWorkflowDefByAccountStatement())
                         .setConsistencyLevel(properties.getWriteConsistencyLevel());
         this.deleteTaskDefStatement =
                 session.prepare(statements.getDeleteTaskDefStatement())
@@ -178,6 +194,7 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
             session.execute(
                     insertWorkflowDefVersionIndexStatement.bind(
                             workflowDefIndex, workflowDefIndex));
+            indexWorkflowDefByAccount(workflowDef);
             recordCassandraDaoRequests("createWorkflowDef");
             recordCassandraDaoPayloadSize(
                     "createWorkflowDef", workflowDefinition.length(), "n/a", workflowDef.getName());
@@ -204,6 +221,7 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
             session.execute(
                     insertWorkflowDefVersionIndexStatement.bind(
                             workflowDefIndex, workflowDefIndex));
+            indexWorkflowDefByAccount(workflowDef);
             recordCassandraDaoRequests("updateWorkflowDef");
             recordCassandraDaoPayloadSize(
                     "updateWorkflowDef", workflowDefinition.length(), "n/a", workflowDef.getName());
@@ -253,10 +271,19 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
     @Override
     public void removeWorkflowDef(String name, Integer version) {
         try {
+            // read before delete: the owning account only exists inside the definition blob
+            String productAccountId =
+                    getWorkflowDef(name, version)
+                            .map(ScyllaMetadataDAO::productAccountIdOf)
+                            .orElse(null);
             session.execute(deleteWorkflowDefStatement.bind(name, version));
             session.execute(
                     deleteWorkflowDefIndexStatement.bind(
                             WORKFLOW_DEF_INDEX_KEY, getWorkflowDefIndexValue(name, version)));
+            if (productAccountId != null) {
+                session.execute(
+                        deleteWorkflowDefByAccountStatement.bind(productAccountId, name, version));
+            }
         } catch (DriverException e) {
             Monitors.error(CLASS_NAME, "removeWorkflowDef");
             String errorMsg =
@@ -409,6 +436,77 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
             throw new TransientException(errorMsg, e);
         }
         return taskDef;
+    }
+
+    @Override
+    public List<WorkflowDefSummary> getWorkflowDefsByAccount(String productAccountId) {
+        try {
+            recordCassandraDaoRequests("getWorkflowDefsByAccount");
+            return session.execute(selectWorkflowDefsByAccountStatement.bind(productAccountId))
+                    .all()
+                    .stream()
+                    .map(
+                            row -> {
+                                WorkflowDefSummary summary = new WorkflowDefSummary();
+                                summary.setName(row.getString(WORKFLOW_DEF_NAME_KEY));
+                                summary.setVersion(row.getInt(WORKFLOW_VERSION_KEY));
+                                return summary;
+                            })
+                    .collect(Collectors.toList());
+        } catch (DriverException e) {
+            Monitors.error(CLASS_NAME, "getWorkflowDefsByAccount");
+            String errorMsg =
+                    String.format(
+                            "Error fetching workflow defs for product account: %s",
+                            productAccountId);
+            LOGGER.error(errorMsg, e);
+            throw new TransientException(errorMsg, e);
+        }
+    }
+
+    /**
+     * Indexes a definition under its owning product account so that account deletion can enumerate
+     * it — neither {@code workflow_definitions} (partitioned by name) nor {@code
+     * workflow_defs_index} (a single fixed partition) records an account.
+     *
+     * <p>Definitions registered without a product account id are left unindexed rather than
+     * rejected: registration must stay backward compatible for callers that do not send one.
+     */
+    private void indexWorkflowDefByAccount(WorkflowDef workflowDef) {
+        String productAccountId = productAccountIdOf(workflowDef);
+        if (productAccountId == null) {
+            LOGGER.info(
+                    "No {} on workflow definition {}/{}; skipping product account index",
+                    PRODUCT_ACCOUNT_ID_KEY,
+                    workflowDef.getName(),
+                    workflowDef.getVersion());
+            return;
+        }
+        session.execute(
+                insertWorkflowDefByAccountStatement.bind(
+                        productAccountId, workflowDef.getName(), workflowDef.getVersion()));
+    }
+
+    /**
+     * ponytail: the product account id rides in {@link WorkflowDef#getVariables()} rather than a
+     * first-class field because translator-service is pinned to the upstream OSS
+     * {@code conductor-common}, so it cannot set a Freshworks-only field. Upgrade path is a real
+     * field (plus {@code @ProtoField(id = 16)} and {@code model/workflowdef.proto}) once translator
+     * consumes a Freshworks-built {@code conductor-common}.
+     *
+     * <p>Both null checks are load-bearing, not defensive habit: a request body of {@code
+     * "variables": null} deserializes to a null map, and {@code String.valueOf} on a null map value
+     * yields the literal string {@code "null"}, which would index a bogus {@code "null"} account.
+     *
+     * @return the trimmed product account id, or {@code null} when absent or blank
+     */
+    private static String productAccountIdOf(WorkflowDef workflowDef) {
+        Map<String, Object> variables = workflowDef.getVariables();
+        Object productAccountId =
+                variables == null ? null : variables.get(PRODUCT_ACCOUNT_ID_KEY);
+        String trimmed =
+                productAccountId == null ? "" : String.valueOf(productAccountId).trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @VisibleForTesting
