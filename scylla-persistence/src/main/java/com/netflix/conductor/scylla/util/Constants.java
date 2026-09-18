@@ -22,6 +22,7 @@ public interface Constants {
     String TABLE_TASK_DEF_LIMIT = "task_def_limit";
     String TABLE_WORKFLOW_DEFS = "workflow_definitions";
     String TABLE_WORKFLOW_DEFS_INDEX = "workflow_defs_index";
+    String TABLE_WORKFLOW_DEFS_BY_ACCOUNT = "workflow_defs_by_account";
     String TABLE_TASK_DEFS = "task_definitions";
     String TABLE_EVENT_HANDLERS = "event_handlers";
     String TABLE_EVENT_EXECUTIONS = "event_executions";
@@ -44,6 +45,7 @@ public interface Constants {
     String WORKFLOW_DEF_INDEX_KEY = "workflow_def_version_index";
     String WORKFLOW_DEF_INDEX_VALUE = "workflow_def_index_value";
     String WORKFLOW_DEF_NAME_VERSION_KEY = "workflow_def_name_version";
+    String PRODUCT_ACCOUNT_ID_KEY = "product_account_id";
     String TASK_DEFS_KEY = "task_defs";
     String TASK_DEFINITION_KEY = "task_definition";
     String HANDLERS_KEY = "handlers";
