@@ -18,7 +18,7 @@ public class DataDeletionStatusPayload {
 
     private String eventType = EVENT_TYPE;
     private String deletionRequestId;
-    private String service;
+    private String serviceName;
     private String organisationId;
     private String bundleId;
     private String accountId;
@@ -26,7 +26,7 @@ public class DataDeletionStatusPayload {
     private String productAccountId;
     private String productId;
     private String status;
-    private String timestamp;
+    private Long actionTimestamp;
     private String message;
 
     public String getEventType() {
@@ -45,12 +45,12 @@ public class DataDeletionStatusPayload {
         this.deletionRequestId = deletionRequestId;
     }
 
-    public String getService() {
-        return service;
+    public String getServiceName() {
+        return serviceName;
     }
 
-    public void setService(String service) {
-        this.service = service;
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
     }
 
     public String getOrganisationId() {
@@ -109,12 +109,12 @@ public class DataDeletionStatusPayload {
         this.status = status;
     }
 
-    public String getTimestamp() {
-        return timestamp;
+    public Long getActionTimestamp() {
+        return actionTimestamp;
     }
 
-    public void setTimestamp(String timestamp) {
-        this.timestamp = timestamp;
+    public void setActionTimestamp(Long actionTimestamp) {
+        this.actionTimestamp = actionTimestamp;
     }
 
     public String getMessage() {

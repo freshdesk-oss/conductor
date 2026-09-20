@@ -2,8 +2,9 @@ package com.netflix.conductor.freshworks.deletion;
 
 import org.junit.jupiter.api.Test;
 
-import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
-import com.netflix.conductor.freshworks.deletion.model.CentralDeletionEnvelope;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequest;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -17,33 +18,39 @@ class DataDeletionEventListenerTest {
     private final DataDeletionEventListener listener = new DataDeletionEventListener(service);
 
     @Test
-    void validEnvelopeDelegatesToService() {
-        listener.onDataDeletionRequested(envelope("req-1", "5001"));
+    void validRequestDelegatesToService() {
+        listener.onDataDeletionRequested(request("req-1", "5001"));
 
         verify(service)
                 .handle(
                         argThat(
-                                e ->
-                                        "req-1".equals(e.getDeletionRequestId())
-                                                && "5001".equals(e.getProductAccountId())),
+                                env ->
+                                        "req-1".equals(env.getPayload().getDeletionRequestId())
+                                                && "5001"
+                                                        .equals(
+                                                                env.getPayload()
+                                                                        .getProductAccountId())),
                         any());
     }
 
     @Test
     void missingProductAccountIdStillDelegatesToService() {
-        listener.onDataDeletionRequested(envelope("req-1", ""));
+        listener.onDataDeletionRequested(request("req-1", ""));
 
         verify(service)
                 .handle(
                         argThat(
-                                e ->
-                                        "req-1".equals(e.getDeletionRequestId())
-                                                && "".equals(e.getProductAccountId())),
+                                env ->
+                                        "req-1".equals(env.getPayload().getDeletionRequestId())
+                                                && ""
+                                                        .equals(
+                                                                env.getPayload()
+                                                                        .getProductAccountId())),
                         any());
     }
 
     @Test
-    void nullEnvelopeIsIgnored() {
+    void nullRequestIsIgnored() {
         listener.onDataDeletionRequested(null);
 
         verifyNoInteractions(service);
@@ -51,21 +58,33 @@ class DataDeletionEventListenerTest {
 
     @Test
     void nullPayloadIsIgnored() {
-        listener.onDataDeletionRequested(new CentralDeletionEnvelope());
+        listener.onDataDeletionRequested(requestWithoutData());
 
         verifyNoInteractions(service);
     }
 
-    private static CentralDeletionEnvelope envelope(String deletionRequestId, String productAccountId) {
-        DataDeletionRequestedEvent event = new DataDeletionRequestedEvent();
-        event.setDeletionRequestId(deletionRequestId);
-        event.setProductAccountId(productAccountId);
+    /** Built by deserialization, the way the listener receives it. */
+    private static DataDeletionRequest request(String deletionRequestId, String productAccountId) {
+        String json =
+                """
+                {"data": {"payload": {
+                    "deletion_request_id": "%s",
+                    "product_account_id": "%s"}}}
+                """
+                        .formatted(deletionRequestId, productAccountId);
+        return read(json);
+    }
 
-        CentralDeletionEnvelope.EnvelopeData data = new CentralDeletionEnvelope.EnvelopeData();
-        data.setPayload(event);
+    /** A message whose {@code data} node is absent entirely. */
+    private static DataDeletionRequest requestWithoutData() {
+        return read("{\"meta\": {}}");
+    }
 
-        CentralDeletionEnvelope envelope = new CentralDeletionEnvelope();
-        envelope.setData(data);
-        return envelope;
+    private static DataDeletionRequest read(String json) {
+        try {
+            return new ObjectMapper().readValue(json, DataDeletionRequest.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }
