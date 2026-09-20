@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 
 import com.netflix.conductor.scylla.config.ScyllaProperties;
 import com.netflix.conductor.scylla.util.Statements;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -488,25 +489,23 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
     }
 
     /**
-     * ponytail: the product account id rides in {@link WorkflowDef#getVariables()} rather than a
+     * The product account id rides in {@link WorkflowDef#getVariables()} rather than a
      * first-class field because translator-service is pinned to the upstream OSS
      * {@code conductor-common}, so it cannot set a Freshworks-only field. Upgrade path is a real
      * field (plus {@code @ProtoField(id = 16)} and {@code model/workflowdef.proto}) once translator
      * consumes a Freshworks-built {@code conductor-common}.
      *
-     * <p>Both null checks are load-bearing, not defensive habit: a request body of {@code
-     * "variables": null} deserializes to a null map, and {@code String.valueOf} on a null map value
-     * yields the literal string {@code "null"}, which would index a bogus {@code "null"} account.
+     * <p>The null-map check is load-bearing, not defensive habit: a request body of {@code
+     * "variables": null} deserializes to a null map. {@link Objects#toString(Object, String)} is
+     * used rather than {@code String.valueOf} because the latter renders a null map value as the
+     * literal string {@code "null"}, which would index a bogus {@code "null"} account.
      *
      * @return the trimmed product account id, or {@code null} when absent or blank
      */
     private static String productAccountIdOf(WorkflowDef workflowDef) {
         Map<String, Object> variables = workflowDef.getVariables();
-        Object productAccountId =
-                variables == null ? null : variables.get(PRODUCT_ACCOUNT_ID_KEY);
-        String trimmed =
-                productAccountId == null ? "" : String.valueOf(productAccountId).trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        Object productAccountId = variables == null ? null : variables.get(PRODUCT_ACCOUNT_ID_KEY);
+        return StringUtils.trimToNull(Objects.toString(productAccountId, null));
     }
 
     @VisibleForTesting

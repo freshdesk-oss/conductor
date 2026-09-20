@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * break deserialization.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class DataDeletionRequestedEvent {
+public class DataDeletionRequestPayload {
 
     @JsonProperty("deletion_request_id")
     private String deletionRequestId;
@@ -37,55 +37,27 @@ public class DataDeletionRequestedEvent {
         return deletionRequestId;
     }
 
-    public void setDeletionRequestId(String deletionRequestId) {
-        this.deletionRequestId = deletionRequestId;
-    }
-
     public String getOrganisationId() {
         return organisationId;
-    }
-
-    public void setOrganisationId(String organisationId) {
-        this.organisationId = organisationId;
     }
 
     public String getBundleId() {
         return bundleId;
     }
 
-    public void setBundleId(String bundleId) {
-        this.bundleId = bundleId;
-    }
-
     public String getAccountId() {
         return accountId;
-    }
-
-    public void setAccountId(String accountId) {
-        this.accountId = accountId;
     }
 
     public String getProduct() {
         return product;
     }
 
-    public void setProduct(String product) {
-        this.product = product;
-    }
-
     public String getProductId() {
         return productId;
     }
 
-    public void setProductId(String productId) {
-        this.productId = productId;
-    }
-
     public String getProductAccountId() {
         return productAccountId;
-    }
-
-    public void setProductAccountId(String productAccountId) {
-        this.productAccountId = productAccountId;
     }
 }

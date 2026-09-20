@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.freshworks.boot.kafka.CentralListener;
-import com.netflix.conductor.freshworks.deletion.model.CentralDeletionEnvelope;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequest;
 
 import io.opentelemetry.api.trace.Span;
 
@@ -32,14 +32,14 @@ public class DataDeletionEventListener {
     @CentralListener(
             messageSelectors = "${freshid.service.name}:ACCOUNT_DELETION_REQUESTED:*",
             messageFilterEnabled = false)
-    public void onDataDeletionRequested(CentralDeletionEnvelope envelope) {
+    public void onDataDeletionRequested(DataDeletionRequest request) {
         String traceId = Span.current().getSpanContext().getTraceId();
 
-        if (envelope == null || envelope.getPayload() == null) {
+        if (request == null || request.getPayload() == null) {
             LOGGER.warn("Rejected ACCOUNT_DELETION_REQUESTED with missing payload traceId={}", traceId);
             return;
         }
 
-        service.handle(envelope.getPayload(), traceId);
+        service.handle(request, traceId);
     }
 }
