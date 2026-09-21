@@ -79,12 +79,13 @@ public class DataDeletionStatusPublisher {
             Throwable cause) {
         LOGGER.error(
                 "Failed to publish ACCOUNT_DELETION_STATUS deletion_request_id={} account_id={} "
-                        + "product_account_id={} status={} traceId={}",
+                        + "product_account_id={} status={} traceId={} error={}",
                 requestPayload.getDeletionRequestId(),
                 requestPayload.getAccountId(),
                 requestPayload.getProductAccountId(),
                 status,
                 traceId,
+                cause.toString(),
                 cause);
     }
 
