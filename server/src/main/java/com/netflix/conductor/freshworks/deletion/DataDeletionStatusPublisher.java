@@ -89,14 +89,6 @@ public class DataDeletionStatusPublisher {
                 cause);
     }
 
-    /**
-     * {@code region} and {@code service} are echoed from the inbound request. {@code pod} is not
-     * part of this status event, so it is left unset.
-     *
-     * <p>Setting {@code region}/{@code service} explicitly also means {@code DefaultKafkaPublisher}
-     * never falls back to {@code freshworks.boot.kafka.producer.region}/{@code .serviceName}, which
-     * is why those properties no longer need to be configured at all.
-     */
     private CentralPayload<DataDeletionStatusPayload> buildPayload(
             DeletionStatus status, DataDeletionRequest request, String message) {
         DataDeletionRequestPayload requestPayload = request.getPayload();
@@ -115,7 +107,7 @@ public class DataDeletionStatusPublisher {
 
         CentralData<DataDeletionStatusPayload> data =
                 CentralData.<DataDeletionStatusPayload>builder()
-                        .accountId(requestPayload.getProductAccountId())
+                        .accountId(requestPayload.getAccountId())
                         .organisationId(requestPayload.getOrganisationId())
                         .productId(requestPayload.getProductId())
                         .bundleId(requestPayload.getBundleId())

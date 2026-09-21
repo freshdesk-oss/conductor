@@ -18,6 +18,7 @@ import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequest;
 import com.netflix.conductor.freshworks.deletion.model.DataDeletionStatusPayload;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -52,7 +53,10 @@ class DataDeletionStatusPublisherTest {
         CentralData<DataDeletionStatusPayload> data = captor.getValue().getData();
         assertEquals("ACCOUNT_DELETION_STATUS", data.getPayloadType());
         assertEquals("2.0", data.getPayloadVersion());
-        assertEquals("5001", data.getAccountId()); // envelope account_id = product_account_id
+        // envelope account_id is the FreshID account_id - ProducerHelper.getKafkaMessageKey
+        // does Long.parseLong on it, so it must be present and numeric
+        assertEquals("1022003773479925014", data.getAccountId());
+        assertDoesNotThrow(() -> Long.parseLong(data.getAccountId()));
         // region/service echoed from the inbound request, so DefaultKafkaPublisher never falls
         // back to freshworks.boot.kafka.producer.*; pod is not part of this event
         assertEquals("us-east-1", data.getRegion());
@@ -64,10 +68,44 @@ class DataDeletionStatusPublisherTest {
         assertEquals("req-1", payload.getDeletionRequestId());
         assertEquals(SERVICE, payload.getServiceName());
         assertNotNull(payload.getActionTimestamp());
-        assertEquals("freshid-acc-1", payload.getAccountId());
+        assertEquals("1022003773479925014", payload.getAccountId());
         assertEquals("5001", payload.getProductAccountId());
         assertEquals("SUCCESS", payload.getStatus());
         assertEquals("done", payload.getMessage());
+    }
+
+    /**
+     * Reproduces a production failure: an ACCOUNT_DELETION_REQUESTED with no product_account_id is
+     * reported back as NOT_FOUND, but the envelope was keyed on that same missing value, so
+     * Long.parseLong(null) threw inside publish and the status never reached Central.
+     */
+    @Test
+    void publishesStatusWhenProductAccountIdIsMissing() {
+        when(kafkaPublisher.publish(any())).thenReturn(completedSendResult());
+
+        String noProductAccountId =
+                """
+                {"data": {
+                    "service": "freshidv2",
+                    "region": "us-east-1",
+                    "payload": {
+                        "deletion_request_id": "req-1",
+                        "account_id": "1022003773479925014",
+                        "product": "freshservice"}}}
+                """;
+        DataDeletionRequest request = readRequest(noProductAccountId);
+
+        publisher.publish(DeletionStatus.NOT_FOUND, request, "Missing product_account_id", "trace-1");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<CentralPayload<DataDeletionStatusPayload>> captor =
+                ArgumentCaptor.forClass(CentralPayload.class);
+        verify(kafkaPublisher).publish(captor.capture());
+
+        CentralData<DataDeletionStatusPayload> data = captor.getValue().getData();
+        assertEquals("1022003773479925014", data.getAccountId());
+        assertDoesNotThrow(() -> Long.parseLong(data.getAccountId()));
+        assertNull(data.getPayload().getProductAccountId());
     }
 
     @Test
@@ -111,11 +149,15 @@ class DataDeletionStatusPublisherTest {
                         "deletion_request_id": "req-1",
                         "organisation_id": "org-1",
                         "bundle_id": "bundle-1",
-                        "account_id": "freshid-acc-1",
+                        "account_id": "1022003773479925014",
                         "product": "freshservice",
                         "product_id": "prod-1",
                         "product_account_id": "5001"}}}
                 """;
+        return readRequest(json);
+    }
+
+    private static DataDeletionRequest readRequest(String json) {
         try {
             return new ObjectMapper().readValue(json, DataDeletionRequest.class);
         } catch (JsonProcessingException e) {
