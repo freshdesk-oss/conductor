@@ -5,19 +5,20 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 /**
- * Inner payload of the {@code ACCOUNT_DELETION_STATUS} event published to Central. Serialized with
- * snake_case field names; {@code null} fields (e.g. an absent {@code message}) are omitted via
- * {@code NON_NULL} inclusion so serialization does not depend on the caller's {@code ObjectMapper}.
+ * Inner payload of the {@code ACCOUNT_DELETION_STATUS} event published to Central;
+ * {@code null} fields are omitted via {@code NON_NULL} inclusion so serialization
+ * does not depend on the caller's {@code ObjectMapper}.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class DataDeletionStatusPayload {
 
     public static final String EVENT_TYPE = "ACCOUNT_DELETION_STATUS";
+    public static final String PAYLOAD_VERSION = "2.0";
 
     private String eventType = EVENT_TYPE;
     private String deletionRequestId;
-    private String service;
+    private String serviceName;
     private String organisationId;
     private String bundleId;
     private String accountId;
@@ -25,7 +26,7 @@ public class DataDeletionStatusPayload {
     private String productAccountId;
     private String productId;
     private String status;
-    private String timestamp;
+    private Long actionTimestamp;
     private String message;
 
     public String getEventType() {
@@ -44,12 +45,12 @@ public class DataDeletionStatusPayload {
         this.deletionRequestId = deletionRequestId;
     }
 
-    public String getService() {
-        return service;
+    public String getServiceName() {
+        return serviceName;
     }
 
-    public void setService(String service) {
-        this.service = service;
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
     }
 
     public String getOrganisationId() {
@@ -108,12 +109,12 @@ public class DataDeletionStatusPayload {
         this.status = status;
     }
 
-    public String getTimestamp() {
-        return timestamp;
+    public Long getActionTimestamp() {
+        return actionTimestamp;
     }
 
-    public void setTimestamp(String timestamp) {
-        this.timestamp = timestamp;
+    public void setActionTimestamp(Long actionTimestamp) {
+        this.actionTimestamp = actionTimestamp;
     }
 
     public String getMessage() {

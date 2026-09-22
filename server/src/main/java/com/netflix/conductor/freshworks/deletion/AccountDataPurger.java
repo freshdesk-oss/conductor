@@ -6,58 +6,52 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import com.netflix.conductor.common.run.Workflow;
-import com.netflix.conductor.core.dal.ExecutionDAOFacade;
+import com.netflix.conductor.common.metadata.workflow.WorkflowDefSummary;
+import com.netflix.conductor.dao.MetadataDAO;
 
 /**
- * Hard-deletes all conductor workflow/task execution data for an account by reusing conductor's
- * existing primitives: enumerate workflows for the account's shard ({@code correlationId ==
- * product_account_id}) and delete each. A failure propagates to the caller so the inbound Kafka
- * message is redelivered by {@code freshworks-boot-kafka}'s consumer error handler, which retries
- * with backoff and re-enumerates — that redelivery is what converges the purge, rather than an
- * in-process retry/pass loop. The operation is idempotent — re-running on an already-purged account
- * finds nothing and succeeds.
+ * Hard-deletes an account's workflow definitions: enumerate them through the {@code
+ * workflow_defs_by_account} index and unregister each, which clears {@code workflow_definitions},
+ * {@code workflow_defs_index} and the index row itself.
+ *
+ * <p>A failure propagates to {@link DataDeletionService}, which reports {@code FAILURE} to Central
+ * and does not rethrow — so the Kafka offset commits and the message is not redelivered.
+ * Recovery is therefore whoever re-triggers the deletion request, not an automatic retry. The
+ * operation is idempotent, so re-running on a partly-purged account completes the rest.
  */
 @Component
 public class AccountDataPurger {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AccountDataPurger.class);
 
-    private final ExecutionDAOFacade executionDAOFacade;
+    private final MetadataDAO metadataDAO;
 
-    public AccountDataPurger(ExecutionDAOFacade executionDAOFacade) {
-        this.executionDAOFacade = executionDAOFacade;
+    public AccountDataPurger(MetadataDAO metadataDAO) {
+        this.metadataDAO = metadataDAO;
     }
 
-    /** @return {@code true} if the account had data and it was deleted, {@code false} if none was found */
+    /** @return {@code true} if the account had definitions and they were deleted, {@code false} if none were found */
     public boolean purge(String productAccountId, String deletionRequestId, String traceId) {
-        List<Workflow> workflows =
-                executionDAOFacade.getWorkflowsByCorrelationId(null, productAccountId, false);
-        if (workflows == null || workflows.isEmpty()) {
-            LOGGER.info(
-                    "Data purge complete deletion_request_id={} product_account_id={} traceId={} "
-                            + "workflows=0",
-                    deletionRequestId,
-                    productAccountId,
-                    traceId);
-            return false;
-        }
+        List<WorkflowDefSummary> workflowDefs = metadataDAO.getWorkflowDefsByAccount(productAccountId);
 
         LOGGER.info(
-                "Data purge deletion_request_id={} product_account_id={} traceId={} workflows={}",
+                "Data purge deletion_request_id={} product_account_id={} traceId={} workflow_defs={}",
                 deletionRequestId,
                 productAccountId,
                 traceId,
-                workflows.size());
+                workflowDefs.size());
 
-        for (Workflow workflow : workflows) {
-            executionDAOFacade.removeWorkflow(workflow.getWorkflowId(), false);
+        for (WorkflowDefSummary workflowDef : workflowDefs) {
+            metadataDAO.removeWorkflowDef(workflowDef.getName(), workflowDef.getVersion());
             LOGGER.debug(
-                    "Hard-deleted workflow deletion_request_id={} workflowId={} traceId={}",
+                    "Hard-deleted workflow definition deletion_request_id={} name={} version={} "
+                            + "traceId={}",
                     deletionRequestId,
-                    workflow.getWorkflowId(),
+                    workflowDef.getName(),
+                    workflowDef.getVersion(),
                     traceId);
         }
-        return true;
+
+        return !workflowDefs.isEmpty();
     }
 }

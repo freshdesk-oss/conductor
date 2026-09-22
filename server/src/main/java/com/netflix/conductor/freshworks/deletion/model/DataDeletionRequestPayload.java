@@ -9,10 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * break deserialization.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class DataDeletionRequestedEvent {
-
-    @JsonProperty("event_type")
-    private String eventType;
+public class DataDeletionRequestPayload {
 
     @JsonProperty("deletion_request_id")
     private String deletionRequestId;
@@ -23,7 +20,7 @@ public class DataDeletionRequestedEvent {
     @JsonProperty("bundle_id")
     private String bundleId;
 
-    /** FreshID account id — echoed back only; not usable as conductor's numeric shard key. */
+    /** FreshID account id — echoed back in the status event only. */
     @JsonProperty("account_id")
     private String accountId;
 
@@ -33,71 +30,34 @@ public class DataDeletionRequestedEvent {
     @JsonProperty("product_id")
     private String productId;
 
-    /** Product account id — this is conductor's {@code correlationId}/{@code shard_id}. */
     @JsonProperty("product_account_id")
     private String productAccountId;
 
-    public String getEventType() {
-        return eventType;
-    }
-
-    public void setEventType(String eventType) {
-        this.eventType = eventType;
-    }
-
     public String getDeletionRequestId() {
         return deletionRequestId;
-    }
-
-    public void setDeletionRequestId(String deletionRequestId) {
-        this.deletionRequestId = deletionRequestId;
     }
 
     public String getOrganisationId() {
         return organisationId;
     }
 
-    public void setOrganisationId(String organisationId) {
-        this.organisationId = organisationId;
-    }
-
     public String getBundleId() {
         return bundleId;
-    }
-
-    public void setBundleId(String bundleId) {
-        this.bundleId = bundleId;
     }
 
     public String getAccountId() {
         return accountId;
     }
 
-    public void setAccountId(String accountId) {
-        this.accountId = accountId;
-    }
-
     public String getProduct() {
         return product;
-    }
-
-    public void setProduct(String product) {
-        this.product = product;
     }
 
     public String getProductId() {
         return productId;
     }
 
-    public void setProductId(String productId) {
-        this.productId = productId;
-    }
-
     public String getProductAccountId() {
         return productAccountId;
-    }
-
-    public void setProductAccountId(String productAccountId) {
-        this.productAccountId = productAccountId;
     }
 }

@@ -6,17 +6,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequest;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestPayload;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 
 /**
- * Orchestrates data deletion request: runs the hard delete synchronously on the Kafka
- * listener thread, emitting {@code STARTED} then {@code SUCCESS}/{@code NOT_FOUND}/{@code
+ * Orchestrates data deletion request: Emits {@code STARTED} then {@code SUCCESS}/{@code NOT_FOUND}/{@code
  * FAILURE}.
- *
- * <p>Events missing {@code product_account_id} (nothing to shard on), or whose {@code product}
- * doesn't match {@code conductor.product} (this Conductor instance may share the FreshID event
- * stream with other products), are rejected with {@code NOT_FOUND} rather than purged.
  */
 @Component
 public class DataDeletionService {
@@ -37,67 +33,69 @@ public class DataDeletionService {
     }
 
     /** Acknowledges the request and runs the purge. */
-    public void handle(DataDeletionRequestedEvent event, String traceId) {
+    public void handle(DataDeletionRequest request, String traceId) {
+        DataDeletionRequestPayload requestPayload = request.getPayload();
         LOGGER.info(
                 "Received ACCOUNT_DELETION_REQUESTED deletion_request_id={} account_id={} "
                         + "product_account_id={} product={} traceId={}",
-                event.getDeletionRequestId(),
-                event.getAccountId(),
-                event.getProductAccountId(),
-                event.getProduct(),
+                requestPayload.getDeletionRequestId(),
+                requestPayload.getAccountId(),
+                requestPayload.getProductAccountId(),
+                requestPayload.getProduct(),
                 traceId);
 
-        if (StringUtils.isBlank(event.getProductAccountId())) {
+        if (StringUtils.isBlank(requestPayload.getProductAccountId())) {
             LOGGER.warn(
                     "Rejected ACCOUNT_DELETION_REQUESTED with missing product_account_id"
                             + " deletion_request_id={} traceId={}",
-                    event.getDeletionRequestId(),
+                    requestPayload.getDeletionRequestId(),
                     traceId);
             statusPublisher.publish(
-                    DeletionStatus.NOT_FOUND, event, "Missing product_account_id", traceId);
+                    DeletionStatus.NOT_FOUND, request, "Missing product_account_id", traceId);
             return;
         }
 
-        if (!product.equals(event.getProduct())) {
+        if (!product.equals(requestPayload.getProduct())) {
             String message =
                     "No matching product on this instance: received product="
-                            + event.getProduct()
+                            + requestPayload.getProduct()
                             + ", expected product="
                             + product;
             LOGGER.info(
                     "Rejected ACCOUNT_DELETION_REQUESTED for product={} (this instance only acts"
                             + " on product={}) deletion_request_id={} traceId={}",
-                    event.getProduct(),
+                    requestPayload.getProduct(),
                     product,
-                    event.getDeletionRequestId(),
+                    requestPayload.getDeletionRequestId(),
                     traceId);
-            statusPublisher.publish(DeletionStatus.NOT_FOUND, event, message, traceId);
+            statusPublisher.publish(DeletionStatus.NOT_FOUND, request, message, traceId);
             return;
         }
 
-        runPurge(event, traceId);
+        runPurge(request, traceId);
     }
 
-    private void runPurge(DataDeletionRequestedEvent event, String traceId) {
+    private void runPurge(DataDeletionRequest request, String traceId) {
+        DataDeletionRequestPayload requestPayload = request.getPayload();
         try {
-            statusPublisher.publish(DeletionStatus.STARTED, event, null, traceId);
+            statusPublisher.publish(DeletionStatus.STARTED, request, null, traceId);
             boolean purged =
-                    purger.purge(event.getProductAccountId(), event.getDeletionRequestId(), traceId);
+                    purger.purge(requestPayload.getProductAccountId(), requestPayload.getDeletionRequestId(), traceId);
             if (purged) {
                 statusPublisher.publish(
-                        DeletionStatus.SUCCESS, event, "Account data deleted", traceId);
+                        DeletionStatus.SUCCESS, request, "Account data deleted", traceId);
             } else {
                 statusPublisher.publish(
-                        DeletionStatus.NOT_FOUND, event, "No account data found", traceId);
+                        DeletionStatus.NOT_FOUND, request, "No account data found", traceId);
             }
         } catch (RuntimeException e) {
             LOGGER.error(
                     "Data deletion FAILED deletion_request_id={} product_account_id={} traceId={}",
-                    event.getDeletionRequestId(),
-                    event.getProductAccountId(),
+                    requestPayload.getDeletionRequestId(),
+                    requestPayload.getProductAccountId(),
                     traceId,
                     e);
-            statusPublisher.publish(DeletionStatus.FAILURE, event, e.getMessage(), traceId);
+            statusPublisher.publish(DeletionStatus.FAILURE, request, e.getMessage(), traceId);
         }
     }
 }

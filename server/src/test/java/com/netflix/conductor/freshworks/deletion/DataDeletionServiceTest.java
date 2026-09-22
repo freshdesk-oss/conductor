@@ -2,7 +2,9 @@ package com.netflix.conductor.freshworks.deletion;
 
 import org.junit.jupiter.api.Test;
 
-import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestedEvent;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequest;
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -25,7 +27,7 @@ class DataDeletionServiceTest {
     void matchingProductStartsAndPurges() {
         when(purger.purge(anyString(), anyString(), anyString())).thenReturn(true);
 
-        service.handle(event("freshservice"), "trace-1");
+        service.handle(request("freshservice"), "trace-1");
 
         verify(statusPublisher).publish(eq(DeletionStatus.STARTED), any(), eq(null), eq("trace-1"));
         verify(statusPublisher)
@@ -36,7 +38,7 @@ class DataDeletionServiceTest {
     void noAccountDataPublishesNotFound() {
         when(purger.purge(anyString(), anyString(), anyString())).thenReturn(false);
 
-        service.handle(event("freshservice"), "trace-1");
+        service.handle(request("freshservice"), "trace-1");
 
         verify(statusPublisher).publish(eq(DeletionStatus.STARTED), any(), eq(null), eq("trace-1"));
         verify(statusPublisher)
@@ -45,10 +47,7 @@ class DataDeletionServiceTest {
 
     @Test
     void missingProductAccountIdPublishesNotFoundAndSkipsPurge() {
-        DataDeletionRequestedEvent event = event("freshservice");
-        event.setProductAccountId("");
-
-        service.handle(event, "trace-1");
+        service.handle(request("freshservice", ""), "trace-1");
 
         verify(statusPublisher)
                 .publish(eq(DeletionStatus.NOT_FOUND), any(), anyString(), eq("trace-1"));
@@ -57,7 +56,7 @@ class DataDeletionServiceTest {
 
     @Test
     void mismatchedProductPublishesNotFoundAndSkipsPurge() {
-        service.handle(event("freshdesk"), "trace-1");
+        service.handle(request("freshdesk"), "trace-1");
 
         verify(statusPublisher)
                 .publish(eq(DeletionStatus.NOT_FOUND), any(), anyString(), eq("trace-1"));
@@ -65,11 +64,24 @@ class DataDeletionServiceTest {
         verifyNoInteractions(purger);
     }
 
-    private static DataDeletionRequestedEvent event(String product) {
-        DataDeletionRequestedEvent event = new DataDeletionRequestedEvent();
-        event.setDeletionRequestId("req-1");
-        event.setProductAccountId("5001");
-        event.setProduct(product);
-        return event;
+    private static DataDeletionRequest request(String product) {
+        return request(product, "5001");
+    }
+
+    /** Built by deserialization, the way the listener receives it. */
+    private static DataDeletionRequest request(String product, String productAccountId) {
+        String json =
+                """
+                {"data": {"payload": {
+                    "deletion_request_id": "req-1",
+                    "product_account_id": "%s",
+                    "product": "%s"}}}
+                """
+                        .formatted(productAccountId, product);
+        try {
+            return new ObjectMapper().readValue(json, DataDeletionRequest.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }
