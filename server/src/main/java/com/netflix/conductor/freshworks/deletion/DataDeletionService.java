@@ -11,8 +11,7 @@ import com.netflix.conductor.freshworks.deletion.model.DataDeletionRequestPayloa
 import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 
 /**
- * Orchestrates data deletion request: runs the hard delete synchronously on the Kafka
- * listener thread, emitting {@code STARTED} then {@code SUCCESS}/{@code NOT_FOUND}/{@code
+ * Orchestrates data deletion request: Emits {@code STARTED} then {@code SUCCESS}/{@code NOT_FOUND}/{@code
  * FAILURE}.
  */
 @Component
