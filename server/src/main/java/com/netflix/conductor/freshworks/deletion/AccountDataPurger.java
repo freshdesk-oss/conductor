@@ -14,18 +14,10 @@ import com.netflix.conductor.dao.MetadataDAO;
  * workflow_defs_by_account} index and unregister each, which clears {@code workflow_definitions},
  * {@code workflow_defs_index} and the index row itself.
  *
- * <p>Execution data is deliberately not purged here. The {@code workflows} table carries a TTL in
- * production, so workflow and task rows age out on their own; deleting them on this event would
- * duplicate that.
- *
  * <p>A failure propagates to {@link DataDeletionService}, which reports {@code FAILURE} to Central
  * and does not rethrow — so the Kafka offset commits and the message is not redelivered.
  * Recovery is therefore whoever re-triggers the deletion request, not an automatic retry. The
  * operation is idempotent, so re-running on a partly-purged account completes the rest.
- *
- * <p>Definitions registered before the product account id was threaded through registration carry
- * no index row and so are not found here; those remain the responsibility of the calling service's
- * own delete call.
  */
 @Component
 public class AccountDataPurger {

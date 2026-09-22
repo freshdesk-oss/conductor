@@ -272,7 +272,6 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
     @Override
     public void removeWorkflowDef(String name, Integer version) {
         try {
-            // read before delete: the owning account only exists inside the definition blob
             String productAccountId =
                     getWorkflowDef(name, version)
                             .map(ScyllaMetadataDAO::productAccountIdOf)
@@ -465,14 +464,6 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
         }
     }
 
-    /**
-     * Indexes a definition under its owning product account so that account deletion can enumerate
-     * it — neither {@code workflow_definitions} (partitioned by name) nor {@code
-     * workflow_defs_index} (a single fixed partition) records an account.
-     *
-     * <p>Definitions registered without a product account id are left unindexed rather than
-     * rejected: registration must stay backward compatible for callers that do not send one.
-     */
     private void indexWorkflowDefByAccount(WorkflowDef workflowDef) {
         String productAccountId = productAccountIdOf(workflowDef);
         if (productAccountId == null) {
@@ -489,12 +480,6 @@ public class ScyllaMetadataDAO extends ScyllaBaseDAO implements MetadataDAO {
     }
 
     /**
-     * The product account id rides in {@link WorkflowDef#getVariables()} rather than a
-     * first-class field because translator-service is pinned to the upstream OSS
-     * {@code conductor-common}, so it cannot set a Freshworks-only field. Upgrade path is a real
-     * field (plus {@code @ProtoField(id = 16)} and {@code model/workflowdef.proto}) once translator
-     * consumes a Freshworks-built {@code conductor-common}.
-     *
      * <p>The null-map check is load-bearing, not defensive habit: a request body of {@code
      * "variables": null} deserializes to a null map. {@link Objects#toString(Object, String)} is
      * used rather than {@code String.valueOf} because the latter renders a null map value as the

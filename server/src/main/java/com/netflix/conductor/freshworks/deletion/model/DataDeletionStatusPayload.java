@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 /**
- * Inner payload of the {@code ACCOUNT_DELETION_STATUS} event published to Central. Serialized with
- * snake_case field names; {@code null} fields (e.g. an absent {@code message}) are omitted via
- * {@code NON_NULL} inclusion so serialization does not depend on the caller's {@code ObjectMapper}.
+ * Inner payload of the {@code ACCOUNT_DELETION_STATUS} event published to Central;
+ * {@code null} fields are omitted via {@code NON_NULL} inclusion so serialization
+ * does not depend on the caller's {@code ObjectMapper}.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)

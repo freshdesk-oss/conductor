@@ -19,9 +19,7 @@ import com.netflix.conductor.freshworks.deletion.model.DeletionStatus;
 
 /**
  * Builds and publishes {@code ACCOUNT_DELETION_STATUS} events to Central for each stage of an
- * account purge, via {@code freshworks-boot-central-kafka-sdk}'s {@link KafkaPublisher}. A publish
- * failure is logged but never propagated so it cannot crash the purge worker; a missing terminal
- * status is caught by Baikal SLA monitoring.
+ * account purge, via {@code freshworks-boot-central-kafka-sdk}'s {@link KafkaPublisher}.
  */
 @Component
 public class DataDeletionStatusPublisher {
