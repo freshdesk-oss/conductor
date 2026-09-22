@@ -52,6 +52,10 @@ import static com.netflix.conductor.scylla.util.Constants.*;
  * workflow_def_name_version text, workflow_def_index_value text,PRIMARY KEY
  * ((workflow_def_version_index), workflow_def_name_version) );
  *
+ * <p>CREATE TABLE IF NOT EXISTS conductor.workflow_defs_by_account( product_account_id text,
+ * workflow_def_name text, version int, PRIMARY KEY ((product_account_id), workflow_def_name,
+ * version) );
+ *
  * <p>CREATE TABLE IF NOT EXISTS conductor.task_definitions( task_defs text, task_def_name text,
  * task_definition text, PRIMARY KEY ((task_defs), task_def_name) );
  *
@@ -98,6 +102,7 @@ public abstract class ScyllaBaseDAO {
                 session.execute(getCreateTaskDefLimitTableStatement());
                 session.execute(getCreateWorkflowDefsTableStatement());
                 session.execute(getCreateWorkflowDefsIndexTableStatement());
+                session.execute(getCreateWorkflowDefsByAccountTableStatement());
                 session.execute(getCreateTaskDefsTableStatement());
                 //Added task_in_progress
                 session.execute(getCreateTaskInProgressTableStatement());
@@ -189,6 +194,15 @@ public abstract class ScyllaBaseDAO {
                 .addPartitionKey(WORKFLOW_DEF_INDEX_KEY, DataType.text())
                 .addClusteringColumn(WORKFLOW_DEF_NAME_VERSION_KEY, DataType.text())
                 .addColumn(WORKFLOW_DEF_INDEX_VALUE, DataType.text())
+                .getQueryString();
+    }
+
+    private String getCreateWorkflowDefsByAccountTableStatement() {
+        return SchemaBuilder.createTable(properties.getKeyspace(), TABLE_WORKFLOW_DEFS_BY_ACCOUNT)
+                .ifNotExists()
+                .addPartitionKey(PRODUCT_ACCOUNT_ID_KEY, DataType.text())
+                .addClusteringColumn(WORKFLOW_DEF_NAME_KEY, DataType.text())
+                .addClusteringColumn(WORKFLOW_VERSION_KEY, DataType.cint())
                 .getQueryString();
     }
 

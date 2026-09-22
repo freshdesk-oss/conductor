@@ -30,6 +30,53 @@ class ScyllaMetadataDAOSpec extends ScyllaSpec {
 
     }
 
+    def "product account index is written on register and cleared on unregister"() throws Exception {
+        given: 'a definition registered with a product account id in its variables'
+        String name = "account_indexed_def"
+        int version = 1
+        WorkflowDef workflowDef = new WorkflowDef()
+        workflowDef.setName(name)
+        workflowDef.setVersion(version)
+        workflowDef.setOwnerEmail("test@junit.com")
+        workflowDef.setVariables(["product_account_id": "5001"])
+
+        when: 'registered via the update path, which is what an overwrite=true register uses'
+        metadataDAO.updateWorkflowDef(workflowDef)
+
+        then: 'it is discoverable by product account id'
+        def defs = metadataDAO.getWorkflowDefsByAccount("5001")
+        defs.size() == 1
+        defs[0].name == name
+        defs[0].version == version
+
+        and: 'an unrelated account sees nothing'
+        metadataDAO.getWorkflowDefsByAccount("9999").isEmpty()
+
+        when: 'unregistered'
+        metadataDAO.removeWorkflowDef(name, version)
+
+        then: 'the index row goes away with it'
+        metadataDAO.getWorkflowDefsByAccount("5001").isEmpty()
+    }
+
+    def "register without a product account id succeeds and indexes nothing"() throws Exception {
+        given:
+        WorkflowDef workflowDef = new WorkflowDef()
+        workflowDef.setName("unindexed_def")
+        workflowDef.setVersion(1)
+        workflowDef.setOwnerEmail("test@junit.com")
+
+        when: 'registered with no product account id at all'
+        metadataDAO.createWorkflowDef(workflowDef)
+
+        then: 'registration still succeeds'
+        metadataDAO.getWorkflowDef("unindexed_def", 1).present
+
+        and: 'and removing it does not blow up on a missing index row'
+        metadataDAO.removeWorkflowDef("unindexed_def", 1)
+        !metadataDAO.getWorkflowDef("unindexed_def", 1).present
+    }
+
     def "CRUD on WorkflowDef"() throws Exception {
         given:
         String name = "workflow_def_1"
