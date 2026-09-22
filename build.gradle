@@ -77,21 +77,7 @@ allprojects {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
     }
 
-    def nexusUsername = System.getenv('NEXUS_USERNAME')
-    def nexusPassword = System.getenv('NEXUS_PASSWORD')
-
     repositories {
-
-        maven {
-            url = "https://nexuscentral.runwayci.com/repository/maven-public/"
-            credentials {
-                username = nexusUsername
-                password = nexusPassword
-            }
-            authentication {
-                basic(BasicAuthentication)
-            }
-        }
 
         mavenCentral()
 
