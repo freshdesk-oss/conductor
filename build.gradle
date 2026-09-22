@@ -78,7 +78,6 @@ allprojects {
     }
 
     repositories {
-
         mavenCentral()
 
         // oss-candidate for -rc.* verions:
