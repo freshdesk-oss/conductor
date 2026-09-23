@@ -14,6 +14,18 @@
       "name": "conductor.grpc-server.enabled",
       "type": "java.lang.Boolean",
       "description": "Enable the gRPC server."
+    },
+    {
+      "name": "conductor.product",
+      "type": "java.lang.String",
+      "description": "The product this Conductor instance serves. Inbound ACCOUNT_DELETION_REQUESTED events for any other product are ignored.",
+      "defaultValue": "freshservice"
+    },
+    {
+      "name": "freshid.service.name",
+      "type": "java.lang.String",
+      "description": "FreshID's service name, used as the message-selector prefix for the ACCOUNT_DELETION_REQUESTED Kafka event.",
+      "defaultValue": "freshidv2"
     }
   ],
   "hints": [
