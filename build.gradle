@@ -78,15 +78,6 @@ allprojects {
     }
 
     repositories {
-
-        maven {
-            url "https://nexuscentral.runwayci.com/repository/maven-public/"
-            credentials {
-                username = project.findProperty("nexusUsername") ?: System.getenv("NEXUS_USERNAME")
-                password = project.findProperty("nexusPassword") ?: System.getenv("NEXUS_PASSWORD")
-            }
-        }
-
         mavenCentral()
 
         // oss-candidate for -rc.* verions:
@@ -106,6 +97,14 @@ allprojects {
             }
             filter {
                 includeGroupByRegex "com\\.github\\.vmg.*"
+            }
+        }
+
+        maven {
+            url "https://nexuscentral.runwayci.com/repository/maven-public/"
+            credentials {
+                username = project.findProperty("nexusUsername") ?: System.getenv("NEXUS_USERNAME")
+                password = project.findProperty("nexusPassword") ?: System.getenv("NEXUS_PASSWORD")
             }
         }
     }
