@@ -12,6 +12,8 @@
  */
 package com.netflix.conductor.core.execution;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -35,6 +37,20 @@ public class AsyncSystemTaskExecutor {
     private final long queueTaskMessagePostponeSecs;
     private final long systemTaskCallbackTime;
     private final WorkflowExecutor workflowExecutor;
+
+    /**
+     * JVM-local guard against concurrent {@link WorkflowSystemTask#start} for the same task id.
+     *
+     * <p>Closes the race where {@code WorkflowRepairService} re-queues a still-{@code SCHEDULED}
+     * task while an earlier delivery is mid-{@code start()} (status is only persisted {@code
+     * IN_PROGRESS} in the {@code finally} of {@link #execute}). Without this, two threads can both
+     * call {@code start()} — for {@code SUB_WORKFLOW}, that creates two child workflow instances
+     * for one parent task (FS-399078).
+     *
+     * <p>Does not replace a distributed lock across replicas; protects the in-process race between
+     * the system-task worker pool and the sweeper/repair pool.
+     */
+    private final ConcurrentHashMap<String, Boolean> tasksStarting = new ConcurrentHashMap<>();
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AsyncSystemTaskExecutor.class);
 
@@ -105,6 +121,18 @@ public class AsyncSystemTaskExecutor {
                         task.getTaskDefName(),
                         task.getRateLimitPerFrequency());
                 postponeQuietly(queueName, task);
+                return;
+            }
+            // Claim before any start()/persist so a concurrent duplicate delivery (e.g. repair
+            // re-queue while status is still SCHEDULED in the DB) cannot also call start(). Hold
+            // until after updateTask in finally — otherwise another delivery can sneak in between
+            // start() returning and the IN_PROGRESS write.
+            if (tasksStarting.putIfAbsent(taskId, Boolean.TRUE) != null) {
+                LOGGER.warn(
+                        "Skipping duplicate start for {}/{} - another delivery is already"
+                                + " starting this task",
+                        task.getTaskType(),
+                        taskId);
                 return;
             }
         }
@@ -187,6 +215,7 @@ public class AsyncSystemTaskExecutor {
             Monitors.error(AsyncSystemTaskExecutor.class.getSimpleName(), "executeSystemTask");
             LOGGER.error("Error executing system task - {}, with id: {}", systemTask, taskId, e);
         } finally {
+            tasksStarting.remove(taskId);
             executionDAOFacade.updateTask(task);
             // if the current task execution has completed, then the workflow needs to be evaluated
             if (hasTaskExecutionCompleted) {
