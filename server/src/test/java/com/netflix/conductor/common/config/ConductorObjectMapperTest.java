@@ -44,7 +44,12 @@ import static org.junit.Assert.assertTrue;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @RunWith(SpringRunner.class)
-@TestPropertySource(properties = "conductor.queue.type=")
+@TestPropertySource(
+        properties = {
+            "conductor.queue.type=",
+            "conductor.product=conductor",
+            "freshid.service.name=freshid"
+        })
 public class ConductorObjectMapperTest {
 
     @Autowired ObjectMapper objectMapper;

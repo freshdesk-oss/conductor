@@ -31,15 +31,18 @@ class StatementsSpec extends Specification {
         then:
         with(subject) {
             insertWorkflowDefStatement == "INSERT INTO test.workflow_definitions (workflow_def_name,version,workflow_definition) VALUES (?,?,?) IF NOT EXISTS;"
+            insertWorkflowDefByAccountStatement == "INSERT INTO test.workflow_defs_by_account (product_account_id,workflow_def_name,version) VALUES (?,?,?);"
             insertTaskDefStatement == "INSERT INTO test.task_definitions (task_defs,task_def_name,task_definition) VALUES ('task_defs',?,?);"
             selectWorkflowDefStatement == "SELECT workflow_definition FROM test.workflow_definitions WHERE workflow_def_name=? AND version=?;"
             selectAllWorkflowDefVersionsByNameStatement == "SELECT * FROM test.workflow_definitions WHERE workflow_def_name=?;"
             selectAllWorkflowDefsStatement == "SELECT * FROM test.workflow_defs_index WHERE workflow_def_version_index=?;"
+            selectWorkflowDefsByAccountStatement == "SELECT workflow_def_name,version FROM test.workflow_defs_by_account WHERE product_account_id=?;"
             selectTaskDefStatement == "SELECT task_definition FROM test.task_definitions WHERE task_defs='task_defs' AND task_def_name=?;"
             selectAllTaskDefsStatement == "SELECT * FROM test.task_definitions WHERE task_defs=?;"
             updateWorkflowDefStatement == "UPDATE test.workflow_definitions SET workflow_definition=? WHERE workflow_def_name=? AND version=?;"
             deleteWorkflowDefStatement == "DELETE FROM test.workflow_definitions WHERE workflow_def_name=? AND version=?;"
             deleteWorkflowDefIndexStatement == "DELETE FROM test.workflow_defs_index WHERE workflow_def_version_index=? AND workflow_def_name_version=?;"
+            deleteWorkflowDefByAccountStatement == "DELETE FROM test.workflow_defs_by_account WHERE product_account_id=? AND workflow_def_name=? AND version=?;"
             deleteTaskDefStatement == "DELETE FROM test.task_definitions WHERE task_defs='task_defs' AND task_def_name=?;"
             insertWorkflowStatement == "INSERT INTO test.workflows (workflow_id,shard_id,task_id,entity,payload,total_tasks,total_partitions) VALUES (?,?,?,'workflow',?,?,?);"
             insertTaskStatement == "INSERT INTO test.workflows (workflow_id,shard_id,task_id,entity,payload) VALUES (?,?,?,'task',?);"

@@ -11,6 +11,23 @@
  *  specific language governing permissions and limitations under the License.
  */
 
+pluginManagement {
+    repositories {
+        maven {
+            url = "https://nexuscentral.runwayci.com/repository/maven-public/"
+            credentials {
+                username = System.getenv('NEXUS_USERNAME')
+                password = System.getenv('NEXUS_PASSWORD')
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+        }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 plugins {
     id "com.gradle.enterprise" version "3.11.1"
 }

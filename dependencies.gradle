@@ -56,7 +56,7 @@ ext {
     revSpock = '2.3-groovy-3.0'
     revSpotifyCompletableFutures = '0.3.3'
     revTestContainer = '1.19.1'
-    revScylla = '3.11.5.0'
+    revScylla = '3.11.5.13'
     revHibernateValidator = '6.2.5.Final'
     revOpentelemetryExtensionAnnotations = '1.18.0'
     revOpentelemetryApi = '1.35.0'

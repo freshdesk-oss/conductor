@@ -12,11 +12,13 @@
  */
 package com.netflix.conductor.dao;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import com.netflix.conductor.common.metadata.tasks.TaskDef;
 import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
+import com.netflix.conductor.common.metadata.workflow.WorkflowDefSummary;
 
 /** Data access layer for the workflow metadata - task definitions and workflow definitions */
 public interface MetadataDAO {
@@ -86,4 +88,16 @@ public interface MetadataDAO {
      * @return List the latest versions of the workflow definitions
      */
     List<WorkflowDef> getAllWorkflowDefsLatestVersions();
+
+    /**
+     * Workflow definitions registered under a product account, used to purge definitions on account
+     * deletion.
+     *
+     * @param productAccountId the product account id the definitions were registered with
+     * @return name and version of each definition, empty when the backing store does not index
+     *     definitions by account
+     */
+    default List<WorkflowDefSummary> getWorkflowDefsByAccount(String productAccountId) {
+        return Collections.emptyList();
+    }
 }

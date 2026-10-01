@@ -131,6 +131,18 @@ public class Statements {
     }
 
     /**
+     * @return cql query statement to index a workflow definition under its product account in the
+     *     "workflow_defs_by_account" table
+     */
+    public String getInsertWorkflowDefByAccountStatement() {
+        return QueryBuilder.insertInto(keyspace, TABLE_WORKFLOW_DEFS_BY_ACCOUNT)
+                .value(PRODUCT_ACCOUNT_ID_KEY, bindMarker())
+                .value(WORKFLOW_DEF_NAME_KEY, bindMarker())
+                .value(WORKFLOW_VERSION_KEY, bindMarker())
+                .getQueryString();
+    }
+
+    /**
      * @return cql query statement to insert a new task definition into the "task_definitions" table
      */
     public String getInsertTaskDefStatement() {
@@ -184,6 +196,17 @@ public class Statements {
                 .all()
                 .from(keyspace, TABLE_WORKFLOW_DEFS_INDEX)
                 .where(eq(WORKFLOW_DEF_INDEX_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to fetch all workflow def names and versions registered under a
+     *     product account from the "workflow_defs_by_account" table
+     */
+    public String getSelectWorkflowDefsByAccountStatement() {
+        return QueryBuilder.select(WORKFLOW_DEF_NAME_KEY, WORKFLOW_VERSION_KEY)
+                .from(keyspace, TABLE_WORKFLOW_DEFS_BY_ACCOUNT)
+                .where(eq(PRODUCT_ACCOUNT_ID_KEY, bindMarker()))
                 .getQueryString();
     }
 
@@ -248,6 +271,19 @@ public class Statements {
                 .from(keyspace, TABLE_WORKFLOW_DEFS_INDEX)
                 .where(eq(WORKFLOW_DEF_INDEX_KEY, bindMarker()))
                 .and(eq(WORKFLOW_DEF_NAME_VERSION_KEY, bindMarker()))
+                .getQueryString();
+    }
+
+    /**
+     * @return cql query statement to delete a workflow def's product account index row from the
+     *     "workflow_defs_by_account" table
+     */
+    public String getDeleteWorkflowDefByAccountStatement() {
+        return QueryBuilder.delete()
+                .from(keyspace, TABLE_WORKFLOW_DEFS_BY_ACCOUNT)
+                .where(eq(PRODUCT_ACCOUNT_ID_KEY, bindMarker()))
+                .and(eq(WORKFLOW_DEF_NAME_KEY, bindMarker()))
+                .and(eq(WORKFLOW_VERSION_KEY, bindMarker()))
                 .getQueryString();
     }
 

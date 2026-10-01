@@ -35,6 +35,7 @@ import org.springframework.cache.annotation.Cacheable;
 import com.netflix.conductor.annotations.Trace;
 import com.netflix.conductor.common.metadata.tasks.TaskDef;
 import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
+import com.netflix.conductor.common.metadata.workflow.WorkflowDefSummary;
 import com.netflix.conductor.dao.MetadataDAO;
 import com.netflix.conductor.metrics.Monitors;
 
@@ -146,6 +147,11 @@ public class CacheableMetadataDAO implements MetadataDAO {
     @Override
     public List<WorkflowDef> getAllWorkflowDefsLatestVersions() {
         return scyllaMetadataDAO.getAllWorkflowDefsLatestVersions();
+    }
+
+    @Override
+    public List<WorkflowDefSummary> getWorkflowDefsByAccount(String productAccountId) {
+        return scyllaMetadataDAO.getWorkflowDefsByAccount(productAccountId);
     }
 
     private List<TaskDef> refreshTaskDefsCache() {
