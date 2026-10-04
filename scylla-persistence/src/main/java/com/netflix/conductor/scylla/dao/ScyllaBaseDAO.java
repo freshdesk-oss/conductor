@@ -93,6 +93,13 @@ public abstract class ScyllaBaseDAO {
         }
     }
 
+    protected static int toShardId(String id) {
+        if (id == null) {
+            return 0;
+        }
+        return (int) (Long.parseLong(id) % Integer.MAX_VALUE);
+    }
+
     private void init() {
         try {
             if (!initialized) {
