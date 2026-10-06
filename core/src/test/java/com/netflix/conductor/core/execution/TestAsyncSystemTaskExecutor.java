@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
@@ -25,6 +26,8 @@ import org.junit.Test;
 import com.netflix.conductor.core.config.ConductorProperties;
 import com.netflix.conductor.core.dal.ExecutionDAOFacade;
 import com.netflix.conductor.core.execution.tasks.WorkflowSystemTask;
+import com.netflix.conductor.core.sync.Lock;
+import com.netflix.conductor.core.sync.local.LocalOnlyLock;
 import com.netflix.conductor.dao.MetadataDAO;
 import com.netflix.conductor.dao.QueueDAO;
 import com.netflix.conductor.model.TaskModel;
@@ -32,7 +35,9 @@ import com.netflix.conductor.model.WorkflowModel;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -66,7 +71,12 @@ public class TestAsyncSystemTaskExecutor {
 
         asyncSystemTaskExecutor =
                 new AsyncSystemTaskExecutor(
-                        executionDAOFacade, queueDAO, metadataDAO, properties, workflowExecutor);
+                        executionDAOFacade,
+                        queueDAO,
+                        metadataDAO,
+                        properties,
+                        workflowExecutor,
+                        (Lock) null);
 
         WorkflowModel workflow = new WorkflowModel();
         workflow.setWorkflowId(WORKFLOW_ID);
@@ -183,5 +193,121 @@ public class TestAsyncSystemTaskExecutor {
                         + "workflow would be created for the same SUB_WORKFLOW task (FS-399078)",
                 1,
                 systemTask.startCount.get());
+    }
+
+    /**
+     * The claim has to cover the gap after start() returns and before updateTask writes
+     * IN_PROGRESS. Releasing it first lets the repair re-queue call start() again.
+     */
+    @Test
+    public void duplicateDeliveryWhilePersistingDoesNotStartTwice() throws Exception {
+        AtomicInteger startCount = new AtomicInteger();
+        WorkflowSystemTask systemTask =
+                new WorkflowSystemTask("SUB_WORKFLOW") {
+                    @Override
+                    public void start(
+                            WorkflowModel workflow, TaskModel task, WorkflowExecutor executor) {
+                        startCount.incrementAndGet();
+                        task.setSubWorkflowId("child-workflow-" + startCount.get());
+                        task.setStatus(TaskModel.Status.IN_PROGRESS);
+                    }
+
+                    @Override
+                    public boolean isAsync() {
+                        return true;
+                    }
+
+                    @Override
+                    public boolean isAsyncComplete(TaskModel task) {
+                        return true;
+                    }
+                };
+        when(executionDAOFacade.getTaskModel(TASK_ID)).thenAnswer(invocation -> freshScheduledTask());
+
+        CountDownLatch updateEntered = new CountDownLatch(1);
+        CountDownLatch releaseUpdate = new CountDownLatch(1);
+        doAnswer(
+                        invocation -> {
+                            updateEntered.countDown();
+                            assertTrue(releaseUpdate.await(5, TimeUnit.SECONDS));
+                            return null;
+                        })
+                .when(executionDAOFacade)
+                .updateTask(any());
+
+        Thread firstDelivery =
+                new Thread(
+                        () -> asyncSystemTaskExecutor.execute(systemTask, TASK_ID), "delivery-1");
+        firstDelivery.start();
+        assertTrue(updateEntered.await(5, TimeUnit.SECONDS));
+
+        Thread secondDelivery =
+                new Thread(
+                        () -> asyncSystemTaskExecutor.execute(systemTask, TASK_ID), "delivery-2");
+        secondDelivery.start();
+        // Delivery #2 must observe the in-process claim and return without start() or updateTask.
+        secondDelivery.join(TimeUnit.SECONDS.toMillis(5));
+        assertEquals(1, startCount.get());
+
+        releaseUpdate.countDown();
+        firstDelivery.join(TimeUnit.SECONDS.toMillis(5));
+        assertEquals(1, startCount.get());
+    }
+
+    /**
+     * Two replicas do not share {@code tasksStarting}. The Redis/local lock plus a re-read after
+     * acquiring it must still allow only one start().
+     */
+    @Test
+    public void twoReplicasDoNotStartTheSameScheduledTaskTwice() throws Exception {
+        LocalOnlyLock lock = new LocalOnlyLock();
+        AsyncSystemTaskExecutor replica1 = newExecutor(lock);
+        AsyncSystemTaskExecutor replica2 = newExecutor(lock);
+        BlockingSystemTask systemTask = new BlockingSystemTask();
+
+        AtomicBoolean persisted = new AtomicBoolean(false);
+        when(executionDAOFacade.getTaskModel(TASK_ID))
+                .thenAnswer(
+                        invocation -> {
+                            TaskModel task = freshScheduledTask();
+                            if (persisted.get()) {
+                                task.setStatus(TaskModel.Status.IN_PROGRESS);
+                                task.setSubWorkflowId("child-workflow-1");
+                            }
+                            return task;
+                        });
+        doAnswer(
+                        invocation -> {
+                            persisted.set(true);
+                            return null;
+                        })
+                .when(executionDAOFacade)
+                .updateTask(any());
+
+        Thread firstReplica =
+                new Thread(() -> replica1.execute(systemTask, TASK_ID), "replica-1");
+        firstReplica.start();
+        assertTrue(systemTask.firstCallerEntered.await(5, TimeUnit.SECONDS));
+
+        Thread secondReplica =
+                new Thread(() -> replica2.execute(systemTask, TASK_ID), "replica-2");
+        secondReplica.start();
+
+        systemTask.releaseFirstCaller.countDown();
+        firstReplica.join(TimeUnit.SECONDS.toMillis(5));
+        secondReplica.join(TimeUnit.SECONDS.toMillis(5));
+
+        assertEquals(
+                "a second replica must reuse the persisted task instead of calling start()",
+                1,
+                systemTask.startCount.get());
+    }
+
+    private AsyncSystemTaskExecutor newExecutor(Lock lock) {
+        ConductorProperties properties = mock(ConductorProperties.class);
+        when(properties.getSystemTaskWorkerCallbackDuration()).thenReturn(Duration.ofSeconds(30));
+        when(properties.getTaskExecutionPostponeDuration()).thenReturn(Duration.ofSeconds(60));
+        return new AsyncSystemTaskExecutor(
+                executionDAOFacade, queueDAO, metadataDAO, properties, workflowExecutor, lock);
     }
 }
