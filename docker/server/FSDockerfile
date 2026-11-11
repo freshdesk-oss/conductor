@@ -6,6 +6,7 @@
 # 0. Builder stage
 # ===========================================================================================================
 FROM public.ecr.aws/amazoncorretto/amazoncorretto:17 AS builder
+RUN yum install -y findutils
 
 LABEL maintainer="Netflix OSS <conductor@netflix.com>"
 
