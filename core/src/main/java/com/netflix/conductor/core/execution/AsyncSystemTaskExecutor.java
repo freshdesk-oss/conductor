@@ -43,19 +43,6 @@ public class AsyncSystemTaskExecutor {
     private final long systemTaskCallbackTime;
     private final WorkflowExecutor workflowExecutor;
 
-    /**
-     * JVM-local guard against concurrent {@link WorkflowSystemTask#start} for the same task id.
-     *
-     * <p>Closed together with {@link #startLock}: {@code WorkflowRepairService} re-queues a
-     * still-{@code SCHEDULED} task while an earlier delivery is inside {@code start()} or has
-     * returned but not yet persisted {@code IN_PROGRESS}. For {@code SUB_WORKFLOW}, a second
-     * {@code start()} creates a second child workflow for one parent task (FS-399078).
-     *
-     * <p>The local map only sees this process. {@link #startLock} is the Redis lock
-     * ({@code provideRedisLock}) so another replica cannot start the same task. The claim is held
-     * until after {@code updateTask}. The task is re-read after the lock is acquired, so a
-     * delivery that already loaded {@code SCHEDULED} cannot start from that stale copy.
-     */
     private final ConcurrentHashMap<String, Boolean> tasksStarting = new ConcurrentHashMap<>();
 
     /** How long a second replica waits for the replica already inside {@code start()}. */
