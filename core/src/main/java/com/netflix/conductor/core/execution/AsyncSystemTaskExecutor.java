@@ -145,6 +145,12 @@ public class AsyncSystemTaskExecutor {
                 postponeQuietly(queueName, task);
                 return;
             }
+            LOGGER.info(
+                    "Attempting start claim for {}/{} workflow {} queue {}",
+                    task.getTaskType(),
+                    taskId,
+                    task.getWorkflowInstanceId(),
+                    queueName);
             if (!claimStart(taskId)) {
                 LOGGER.warn(
                         "Skipping start for {}/{} - another delivery is already starting this task",
@@ -157,11 +163,18 @@ public class AsyncSystemTaskExecutor {
                 // Re-read under the lock: the copy loaded above may predate another delivery's
                 // updateTask.
                 TaskModel current = loadTaskQuietly(taskId);
+                LOGGER.info(
+                        "Re-read under start lock for {}/{}: status in DB is {}",
+                        task.getTaskType(),
+                        taskId,
+                        current == null ? "NOT_FOUND" : current.getStatus());
                 if (current == null || current.getStatus() != TaskModel.Status.SCHEDULED) {
                     LOGGER.warn("Skipping start for {}/{} - task already started", task.getTaskType(), taskId);
                     return;
                 }
+                LOGGER.info("Starting {}/{} under start lock", task.getTaskType(), taskId);
                 run(systemTask, current, queueName);
+                LOGGER.info("Completed run of {}/{} under start lock", task.getTaskType(), taskId);
             } finally {
                 releaseStart(taskId);
             }
@@ -177,13 +190,27 @@ public class AsyncSystemTaskExecutor {
      */
     private boolean claimStart(String taskId) {
         if (tasksStarting.putIfAbsent(taskId, Boolean.TRUE) != null) {
+            LOGGER.info("Start claim denied for {}: already starting in this JVM", taskId);
             return false;
         }
-        if (startLock != null
-                && !startLock.acquireLock(
-                        START_LOCK_PREFIX + taskId, START_LOCK_TIME_TO_TRY_SECS, TimeUnit.SECONDS)) {
-            tasksStarting.remove(taskId);
-            return false;
+        if (startLock != null) {
+            boolean acquired =
+                    startLock.acquireLock(
+                            START_LOCK_PREFIX + taskId,
+                            START_LOCK_TIME_TO_TRY_SECS,
+                            TimeUnit.SECONDS);
+            if (!acquired) {
+                LOGGER.info(
+                        "Start claim denied for {}: distributed lock {} not acquired within {}s",
+                        taskId,
+                        START_LOCK_PREFIX + taskId,
+                        START_LOCK_TIME_TO_TRY_SECS);
+                tasksStarting.remove(taskId);
+                return false;
+            }
+            LOGGER.info("Acquired distributed start lock {}", START_LOCK_PREFIX + taskId);
+        } else {
+            LOGGER.info("Start claim granted for {} (JVM-local only, no distributed lock)", taskId);
         }
         return true;
     }
@@ -191,8 +218,10 @@ public class AsyncSystemTaskExecutor {
     private void releaseStart(String taskId) {
         if (startLock != null) {
             startLock.releaseLock(START_LOCK_PREFIX + taskId);
+            LOGGER.info("Released distributed start lock {}", START_LOCK_PREFIX + taskId);
         }
         tasksStarting.remove(taskId);
+        LOGGER.info("Released start claim for {}", taskId);
     }
 
     private void run(WorkflowSystemTask systemTask, TaskModel task, String queueName) {
