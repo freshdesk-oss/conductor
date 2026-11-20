@@ -149,6 +149,21 @@ public class AsyncSystemTaskExecutor {
                 task.setStartTime(System.currentTimeMillis());
                 Monitors.recordQueueWaitTime(task.getTaskType(), task.getQueueWaitTime());
                 systemTask.start(workflow, task, workflowExecutor);
+                // TEMP REPRO HACK (FS-399078) - do not commit. Widens the window between start()
+                // and updateTask() so a duplicate delivery sees SCHEDULED. Off unless set.
+                long reproSleepMs = Long.getLong("repro.subwf.sleepMs", 0L);
+                if (reproSleepMs > 0 && "SUB_WORKFLOW".equals(task.getTaskType())) {
+                    LOGGER.info(
+                            "REPRO HACK: sleeping {} ms after start() of {}/{} before updateTask",
+                            reproSleepMs,
+                            task.getTaskType(),
+                            taskId);
+                    try {
+                        Thread.sleep(reproSleepMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
             } else if (task.getStatus() == TaskModel.Status.IN_PROGRESS) {
                 systemTask.execute(workflow, task, workflowExecutor);
             }
