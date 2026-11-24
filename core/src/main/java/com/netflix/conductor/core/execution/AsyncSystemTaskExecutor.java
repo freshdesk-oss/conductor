@@ -14,6 +14,7 @@ package com.netflix.conductor.core.execution;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.netflix.conductor.core.config.ConductorProperties;
@@ -33,6 +34,11 @@ public class AsyncSystemTaskExecutor {
     private final QueueDAO queueDAO;
     private final MetadataDAO metadataDAO;
     private final long queueTaskMessagePostponeSecs;
+
+    // TEMP REPRO HACK (FS-399078) - do not commit. Set conductor.repro.subwf.sleep-ms in the
+    // server properties file; falls back to -Drepro.subwf.sleepMs. 0 = off.
+    @Value("${conductor.repro.subwf.sleep-ms:0}")
+    private long reproSleepMsConfig;
     private final long systemTaskCallbackTime;
     private final WorkflowExecutor workflowExecutor;
 
@@ -151,13 +157,25 @@ public class AsyncSystemTaskExecutor {
                 systemTask.start(workflow, task, workflowExecutor);
                 // TEMP REPRO HACK (FS-399078) - do not commit. Widens the window between start()
                 // and updateTask() so a duplicate delivery sees SCHEDULED. Off unless set.
-                long reproSleepMs = Long.getLong("repro.subwf.sleepMs", 0L);
+                long reproSleepMs =
+                        reproSleepMsConfig > 0
+                                ? reproSleepMsConfig
+                                : Long.getLong("repro.subwf.sleepMs", 0L);
                 if (reproSleepMs > 0 && "SUB_WORKFLOW".equals(task.getTaskType())) {
                     LOGGER.info(
-                            "REPRO HACK: sleeping {} ms after start() of {}/{} before updateTask",
+                            "REPRO HACK: sleeping {} ms after start() of {}/{} workflow {} before updateTask",
                             reproSleepMs,
                             task.getTaskType(),
-                            taskId);
+                            taskId,
+                            workflowId);
+                    // Re-push the message (postpone = remove + push) so a second delivery arrives
+                    // while this thread sleeps and the DB row is still SCHEDULED.
+                    try {
+                        queueDAO.postpone(queueName, taskId, task.getWorkflowPriority(), 2);
+                        LOGGER.info("REPRO HACK: re-pushed {}/{} to {} in 2s", task.getTaskType(), taskId, queueName);
+                    } catch (Exception e) {
+                        LOGGER.error("REPRO HACK: re-push failed for {}", taskId, e);
+                    }
                     try {
                         Thread.sleep(reproSleepMs);
                     } catch (InterruptedException ie) {
